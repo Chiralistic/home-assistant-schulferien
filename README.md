@@ -54,3 +54,25 @@ sensor:
     name: Schulferien Hamburg
     state: DE-HH
 ```
+
+
+You can create a simple Entity Card on your Dashboard with the following code
+```yaml
+type: entities
+title: Schulferien
+entities:
+  - entity: sensor.schulferien_niedersachsen
+    name: Aktueller Status
+  - type: attribute
+    entity: sensor.schulferien_niedersachsen
+    attribute: Nächste Ferien
+    name: Name der Ferien
+  - type: attribute
+    entity: sensor.schulferien_niedersachsen
+    attribute: Beginn
+    name: Beginn der Ferien
+  - type: attribute
+    entity: sensor.schulferien_niedersachsen
+    attribute: Ende
+    name: Ende der Ferien
+```

@@ -1,1 +1,1 @@
-"""Init file for Schulferien integration."""
+"""Initialisierungsdatei für die Schulferien-Integration."""

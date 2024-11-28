@@ -1,6 +1,7 @@
 import aiofiles  # Für asynchrone Dateizugriffe / For asynchronous file access
 import aiohttp
 import json
+import logging
 from datetime import datetime, timedelta
 from pathlib import Path
 from icalendar import Calendar
@@ -8,15 +9,22 @@ from homeassistant.helpers.entity import Entity
 from homeassistant.const import CONF_NAME, CONF_STATE
 from .const import API_URL, STANDARD_SPRACHE, STANDARD_LAND
 
+# Initialisiere Logger / Initialize logger
+_LOGGER = logging.getLogger(__name__)
+
 CACHE_DATEI = Path(__file__).parent / "ferien_cache.json"
 CACHE_GUELTIGKEIT_STUNDEN = 24  # Cache bleibt 24 Stunden gültig
 
 
 async def fetch_holidays(subdivision):
+    """
+    Fetch holiday data from the OpenHolidays API asynchronously.
+    """
     today = datetime.now()
     valid_from = today.strftime("%Y-%m-%d")
     valid_to = (today + timedelta(days=365)).strftime("%Y-%m-%d")
 
+    # Anfrage-Parameter / Request parameters
     params = {
         "countryIsoCode": STANDARD_LAND,
         "subdivisionCode": subdivision,
@@ -24,15 +32,25 @@ async def fetch_holidays(subdivision):
         "validFrom": valid_from,
         "validTo": valid_to,
     }
-    headers = {"accept": "text/calendar"}
 
+    # Zusätzliche Header für die Anfrage / Additional headers for the request
+    headers = {
+        "Accept": "text/calendar",  # Gibt an, dass die API iCalendar-Daten liefern soll
+        "User-Agent": "HomeAssistant-Schulferien-Integration",  # User-Agent für die API-Nutzung
+    }
+
+    _LOGGER.debug("Sende Anfrage an API: %s mit Parametern %s", API_URL, params)
+
+    # Asynchrone Anfrage an die API stellen / Make asynchronous request to the API
     async with aiohttp.ClientSession() as session:
         try:
             async with session.get(API_URL, params=params, headers=headers, timeout=10) as response:
-                response.raise_for_status()
+                response.raise_for_status()  # Überprüft, ob der HTTP-Statuscode kein Fehler ist
+                _LOGGER.debug("API-Antwort erhalten: %s", response.status)
                 return await response.text()
         except aiohttp.ClientError as error:
-            raise RuntimeError(f"API request failed: {error}")
+            _LOGGER.error("API-Anfrage fehlgeschlagen: %s", error)
+            raise RuntimeError(f"API-Anfrage fehlgeschlagen: {error}")
 
 
 async def lade_cache():
@@ -41,6 +59,7 @@ async def lade_cache():
     Loads cached holiday data from the local file.
     """
     if not CACHE_DATEI.exists():
+        _LOGGER.warning("Cache-Datei existiert nicht: %s", CACHE_DATEI)
         return None
 
     try:
@@ -50,6 +69,7 @@ async def lade_cache():
 
         zeitstempel = datetime.fromisoformat(daten["zeitstempel"])
         if datetime.now() - zeitstempel > timedelta(hours=CACHE_GUELTIGKEIT_STUNDEN):
+            _LOGGER.warning("Cache ist abgelaufen (älter als %d Stunden)", CACHE_GUELTIGKEIT_STUNDEN)
             return None
 
         # Konvertiere die JSON-Daten zurück in `date`-Objekte
@@ -61,8 +81,10 @@ async def lade_cache():
             }
             for urlaub in daten["ferien"]
         ]
+        _LOGGER.debug("Cache erfolgreich geladen: %d Ferieneinträge", len(ferien))
         return ferien
     except (IOError, ValueError, KeyError) as e:
+        _LOGGER.error("Fehler beim Laden des Caches: %s", e)
         raise RuntimeError(f"Fehler beim Laden des Caches: {e}")
 
 
@@ -88,7 +110,9 @@ async def speichere_cache(ferien):
     try:
         async with aiofiles.open(CACHE_DATEI, "w") as file:
             await file.write(json.dumps(daten, ensure_ascii=False, indent=4))
+        _LOGGER.debug("Cache erfolgreich gespeichert: %d Ferieneinträge", len(ferien))
     except IOError as e:
+        _LOGGER.error("Fehler beim Speichern des Caches: %s", e)
         raise RuntimeError(f"Fehler beim Speichern des Caches: {e}")
 
 
@@ -107,6 +131,7 @@ def parse_ical(ical_data):
                     "end_date": end_date,
                 }
             )
+    _LOGGER.debug("iCalendar erfolgreich geparst: %d Ferieneinträge", len(holidays))
     return holidays
 
 
@@ -117,6 +142,7 @@ async def aktualisiere_ferien(bundesland):
         await speichere_cache(holidays)
         return holidays
     except RuntimeError:
+        _LOGGER.warning("Falle auf Cache zurück, da die API nicht erreichbar war.")
         return await lade_cache()
 
 
@@ -161,6 +187,7 @@ class SchulferienSensor(Entity):
             self._naechste_ferien_name = None
             self._naechste_ferien_start = None
             self._naechste_ferien_ende = None
+            _LOGGER.warning("Keine Ferieninformationen verfügbar.")
             return
 
         # Prüfe, ob heute ein Ferientag ist
@@ -187,6 +214,12 @@ class SchulferienSensor(Entity):
             self._naechste_ferien_name = None
             self._naechste_ferien_start = None
             self._naechste_ferien_ende = None
+
+        _LOGGER.debug(
+            "Sensor aktualisiert: Heute Ferientag: %s, Nächste Ferien: %s",
+            self._heute_ferientag,
+            self._naechste_ferien_name,
+        )
 
 
 async def async_setup_platform(hass, config, async_add_entities, discovery_info=None):

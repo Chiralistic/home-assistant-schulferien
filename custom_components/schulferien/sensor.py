@@ -257,12 +257,14 @@ class SchulferienSensor(Entity):
 
 async def async_setup_platform(hass, config, async_add_entities, discovery_info=None):
     name = config.get(CONF_NAME, "Schulferien")
-    country_code = config.get(CONF_COUNTRY_CODE, DEFAULT_COUNTRY_CODE)
     bundesland = config.get(CONF_STATE, "DE-NI")
-    hour = config.get(CONF_HOUR, DEFAULT_HOUR)
-    minute = config.get(CONF_MINUTE, DEFAULT_MINUTE)
-    cache_duration = config.get(CONF_CACHE_DURATION, DEFAULT_CACHE_DURATION)
-    max_retries = config.get(CONF_MAX_RETRIES, DEFAULT_MAX_RETRIES)
+    hour = config.get("hour", 3)
+    minute = config.get("minute", 0)
+    cache_duration = config.get("cache_duration", 24)
+    max_retries = config.get("max_retries", 3)
+    country_code = config.get("country_code", "DE")
+
+    # Füge mindestens eine Entität hinzu
     async_add_entities(
         [
             SchulferienSensor(
@@ -270,3 +272,4 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
             )
         ]
     )
+

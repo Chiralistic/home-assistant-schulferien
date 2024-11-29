@@ -2,6 +2,7 @@ import aiofiles  # Für asynchrone Dateizugriffe / For asynchronous file access
 import aiohttp
 import json
 import logging
+import ssl
 from datetime import datetime, timedelta
 from pathlib import Path
 from icalendar import Calendar
@@ -14,6 +15,7 @@ _LOGGER = logging.getLogger(__name__)
 
 CACHE_DATEI = Path(__file__).parent / "ferien_cache.json"
 CACHE_GUELTIGKEIT_STUNDEN = 24  # Cache bleibt 24 Stunden gültig
+MAX_RETRIES = 3  # Maximale Anzahl von Wiederholungen
 
 
 async def fetch_holidays(subdivision):
@@ -24,7 +26,6 @@ async def fetch_holidays(subdivision):
     valid_from = today.strftime("%Y-%m-%d")
     valid_to = (today + timedelta(days=365)).strftime("%Y-%m-%d")
 
-    # Anfrage-Parameter / Request parameters
     params = {
         "countryIsoCode": STANDARD_LAND,
         "subdivisionCode": subdivision,
@@ -33,24 +34,41 @@ async def fetch_holidays(subdivision):
         "validTo": valid_to,
     }
 
-    # Zusätzliche Header für die Anfrage / Additional headers for the request
     headers = {
-        "Accept": "text/calendar",  # Gibt an, dass die API iCalendar-Daten liefern soll
-        "User-Agent": "HomeAssistant-Schulferien-Integration",  # User-Agent für die API-Nutzung
+        "Accept": "text/calendar",
+        "User-Agent": "HomeAssistant-Schulferien-Integration",
     }
+
+    ssl_context = ssl.create_default_context()
 
     _LOGGER.debug("Sende Anfrage an API: %s mit Parametern %s", API_URL, params)
 
-    # Asynchrone Anfrage an die API stellen / Make asynchronous request to the API
     async with aiohttp.ClientSession() as session:
         try:
-            async with session.get(API_URL, params=params, headers=headers, timeout=10) as response:
-                response.raise_for_status()  # Überprüft, ob der HTTP-Statuscode kein Fehler ist
+            async with session.get(API_URL, params=params, headers=headers, ssl=ssl_context, timeout=10) as response:
+                response.raise_for_status()
                 _LOGGER.debug("API-Antwort erhalten: %s", response.status)
                 return await response.text()
         except aiohttp.ClientError as error:
             _LOGGER.error("API-Anfrage fehlgeschlagen: %s", error)
             raise RuntimeError(f"API-Anfrage fehlgeschlagen: {error}")
+
+
+async def fetch_holidays_with_retry(subdivision):
+    """
+    Wiederholt die API-Anfrage bei Fehlern.
+    Retries the API request in case of failures.
+    """
+    retries = 0
+    while retries < MAX_RETRIES:
+        try:
+            return await fetch_holidays(subdivision)
+        except RuntimeError as e:
+            retries += 1
+            _LOGGER.warning("API-Anfrage fehlgeschlagen (Versuch %d von %d): %s", retries, MAX_RETRIES, e)
+            await asyncio.sleep(5)  # Wartezeit vor erneutem Versuch
+    _LOGGER.error("API-Anfrage nach %d Versuchen fehlgeschlagen.", MAX_RETRIES)
+    raise RuntimeError("API konnte nicht erreicht werden")
 
 
 async def lade_cache():
@@ -117,6 +135,10 @@ async def speichere_cache(ferien):
 
 
 def parse_ical(ical_data):
+    """
+    Parst iCalendar-Daten und extrahiert Ferien.
+    Parses iCalendar data and extracts holidays.
+    """
     holidays = []
     calendar = Calendar.from_ical(ical_data)
     for component in calendar.walk():
@@ -136,8 +158,12 @@ def parse_ical(ical_data):
 
 
 async def aktualisiere_ferien(bundesland):
+    """
+    Aktualisiert Ferieninformationen und speichert sie im Cache.
+    Updates holiday information and saves it to the cache.
+    """
     try:
-        ical_data = await fetch_holidays(bundesland)
+        ical_data = await fetch_holidays_with_retry(bundesland)
         holidays = parse_ical(ical_data)
         await speichere_cache(holidays)
         return holidays
@@ -161,7 +187,6 @@ class SchulferienSensor(Entity):
 
     @property
     def state(self):
-        # Liefere nur "Ferientag" oder "Kein Ferientag" zurück
         return "Ferientag" if self._heute_ferientag else "Kein Ferientag"
 
     @property
@@ -190,12 +215,10 @@ class SchulferienSensor(Entity):
             _LOGGER.warning("Keine Ferieninformationen verfügbar.")
             return
 
-        # Prüfe, ob heute ein Ferientag ist
         self._heute_ferientag = any(
             holiday["start_date"] <= today <= holiday["end_date"] for holiday in holidays
         )
 
-        # Finde die nächsten Ferien
         future_holidays = [
             holiday for holiday in holidays if holiday["start_date"] > today
         ]

@@ -1,10 +1,5 @@
-"""Konstanten für die Schulferien-Integration."""
-
-DOMAIN = "schulferien"
-API_URL = "https://openholidaysapi.org/SchoolHolidays"
-STANDARD_SPRACHE = "DE"
-STANDARD_LAND = "DE"
-CACHE_DATEI = "ferien_cache.json"
-CACHE_GUELTIGKEIT_STUNDEN = 24
-MAX_RETRIES = 3
-
+# Konstante Werte für die Schulferien-Integration
+API_URL = "https://openholidaysapi.org/SchoolHolidays"  # URL der API
+STANDARD_SPRACHE = "DE"  # Standard-Sprache der API (Deutsch)
+STANDARD_LAND = "DE"  # Standard-Land der API (Deutschland)
+DOMAIN = "schulferien"  # Domain der Integration

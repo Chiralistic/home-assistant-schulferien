@@ -1,5 +1,4 @@
 from homeassistant import config_entries
-from homeassistant.const import CONF_NAME, CONF_STATE
 from .const import DOMAIN
 
 SUPPORTED_COUNTRIES = {
@@ -54,50 +53,67 @@ SUPPORTED_COUNTRIES = {
     },
 }
 
+
 class SchulferienConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Config flow for Schulferien integration."""
 
     VERSION = 1
 
+    def __init__(self):
+        """Initialize the config flow."""
+        self.selected_country = None
+
     async def async_step_user(self, user_input=None):
         """Handle the initial step of the configuration."""
-        errors = {}
-
         if user_input is not None:
-            country = user_input.get("country_code")
-            state = user_input.get("state")
+            # Speichere das ausgewählte Land und gehe zum nächsten Schritt
+            self.selected_country = user_input["country_code"]
+            return await self.async_step_select_state()
 
-            # Validiere Eingaben
-            if not country:
-                errors["base"] = "country_required"
-            elif not state:
-                errors["base"] = "state_required"
-            else:
-                # Speichere Konfiguration
-                return self.async_create_entry(
-                    title=f"Schulferien ({state})", data=user_input
-                )
+        # Erstelle Dropdown für Länder
+        country_choices = {key: value["name"] for key, value in SUPPORTED_COUNTRIES.items()}
 
         return self.async_show_form(
             step_id="user",
-            data_schema=self._get_form_schema(),
-            errors=errors,
+            data_schema=self._get_country_schema(country_choices),
         )
 
-    def _get_form_schema(self):
-        """Erstelle das Schema für die Eingabeform."""
+    async def async_step_select_state(self, user_input=None):
+        """Handle the state selection based on the selected country."""
+        if user_input is not None:
+            # Erstelle die Konfiguration basierend auf Land und Staat
+            return self.async_create_entry(
+                title=f"Schulferien ({user_input['state']})",
+                data={
+                    "country_code": self.selected_country,
+                    "state": user_input["state"],
+                },
+            )
+
+        # Erstelle Dropdown für Staaten basierend auf dem ausgewählten Land
+        state_choices = SUPPORTED_COUNTRIES[self.selected_country]["states"]
+
+        return self.async_show_form(
+            step_id="select_state",
+            data_schema=self._get_state_schema(state_choices),
+        )
+
+    def _get_country_schema(self, country_choices):
+        """Erstelle das Schema für die Länderauswahl."""
         import voluptuous as vol
-
-        # Dropdown für Länder
-        country_choices = {key: value["name"] for key, value in SUPPORTED_COUNTRIES.items()}
-        country_code = self.context.get("country_code", "DE")
-
-        # Dropdown für Staaten basierend auf dem Land
-        state_choices = SUPPORTED_COUNTRIES.get(country_code, {}).get("states", {})
 
         return vol.Schema(
             {
-                vol.Required("country_code", default=country_code): vol.In(country_choices),
-                vol.Required("state", default="DE-NI"): vol.In(state_choices),
+                vol.Required("country_code", default="DE"): vol.In(country_choices),
+            }
+        )
+
+    def _get_state_schema(self, state_choices):
+        """Erstelle das Schema für die Staaten-Auswahl."""
+        import voluptuous as vol
+
+        return vol.Schema(
+            {
+                vol.Required("state"): vol.In(state_choices),
             }
         )

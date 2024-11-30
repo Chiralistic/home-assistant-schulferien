@@ -126,6 +126,18 @@ async def aktualisiere_ferien(country_code, subdivision):
         return await lade_cache()  # Cache verwenden
 
 
+async def async_setup_entry(hass, entry, async_add_entities):
+    """
+    Setzt die Sensoren basierend auf der Benutzeroberflächenkonfiguration auf.
+    """
+    name = entry.data.get("name", "Schulferien")
+    state = entry.data.get("state", "DE-NI")
+    country_code = entry.data.get("country_code", "DE")
+    
+    # Sensor erstellen und hinzufügen
+    async_add_entities([SchulferienSensor(name, country_code, state)])
+    
+
 class SchulferienSensor(Entity):
     """
     Sensor-Klasse für Schulferien.

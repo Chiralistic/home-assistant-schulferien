@@ -1,119 +1,160 @@
 from homeassistant import config_entries
 from .const import DOMAIN
 
-SUPPORTED_COUNTRIES = {
-    "DE": {
-        "name": "Deutschland",
-        "states": {
-            "DE-BW": "Baden-Württemberg",
-            "DE-BY": "Bayern",
-            "DE-BE": "Berlin",
-            "DE-BB": "Brandenburg",
-            "DE-HB": "Bremen",
-            "DE-HH": "Hamburg",
-            "DE-HE": "Hessen",
-            "DE-MV": "Mecklenburg-Vorpommern",
-            "DE-NI": "Niedersachsen",
-            "DE-NW": "Nordrhein-Westfalen",
-            "DE-RP": "Rheinland-Pfalz",
-            "DE-SL": "Saarland",
-            "DE-SN": "Sachsen",
-            "DE-ST": "Sachsen-Anhalt",
-            "DE-SH": "Schleswig-Holstein",
-            "DE-TH": "Thüringen",
-        },
-    },
-    "AT": {
-        "name": "Österreich",
-        "states": {
-            "AT-1": "Burgenland",
-            "AT-2": "Kärnten",
-            "AT-3": "Niederösterreich",
-            "AT-4": "Oberösterreich",
-            "AT-5": "Salzburg",
-            "AT-6": "Steiermark",
-            "AT-7": "Tirol",
-            "AT-8": "Vorarlberg",
-            "AT-9": "Wien",
-        },
-    },
-    "CH": {
-        "name": "Schweiz",
-        "states": {
-            "CH-ZH": "Zürich",
-            "CH-BE": "Bern",
-            "CH-LU": "Luzern",
-            "CH-UR": "Uri",
-            "CH-SZ": "Schwyz",
-            "CH-OW": "Obwalden",
-            "CH-NW": "Nidwalden",
-            "CH-GL": "Glarus",
-            "CH-ZG": "Zug",
-        },
-    },
+# Mapping für Länder und Regionen (Home Assistant zu API)
+COUNTRY_TO_API = {
+    "Germany": "DE",
+    "Austria": "AT",
+    "Switzerland": "CH",
+    "United States": "US",
+    "United Kingdom": "UK",
 }
 
+
+REGION_TO_API = {
+    "DE": {
+        "Baden-Württemberg": "DE-BW",
+        "Bayern": "DE-BY",
+        "Berlin": "DE-BE",
+        "Brandenburg": "DE-BB",
+        "Bremen": "DE-HB",
+        "Hamburg": "DE-HH",
+        "Hessen": "DE-HE",
+        "Mecklenburg-Vorpommern": "DE-MV",
+        "Niedersachsen": "DE-NI",
+        "Nordrhein-Westfalen": "DE-NW",
+        "Rheinland-Pfalz": "DE-RP",
+        "Saarland": "DE-SL",
+        "Sachsen": "DE-SN",
+        "Sachsen-Anhalt": "DE-ST",
+        "Schleswig-Holstein": "DE-SH",
+        "Thüringen": "DE-TH",
+    },
+        "AT": {
+        "Burgenland": "AT-1",
+        "Kärnten": "AT-2",
+        "Niederösterreich": "AT-3",
+        "Oberösterreich": "AT-4",
+        "Salzburg": "AT-5",
+        "Steiermark": "AT-6",
+        "Tirol": "AT-7",
+        "Vorarlberg": "AT-8",
+        "Wien": "AT-9",
+    },
+    "CH": {
+        "Zürich": "CH-ZH",
+        "Bern": "CH-BE",
+        "Luzern": "CH-LU",
+        "Uri": "CH-UR",
+        "Schwyz": "CH-SZ",
+        "Obwalden": "CH-OW",
+        "Nidwalden": "CH-NW",
+        "Glarus": "CH-GL",
+        "Zug": "CH-ZG",
+        "Freiburg": "CH-FR",
+        "Solothurn": "CH-SO",
+        "Basel-Stadt": "CH-BS",
+        "Basel-Landschaft": "CH-BL",
+        "Schaffhausen": "CH-SH",
+        "Appenzell Ausserrhoden": "CH-AR",
+        "Appenzell Innerrhoden": "CH-AI",
+        "Sankt Gallen": "CH-SG",
+        "Graubünden": "CH-GR",
+        "Aargau": "CH-AG",
+        "Thurgau": "CH-TG",
+        "Tessin": "CH-TI",
+        "Waadt": "CH-VD",
+        "Wallis": "CH-VS",
+        "Neuenburg": "CH-NE",
+        "Genf": "CH-GE",
+        "Jura": "CH-JU",
+    },
+    "US": {
+        "Alabama": "US-AL",
+        "Alaska": "US-AK",
+        "Arizona": "US-AZ",
+        "Arkansas": "US-AR",
+        "California": "US-CA",
+        "Colorado": "US-CO",
+        "Connecticut": "US-CT",
+        "Delaware": "US-DE",
+        "Florida": "US-FL",
+        "Georgia": "US-GA",
+        "Hawaii": "US-HI",
+        "Idaho": "US-ID",
+        "Illinois": "US-IL",
+        "Indiana": "US-IN",
+        "Iowa": "US-IA",
+        "Kansas": "US-KS",
+        "Kentucky": "US-KY",
+        "Louisiana": "US-LA",
+        "Maine": "US-ME",
+        "Maryland": "US-MD",
+        "Massachusetts": "US-MA",
+        "Michigan": "US-MI",
+        "Minnesota": "US-MN",
+        "Mississippi": "US-MS",
+        "Missouri": "US-MO",
+        "Montana": "US-MT",
+        "Nebraska": "US-NE",
+        "Nevada": "US-NV",
+        "New Hampshire": "US-NH",
+        "New Jersey": "US-NJ",
+        "New Mexico": "US-NM",
+        "New York": "US-NY",
+        "North Carolina": "US-NC",
+        "North Dakota": "US-ND",
+        "Ohio": "US-OH",
+        "Oklahoma": "US-OK",
+        "Oregon": "US-OR",
+        "Pennsylvania": "US-PA",
+        "Rhode Island": "US-RI",
+        "South Carolina": "US-SC",
+        "South Dakota": "US-SD",
+        "Tennessee": "US-TN",
+        "Texas": "US-TX",
+        "Utah": "US-UT",
+        "Vermont": "US-VT",
+        "Virginia": "US-VA",
+        "Washington": "US-WA",
+        "West Virginia": "US-WV",
+        "Wisconsin": "US-WI",
+        "Wyoming": "US-WY",
+    },
+    "UK": {
+        "England": "UK-ENG",
+        "Wales": "UK-WLS",
+        "Schottland": "UK-SCT",
+        "Nordirland": "UK-NIR",
+    },
+}
 
 class SchulferienConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Config flow for Schulferien integration."""
 
     VERSION = 1
 
-    def __init__(self):
-        """Initialize the config flow."""
-        self.selected_country = None
-
     async def async_step_user(self, user_input=None):
-        """Handle the initial step of the configuration."""
-        if user_input is not None:
-            # Speichere das ausgewählte Land und gehe zum nächsten Schritt
-            self.selected_country = user_input["country_code"]
-            return await self.async_step_select_state()
+        """
+        Konfigurations-Schritt: Automatische Verwendung von Home Assistant-Daten.
+        """
+        # Bestimme Land und Region aus Home Assistant
+        country_name = self.hass.config.country
+        region_name = self.hass.config.region
 
-        # Erstelle Dropdown für Länder
-        country_choices = {key: value["name"] for key, value in SUPPORTED_COUNTRIES.items()}
+        # Übersetze Land und Region für die API
+        country_code = COUNTRY_TO_API.get(country_name, "DE")  # Fallback zu DE
+        region_code = REGION_TO_API.get(country_code, {}).get(region_name)
 
-        return self.async_show_form(
-            step_id="user",
-            data_schema=self._get_country_schema(country_choices),
-        )
+        # Fehlerfall: Region nicht gefunden
+        if not region_code:
+            return self.async_abort(reason="region_not_supported")
 
-    async def async_step_select_state(self, user_input=None):
-        """Handle the state selection based on the selected country."""
-        if user_input is not None:
-            # Erstelle die Konfiguration basierend auf Land und Staat
-            return self.async_create_entry(
-                title=f"Schulferien ({user_input['state']})",
-                data={
-                    "country_code": self.selected_country,
-                    "state": user_input["state"],
-                },
-            )
-
-        # Erstelle Dropdown für Staaten basierend auf dem ausgewählten Land
-        state_choices = SUPPORTED_COUNTRIES[self.selected_country]["states"]
-
-        return self.async_show_form(
-            step_id="select_state",
-            data_schema=self._get_state_schema(state_choices),
-        )
-
-    def _get_country_schema(self, country_choices):
-        """Erstelle das Schema für die Länderauswahl."""
-        import voluptuous as vol
-
-        return vol.Schema(
-            {
-                vol.Required("country_code", default="DE"): vol.In(country_choices),
-            }
-        )
-
-    def _get_state_schema(self, state_choices):
-        """Erstelle das Schema für die Staaten-Auswahl."""
-        import voluptuous as vol
-
-        return vol.Schema(
-            {
-                vol.Required("state"): vol.In(state_choices),
-            }
+        # Eintrag erstellen
+        return self.async_create_entry(
+            title=f"Schulferien ({region_name})",
+            data={
+                "country_code": country_code,
+                "state": region_code,
+            },
         )

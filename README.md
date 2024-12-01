@@ -32,3 +32,4 @@ entities:
     attribute: Ende
     name: Ende der Ferien
 ```
+4. Restart HA

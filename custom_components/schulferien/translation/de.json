@@ -1,20 +1,26 @@
 {
-    "title": "Schulferien",
-    "config": {
-      "step": {
-        "user": {
-          "title": "Schulferien konfigurieren",
-          "description": "Gib die Konfigurationsdetails für die Schulferien-Integration ein.",
-          "data": {
-            "name": "Name",
-            "state": "Bundesland oder Region"
-          }
+  "title": "Schulferien",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Integration einrichten",
+        "description": "Bitte wählen Sie Ihr Land und Ihre Region aus.",
+        "data": {
+          "country": "Land",
+          "region": "Region"
         }
       },
-      "error": {
-        "name_required": "Der Name ist erforderlich.",
-        "state_required": "Das Bundesland ist erforderlich."
+      "region": {
+        "title": "Region auswählen",
+        "description": "Bitte wählen Sie Ihre Region.",
+        "data": {
+          "region": "Region"
+        }
       }
+    },
+    "error": {
+      "unsupported_country": "Dieses Land wird nicht unterstützt.",
+      "unsupported_region": "Diese Region wird nicht unterstützt."
     }
   }
-  
+}

@@ -3,17 +3,24 @@
   "config": {
     "step": {
       "user": {
-        "title": "Configure School Holidays",
-        "description": "Enter the configuration details for the school holidays integration.",
+        "title": "Set up the integration",
+        "description": "Please select your country and region.",
         "data": {
-          "name": "Name",
-          "state": "State or Region"
+          "country": "Country",
+          "region": "Region"
+        }
+      },
+      "region": {
+        "title": "Select your region",
+        "description": "Please select your region.",
+        "data": {
+          "region": "Region"
         }
       }
     },
     "error": {
-      "name_required": "The name is required.",
-      "state_required": "The state is required."
+      "unsupported_country": "This country is not supported.",
+      "unsupported_region": "This region is not supported."
     }
   }
 }

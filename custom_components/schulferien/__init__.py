@@ -1,37 +1,18 @@
+import logging
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
-
 from .const import DOMAIN
 
-# Globale Variable zur Verwaltung der Integration
-PLATFORMS = ["sensor"]
+_LOGGER = logging.getLogger(__name__)
 
-
-async def async_setup(hass: HomeAssistant, config: dict):
-    """
-    Wird aufgerufen, wenn Home Assistant startet.
-    Diese Methode ist notwendig, um YAML-Konfigurationen zu unterstützen.
-    """
-    hass.data.setdefault(DOMAIN, {})
+async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    """Set up Schulferien integration from a config entry."""
+    hass.async_create_task(
+        hass.config_entries.async_forward_entry_setup(entry, "sensor")
+    )
     return True
 
-
-async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
-    """
-    Setzt die Integration basierend auf einer UI-Konfiguration auf.
-    """
-    hass.data.setdefault(DOMAIN, {})
-
-    # Plattformen (z. B. Sensoren) laden
-    await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    """Unload a config entry."""
+    await hass.config_entries.async_forward_entry_unload(entry, "sensor")
     return True
-
-
-async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry):
-    """
-    Entfernt die Integration, wenn sie deaktiviert wird.
-    """
-    unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
-    if unload_ok:
-        hass.data[DOMAIN].pop(entry.entry_id)
-    return unload_ok

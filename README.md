@@ -10,26 +10,27 @@ still very much work in progress so use at your own risk.
 
 1. Copy the `schulferien` folder into your `custom_components` folder that is located under the root of your `home assistant config`.
 
-2. Add the Integration over the Home Assistant GUI
+2. Add the Integration over the Home Assistant GUI and select your country and region
 
 3. You can create a simple Entity Card on your Dashboard with the following code
 ```yaml
 type: entities
 title: Schulferien
 entities:
-  - entity: sensor.schulferien_niedersachsen
+  - entity: sensor.schulferien
     name: Aktueller Status
   - type: attribute
-    entity: sensor.schulferien_niedersachsen
+    entity: sensor.schulferien
     attribute: Nächste Ferien
-    name: Name der Ferien
+    name: Name der nächsten Ferien
   - type: attribute
-    entity: sensor.schulferien_niedersachsen
+    entity: sensor.schulferien
     attribute: Beginn
-    name: Beginn der Ferien
+    name: Beginn der nächsten Ferien
   - type: attribute
-    entity: sensor.schulferien_niedersachsen
+    entity: sensor.schulferien
     attribute: Ende
-    name: Ende der Ferien
+    name: Ende der nächsten Ferien
+
 ```
 4. Restart HA

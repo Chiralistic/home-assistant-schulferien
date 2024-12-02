@@ -1,73 +1,44 @@
 import logging
-import voluptuous as vol
 from homeassistant import config_entries
-from .const import DOMAIN, REGION_TO_API, COUNTRY_TO_API
+from homeassistant.const import CONF_COUNTRY, CONF_REGION
+from .const import COUNTRY_TO_API
 
 _LOGGER = logging.getLogger(__name__)
 
-class SchulferienConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
-    """Config flow for Schulferien integration."""
+class SchulferienConfigFlow(config_entries.ConfigFlow):
+    """Handle a config flow for Schulferien."""
+
     VERSION = 1
 
     def __init__(self):
-        self.selected_country = None
+        self._country_code = None
+        self._state_code = None
 
     async def async_step_user(self, user_input=None):
-        """Handle the initial step of the config flow."""
-        errors = {}
-
+        """Handle the user step."""
         if user_input is not None:
-            self.selected_country = user_input["country"]
-            return await self.async_step_region()
-
-        # Display the country selection form
-        countries = {v: k for k, v in COUNTRY_TO_API.items()}  # Reverse map for display
-        default_country = "Germany"  # Default to Germany
-
-        return self.async_show_form(
-            step_id="user",
-            data_schema=vol.Schema(
-                {
-                    vol.Required("country", default=default_country): vol.In(countries),
-                }
-            ),
-            errors=errors,
-        )
-
-    async def async_step_region(self, user_input=None):
-        """Handle the region selection step based on the selected country."""
-        errors = {}
-
-        if user_input is not None:
-            region = user_input["region"]
-            country_code = COUNTRY_TO_API[self.selected_country]
-            state_code = REGION_TO_API[country_code].get(region)
-
-            if not state_code:
-                errors["base"] = "unsupported_region"
-            else:
+            country_name = user_input[CONF_COUNTRY]
+            country_data = COUNTRY_TO_API.get(country_name)
+            if country_data:
+                self._country_code = country_data["code"]
+                self._state_code = user_input[CONF_REGION]
                 return self.async_create_entry(
-                    title=f"Schulferien ({region})",
-                    data={
-                        "country_code": country_code,
-                        "state": state_code,
-                    },
+                    title=f"{country_name} - {self._state_code}",
+                    data={"country_code": self._country_code, "state": self._state_code},
                 )
 
-        # Display the region selection form
-        if not self.selected_country:
-            return self.async_abort(reason="unknown_error")
-
-        country_code = COUNTRY_TO_API[self.selected_country]
-        regions = REGION_TO_API[country_code]
-        default_region = list(regions.keys())[0]
+        # Prepare country options for the user
+        countries = {v["translations"]["en"]: k for k, v in COUNTRY_TO_API.items()}
 
         return self.async_show_form(
-            step_id="region",
-            data_schema=vol.Schema(
-                {
-                    vol.Required("region", default=default_region): vol.In(regions),
-                }
-            ),
-            errors=errors,
+            step_id="user", data_schema=self._build_schema(countries)
+        )
+
+    def _build_schema(self, countries):
+        """Build the data schema for the form."""
+        return vol.Schema(
+            {
+                vol.Required(CONF_COUNTRY): vol.In(countries),
+                vol.Required(CONF_REGION): str,
+            }
         )

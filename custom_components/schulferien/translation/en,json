@@ -4,15 +4,14 @@
     "step": {
       "user": {
         "title": "Set up the integration",
-        "description": "Please select your country and region.",
+        "description": "Select your country.",
         "data": {
-          "country": "Country",
-          "region": "Region"
+          "country": "Country"
         }
       },
       "region": {
         "title": "Select your region",
-        "description": "Please select your region.",
+        "description": "Select your region.",
         "data": {
           "region": "Region"
         }

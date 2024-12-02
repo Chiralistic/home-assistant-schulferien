@@ -1,15 +1,16 @@
-API_URL = "https://openholidaysapi.org/SchoolHolidays"
 DOMAIN = "schulferien"
+API_URL = "https://openholidaysapi.org/SchoolHolidays"
 
-# Mapping für Länder und Regionen (Home Assistant zu API)
+# Mapping for countries with translations
 COUNTRY_TO_API = {
-    "Germany": "DE",
-    "Austria": "AT",
-    "Switzerland": "CH",
-    "United States": "US",
-    "United Kingdom": "UK",
+    "Germany": {"code": "DE", "translations": {"de": "Deutschland", "en": "Germany"}},
+    "Austria": {"code": "AT", "translations": {"de": "Österreich", "en": "Austria"}},
+    "Switzerland": {"code": "CH", "translations": {"de": "Schweiz", "en": "Switzerland"}},
+    "United States": {"code": "US", "translations": {"de": "Vereinigte Staaten", "en": "United States"}},
+    "United Kingdom": {"code": "UK", "translations": {"de": "Vereinigtes Königreich", "en": "United Kingdom"}},
 }
 
+# Mapping for regions
 REGION_TO_API = {
     "DE": {
         "Baden-Württemberg": "DE-BW",

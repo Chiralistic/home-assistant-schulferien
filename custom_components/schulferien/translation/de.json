@@ -4,15 +4,14 @@
     "step": {
       "user": {
         "title": "Integration einrichten",
-        "description": "Bitte wählen Sie Ihr Land und Ihre Region aus.",
+        "description": "Wählen Sie Ihr Land aus.",
         "data": {
-          "country": "Land",
-          "region": "Region"
+          "country": "Land"
         }
       },
       "region": {
         "title": "Region auswählen",
-        "description": "Bitte wählen Sie Ihre Region.",
+        "description": "Wählen Sie Ihre Region aus.",
         "data": {
           "region": "Region"
         }

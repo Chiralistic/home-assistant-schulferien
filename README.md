@@ -15,13 +15,7 @@ still very much work in progress so use at your own risk.
 ```yaml
 sensor:
   - platform: schulferien
-    name: Schulferien Niedersachsen
     state: DE-NI
-    hour: 4  # Uhrzeit der Abfrage (Standard: 3)
-    minute: 30  # Minute der Abfrage (Standard: 0)
-    cache_duration: 24  # Cache-Gültigkeitsdauer in Stunden (Standard: 24 Stunden)
-    max_retries: 3  # Maximale Anzahl an Wiederholungen bei API-Fehlern (Standard: 3)
-
 ```
 
 To reduce the load on the API you can change the time when the daily API call will be made.
@@ -55,41 +49,10 @@ If you want to monitor multiple states you have to setup multiple sensors. Some 
 ```yaml
 sensor:
   - platform: schulferien
-    name: Schulferien Niedersachsen
-    country_code: DE  # Ländercode (z. B. DE für Deutschland)
     state: DE-NI
-    hour: 43  # Uhrzeit der Abfrage (Standard: 3)
-    minute: 30  # Minute der Abfrage (Standard: 0)
-    cache_duration: 24  # Cache-Gültigkeitsdauer in Stunden (Standard: 24 Stunden)
-    max_retries: 3  # Maximale Anzahl an Wiederholungen bei API-Fehlern (Standard: 3)
 sensor:
   - platform: schulferien
-    name: Schulferien Niedersachsen
-    country_code: DE  # Ländercode (z. B. DE für Deutschland)
     state: DE-HH
-    hour: 4  # Uhrzeit der Abfrage (Standard: 3)
-    minute: 30  # Minute der Abfrage (Standard: 0)
-    cache_duration: 24  # Cache-Gültigkeitsdauer in Stunden (Standard: 24 Stunden)
-    max_retries: 3  # Maximale Anzahl an Wiederholungen bei API-Fehlern (Standard: 3)
-sensor:
-  - platform: schulferien
-    name: Schulferien Wien
-    country_code: AT  # Österreich
-    state: AT-9  # Bundeslandcode für Wien
-    hour: 4  # Abfragezeit auf 4 Uhr setzen
-    minute: 0
-    cache_duration: 48  # Cache bleibt 48 Stunden gültig
-    max_retries: 5  # Maximal 5 Wiederholungsversuche
-sensor:
-  - platform: schulferien
-    name: Schulferien Zürich
-    country_code: CH  # Schweiz
-    state: CH-ZH  # Kanton Zürich
-    hour: 2  # Abfragezeit auf 2 Uhr setzen
-    minute: 30
-    cache_duration: 24
-    max_retries: 3
-
 ```
 
 
@@ -98,18 +61,18 @@ You can create a simple Entity Card on your Dashboard with the following code
 type: entities
 title: Schulferien
 entities:
-  - entity: sensor.schulferien_niedersachsen
+  - entity: sensor.schulferien
     name: Aktueller Status
   - type: attribute
-    entity: sensor.schulferien_niedersachsen
+    entity: sensor.schulferien
     attribute: Nächste Ferien
     name: Name der Ferien
   - type: attribute
-    entity: sensor.schulferien_niedersachsen
+    entity: sensor.schulferien
     attribute: Beginn
     name: Beginn der Ferien
   - type: attribute
-    entity: sensor.schulferien_niedersachsen
+    entity: sensor.schulferien
     attribute: Ende
     name: Ende der Ferien
 ```

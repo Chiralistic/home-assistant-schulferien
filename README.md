@@ -15,7 +15,9 @@ still very much work in progress so use at your own risk.
 ```yaml
 sensor:
   - platform: schulferien
-    state: DE-NI
+    name: "Schulferien Deutschland Niedersachsen"
+    country_code: "DE"
+    region: "DE-NI"
 ```
 
 To reduce the load on the API you can change the time when the daily API call will be made.
@@ -49,7 +51,9 @@ If you want to monitor multiple states you have to setup multiple sensors. Some 
 ```yaml
 sensor:
   - platform: schulferien
-    state: DE-NI
+    name: "Schulferien Deutschland Niedersachsen"
+    country_code: "DE"
+    region: "DE-NI"
 sensor:
   - platform: schulferien
     state: DE-HH
@@ -76,3 +80,4 @@ entities:
     attribute: Ende
     name: Ende der Ferien
 ```
+

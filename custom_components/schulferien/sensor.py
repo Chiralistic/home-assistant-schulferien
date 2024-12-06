@@ -6,16 +6,16 @@ from datetime import datetime, timedelta
 from homeassistant.helpers.entity import Entity
 from homeassistant.helpers.event import async_track_point_in_time
 from homeassistant.util.dt import now as dt_now
-from .const import API_URL, STANDARD_SPRACHE
+from .const import API_URL, STANDARD_SPRACHE, STANDARD_LAND
 
 _LOGGER = logging.getLogger(__name__)
 
 async def hole_ferien(api_parameter):
     """
-    Fragt Ferieninformationen von der API im JSON-Format ab.
+    Fragt Ferieninformationen von der API ab.
 
     :param api_parameter: Dictionary mit API-Parametern.
-    :return: Liste von Ferieninformationen.
+    :return: JSON-Daten als Python-Dictionary.
     """
     _LOGGER.debug("Sende Anfrage an API: %s mit Parametern %s", API_URL, api_parameter)
 
@@ -32,11 +32,39 @@ async def hole_ferien(api_parameter):
             _LOGGER.error("API-Anfrage fehlgeschlagen: %s", fehler)
             raise RuntimeError(f"API-Anfrage fehlgeschlagen: {fehler}")
 
+def parse_ferien(json_daten):
+    """
+    Verarbeitet die JSON-Daten und extrahiert Ferieninformationen.
+
+    :param json_daten: JSON-Daten als Python-Dictionary.
+    :return: Liste von Ferien mit Name, Start- und Enddatum.
+    """
+    try:
+        ferien_liste = []
+        for eintrag in json_daten:
+            # Extrahiere den Namen der Ferien basierend auf der Sprache
+            name = next(
+                (name_item["text"] for name_item in eintrag["name"] if name_item["language"] == "DE"),
+                eintrag["name"][0]["text"]  # Fallback: Erster Name, falls keine passende Sprache gefunden wird
+            )
+            ferien_liste.append({
+                "name": name,
+                "start_datum": datetime.fromisoformat(eintrag["startDate"]).date(),
+                "end_datum": datetime.fromisoformat(eintrag["endDate"]).date(),
+            })
+        _LOGGER.debug("JSON-Daten erfolgreich verarbeitet: %d Ferieneinträge", len(ferien_liste))
+        return ferien_liste
+    except (KeyError, ValueError, IndexError) as fehler:
+        _LOGGER.error("Fehler beim Verarbeiten der JSON-Daten: %s", fehler)
+        raise RuntimeError("Ungültige JSON-Daten erhalten.")
+
+
 class SchulferienSensor(Entity):
     """Sensor für Schulferien."""
 
-    def __init__(self, land, region):
-        self._name = "Schulferien"
+    def __init__(self, hass, name, land, region):
+        self._hass = hass
+        self._name = name
         self._land = land
         self._region = region
         self._heute_ferientag = None
@@ -46,7 +74,11 @@ class SchulferienSensor(Entity):
 
     @property
     def name(self):
-        return self._name
+        return "Schulferien"
+
+    @property
+    def unique_id(self):
+        return "sensor.schulferien"
 
     @property
     def state(self):
@@ -55,6 +87,8 @@ class SchulferienSensor(Entity):
     @property
     def extra_state_attributes(self):
         return {
+            "Land": self._land,
+            "Region": self._region,
             "Nächste Ferien": self._naechste_ferien_name,
             "Beginn": self._naechste_ferien_beginn,
             "Ende": self._naechste_ferien_ende,
@@ -74,22 +108,24 @@ class SchulferienSensor(Entity):
         }
 
         try:
-            ferien_daten = await hole_ferien(api_parameter)
+            json_daten = await hole_ferien(api_parameter)
+            ferien_liste = parse_ferien(json_daten)
 
-            # JSON direkt auswerten
+            # Heute ein Ferientag?
             self._heute_ferientag = any(
-                ferien["startDate"] <= heute.strftime("%Y-%m-%d") <= ferien["endDate"]
-                for ferien in ferien_daten
+                ferien["start_datum"] <= heute <= ferien["end_datum"]
+                for ferien in ferien_liste
             )
 
+            # Nächste Ferien
             zukunftsferien = [
-                ferien for ferien in ferien_daten if ferien["startDate"] > heute.strftime("%Y-%m-%d")
+                ferien for ferien in ferien_liste if ferien["start_datum"] > heute
             ]
             if zukunftsferien:
-                naechste_ferien = min(zukunftsferien, key=lambda f: f["startDate"])
+                naechste_ferien = min(zukunftsferien, key=lambda f: f["start_datum"])
                 self._naechste_ferien_name = naechste_ferien["name"]
-                self._naechste_ferien_beginn = naechste_ferien["startDate"]
-                self._naechste_ferien_ende = naechste_ferien["endDate"]
+                self._naechste_ferien_beginn = naechste_ferien["start_datum"].strftime("%d.%m.%Y")
+                self._naechste_ferien_ende = naechste_ferien["end_datum"].strftime("%d.%m.%Y")
             else:
                 self._naechste_ferien_name = None
                 self._naechste_ferien_beginn = None
@@ -109,15 +145,22 @@ class SchulferienSensor(Entity):
             naechste_aktualisierung += timedelta(days=1)
 
         _LOGGER.debug("Nächste Aktualisierung für %s geplant", naechste_aktualisierung)
-        async_track_point_in_time(self.hass, self.async_update_callback, naechste_aktualisierung)
+        async_track_point_in_time(self._hass, self.async_update_callback, naechste_aktualisierung)
 
     async def async_update_callback(self, zeitpunkt):
         """Callback für geplante Aktualisierungen."""
         _LOGGER.debug("Aktualisierung um %s gestartet", zeitpunkt)
         await self.async_update()
 
-async def async_setup_entry(hass, config_entry, async_add_entities):
-    """Setzt die Sensor-Integration basierend auf Konfigurationseintrag auf."""
-    land = config_entry.data["land"]
-    region = config_entry.data["region"]
-    async_add_entities([SchulferienSensor(land, region)])
+async def async_setup_platform(hass, config, async_add_entities, discovery_info=None):
+    """
+    Einrichtung des Sensors basierend auf `configuration.yaml`.
+
+    :param hass: Home Assistant Instanz.
+    :param config: Konfigurationsdaten.
+    :param async_add_entities: Funktion zum Hinzufügen von Sensoren.
+    """
+    name = config.get("name", "Schulferien")
+    land = config.get("country_code", STANDARD_LAND)
+    region = config.get("region", "DE-NI")
+    async_add_entities([SchulferienSensor(hass, name, land, region)])

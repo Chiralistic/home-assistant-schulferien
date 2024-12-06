@@ -1,5 +1,3 @@
-# /custom_components/schulferien/sensor.py
-
 import aiohttp
 import logging
 from datetime import datetime, timedelta
@@ -32,11 +30,12 @@ async def hole_ferien(api_parameter):
             _LOGGER.error("API-Anfrage fehlgeschlagen: %s", fehler)
             raise RuntimeError(f"API-Anfrage fehlgeschlagen: {fehler}")
 
-def parse_ferien(json_daten):
+def parse_ferien(json_daten, brueckentage):
     """
-    Verarbeitet die JSON-Daten und extrahiert Ferieninformationen.
+    Verarbeitet die JSON-Daten und fügt Brückentage hinzu.
 
     :param json_daten: JSON-Daten als Python-Dictionary.
+    :param brueckentage: Liste von Brückentagen im deutschen Datumsformat.
     :return: Liste von Ferien mit Name, Start- und Enddatum.
     """
     try:
@@ -52,21 +51,31 @@ def parse_ferien(json_daten):
                 "start_datum": datetime.fromisoformat(eintrag["startDate"]).date(),
                 "end_datum": datetime.fromisoformat(eintrag["endDate"]).date(),
             })
+
+        # Füge Brückentage hinzu
+        for tag in brueckentage:
+            datum = datetime.strptime(tag, "%d.%m.%Y").date()
+            ferien_liste.append({
+                "name": "Brückentag",
+                "start_datum": datum,
+                "end_datum": datum,
+            })
+
         _LOGGER.debug("JSON-Daten erfolgreich verarbeitet: %d Ferieneinträge", len(ferien_liste))
         return ferien_liste
     except (KeyError, ValueError, IndexError) as fehler:
         _LOGGER.error("Fehler beim Verarbeiten der JSON-Daten: %s", fehler)
         raise RuntimeError("Ungültige JSON-Daten erhalten.")
 
-
 class SchulferienSensor(Entity):
     """Sensor für Schulferien."""
 
-    def __init__(self, hass, name, land, region):
+    def __init__(self, hass, name, land, region, brueckentage):
         self._hass = hass
         self._name = name
         self._land = land
         self._region = region
+        self._brueckentage = brueckentage  # Liste der Brückentage
         self._heute_ferientag = None
         self._naechste_ferien_name = None
         self._naechste_ferien_beginn = None
@@ -86,12 +95,16 @@ class SchulferienSensor(Entity):
 
     @property
     def extra_state_attributes(self):
+        """
+        Zusätzliche Attribute des Sensors.
+        """
         return {
             "Land": self._land,
             "Region": self._region,
             "Nächste Ferien": self._naechste_ferien_name,
             "Beginn": self._naechste_ferien_beginn,
             "Ende": self._naechste_ferien_ende,
+            "Brückentage": self._brueckentage,  # Brückentage als Attribut hinzufügen
         }
 
     async def async_update(self):
@@ -109,7 +122,7 @@ class SchulferienSensor(Entity):
 
         try:
             json_daten = await hole_ferien(api_parameter)
-            ferien_liste = parse_ferien(json_daten)
+            ferien_liste = parse_ferien(json_daten, self._brueckentage)
 
             # Heute ein Ferientag?
             self._heute_ferientag = any(
@@ -134,24 +147,6 @@ class SchulferienSensor(Entity):
         except RuntimeError:
             _LOGGER.warning("API konnte nicht erreicht werden, Daten sind möglicherweise nicht aktuell.")
 
-    async def async_added_to_hass(self):
-        """
-        Wird aufgerufen, wenn der Sensor zu Home Assistant hinzugefügt wird.
-        Hier wird der tägliche Abruf geplant.
-        """
-        jetzt = dt_now()
-        naechste_aktualisierung = jetzt.replace(hour=0, minute=1, second=0, microsecond=0)
-        if jetzt >= naechste_aktualisierung:
-            naechste_aktualisierung += timedelta(days=1)
-
-        _LOGGER.debug("Nächste Aktualisierung für %s geplant", naechste_aktualisierung)
-        async_track_point_in_time(self._hass, self.async_update_callback, naechste_aktualisierung)
-
-    async def async_update_callback(self, zeitpunkt):
-        """Callback für geplante Aktualisierungen."""
-        _LOGGER.debug("Aktualisierung um %s gestartet", zeitpunkt)
-        await self.async_update()
-
 async def async_setup_platform(hass, config, async_add_entities, discovery_info=None):
     """
     Einrichtung des Sensors basierend auf `configuration.yaml`.
@@ -163,4 +158,5 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
     name = config.get("name", "Schulferien")
     land = config.get("country_code", STANDARD_LAND)
     region = config.get("region", "DE-NI")
-    async_add_entities([SchulferienSensor(hass, name, land, region)])
+    brueckentage = config.get("bridge_days", [])
+    async_add_entities([SchulferienSensor(hass, name, land, region, brueckentage)])

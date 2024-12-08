@@ -1,0 +1,16 @@
+{
+    "name_schulferien": "Skoleferier",
+    "name_feiertag": "Helligdag",
+    "name_combined": "Skoleferier/Helligdag",
+    "current_status": "Feriedag",
+    "no_current_status": "Ingen feriedag",
+    "next_holidays": "Næste ferie",
+    "start": "Start",
+    "end": "Slut",
+    "country": "Land",
+    "region": "Region",
+    "bridge_days": "Bro-dage",
+    "public_holiday": "Helligdag",
+    "no_public_holiday": "Ingen helligdag"
+  }
+  

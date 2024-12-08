@@ -16,6 +16,7 @@ sensor:
     name: "Schulferien Deutschland Niedersachsen"
     country_code: "DE"
     region: "DE-NI"
+    language: "DE"
 ```
 
 ## Konfiguration
@@ -43,8 +44,6 @@ Land    | Code
 
 Da diese Integration die OpenHolidaysAPI verwendet, funktionieren wahrscheinlich auch andere Länder und Regionen, jedoch wurde dies nicht getestet.
 
-If you want to monitor multiple states you have to setup multiple sensors. You can add additional days which should count as Holidays
-
 ```yaml
 sensor:
   - platform: schulferien
@@ -55,6 +54,7 @@ sensor:
       - "10.05.2024"
       - "04.10.2024"
       - "01.11.2024"
+    language: "DE"
 ```
 
 Erstelle eine einfache Entitätskarte, die alle Attribute anzeigt in deinem Dashboard mit dem folgenden Code. Bei Bedarf kann der Stack verkleinert werden um nur die Informationen anzuzeigen, die gewünscht sind.
@@ -142,6 +142,7 @@ cards:
             - "10.05.2024"
             - "04.10.2024"
             - "01.11.2024"
+          language: "DE"
       ```
 
       Jede Zeile in der Liste `bridge_days` muss ein Datum im Format `TT.MM.JJJJ` enthalten.
@@ -158,12 +159,13 @@ cards:
       {% endif %}
 ```
 
-## English
+## ENGLISH
+
 Home Assistant Integration to make the vacations an entity for automations using the OpenHolidays-API.
 
 still very much work in progress so use at your own risk.
 
-## Installation
+## Installation-EN
 
 ### Manual
 
@@ -177,6 +179,7 @@ sensor:
     name: "Schulferien Deutschland Niedersachsen"
     country_code: "DE"
     region: "DE-NI"
+    language: "EN"
 ```
 
 ## Configuration
@@ -216,6 +219,7 @@ sensor:
       - "10.05.2024"
       - "04.10.2024"
       - "01.11.2024"
+    language: "DE"
 ```
 
 Create a simple entity card that displays all attributes on your dashboard with the following code. If necessary, the stack can be reduced to show only the desired information.
@@ -302,6 +306,7 @@ cards:
             - "10.05.2024"
             - "04.10.2024"
             - "01.11.2024"
+          language: "EN"
       ```
 
       Each line in the `bridge_days` list must contain a date in the format `DD.MM.YYYY`.

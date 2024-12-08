@@ -1,0 +1,16 @@
+{
+    "name_schulferien": "Férias escolares",
+    "name_feiertag": "Feriado",
+    "name_combined": "Férias escolares/Feriado",
+    "current_status": "Dia de férias",
+    "no_current_status": "Sem dia de férias",
+    "next_holidays": "Próximas férias",
+    "start": "Início",
+    "end": "Fim",
+    "country": "País",
+    "region": "Região",
+    "bridge_days": "Dias ponte",
+    "public_holiday": "Feriado",
+    "no_public_holiday": "Sem feriado"
+  }
+  

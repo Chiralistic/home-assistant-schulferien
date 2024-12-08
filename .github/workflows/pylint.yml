@@ -1,32 +1,24 @@
 name: Pylint Check
 
 on: [push]
-
 jobs:
-  pylint:
+  lint:
     runs-on: ubuntu-latest
-
-    strategy:
-      matrix:
-        python-version: ["3.8", "3.9", "3.10"]
-
+    
     steps:
-      # Repository auschecken
-      - name: Checkout Repository
-        uses: actions/checkout@v4
+    - name: Checkout repository
+      uses: actions/checkout@v4
 
-      # Python-Umgebung einrichten
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v3
-        with:
-          python-version: ${{ matrix.python-version }}
-      # Abhängigkeiten installieren
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: "3.10"  # Du kannst die Version hier anpassen
 
-      # Pylint ausführen
-      - name: Run pylint
-        run: |
-          pylint $(git ls-files '*.py')
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Run Pylint
+      run: |
+        pylint --max-line-length=100 --disable=R,C

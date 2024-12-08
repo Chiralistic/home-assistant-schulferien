@@ -40,7 +40,11 @@ async def hole_daten(api_url, api_parameter):
     async with aiohttp.ClientSession() as session:
         try:
             # Die API-Abfrage wird durchgeführt
-            async with session.get(api_url, params=api_parameter, headers={"Accept": "application/json"}) as antwort:
+            async with session.get(
+                api_url,
+                params=api_parameter,
+                headers={"Accept": "application/json"}
+            ) as antwort:
                 antwort.raise_for_status()  # Löst eine Ausnahme aus, wenn die HTTP-Antwort einen Fehlerstatus hat
                 daten = await antwort.json()  # Konvertiere die Antwort in ein JSON-Objekt
                 _LOGGER.debug("API-Antwort erhalten: %s", antwort.status)
@@ -48,7 +52,7 @@ async def hole_daten(api_url, api_parameter):
         except aiohttp.ClientError as fehler:
             # Fehlerbehandlung, falls die API-Anfrage fehlschlägt
             _LOGGER.error("API-Anfrage fehlgeschlagen: %s", fehler)
-            raise RuntimeError(f"API-Anfrage fehlgeschlagen: {fehler}")
+            raise RuntimeError(f"API-Anfrage fehlgeschlagen: {fehler}") from fehler
 
 def parse_daten(json_daten, brueckentage=None, typ="ferien"):
     """Verarbeitet die JSON-Daten und fügt Brückentage oder Feiertage hinzu."""
@@ -58,7 +62,9 @@ def parse_daten(json_daten, brueckentage=None, typ="ferien"):
         for eintrag in json_daten:
             # Extrahiere den Namen des Feiertags oder der Ferien in deutscher Sprache
             name = next(
-                (name_item["text"] for name_item in eintrag["name"] if name_item["language"] == "DE"),
+                (name_item["text"] 
+                for name_item in eintrag["name"] 
+                if name_item["language"] == "DE"),
                 eintrag["name"][0]["text"]
             )
             liste.append({
@@ -82,7 +88,7 @@ def parse_daten(json_daten, brueckentage=None, typ="ferien"):
     except (KeyError, ValueError, IndexError) as fehler:
         # Fehlerbehandlung, falls beim Verarbeiten der JSON-Daten ein Fehler auftritt
         _LOGGER.error("Fehler beim Verarbeiten der JSON-Daten: %s", fehler)
-        raise RuntimeError("Ungültige JSON-Daten erhalten.")
+        raise RuntimeError("Ungültige JSON-Daten erhalten.") from fehler
 
 class SchulferienSensor(Entity):
     """Sensor für Schulferien und Brückentage."""
@@ -164,7 +170,7 @@ class SchulferienSensor(Entity):
                 self._naechste_ferien_ende = None
 
         except RuntimeError:
-            _LOGGER.warning("API konnte nicht erreicht werden, Daten sind möglicherweise nicht aktuell.")
+            _LOGGER.warning("API konnte nicht erreicht werden.")
 
     async def async_setup(self):
         """Asynchrone Methode zum Laden der Übersetzungen für den Schulferien-Sensor."""
@@ -234,13 +240,15 @@ class FeiertagSensor(Entity):
             if zukunft_feiertage:
                 naechster_feiertag = min(zukunft_feiertage, key=lambda f: f["start_datum"])
                 self._naechster_feiertag_name = naechster_feiertag["name"]
-                self._naechster_feiertag_datum = naechster_feiertag["start_datum"].strftime("%d.%m.%Y")
+                self._naechster_feiertag_datum = naechster_feiertag["start_datum"].strftime(
+                    "%d.%m.%Y"
+                )
             else:
                 self._naechster_feiertag_name = None
                 self._naechster_feiertag_datum = None
 
         except RuntimeError:
-            _LOGGER.warning("API konnte nicht erreicht werden, Daten sind möglicherweise nicht aktuell.")
+            _LOGGER.warning("API konnte nicht erreicht werden.")
     async def async_setup(self):
         """Asynchrone Methode zum Laden der Feiertags-Übersetzungen."""
         self._translations = await lade_uebersetzung(self.sprache)
@@ -248,7 +256,9 @@ class FeiertagSensor(Entity):
 class SchulferienFeiertagSensor(Entity):
     """Kombinierter Sensor für Schulferien und Feiertage."""
 
-    def __init__(self, hass, name, schulferien_entity_id, feiertag_entity_id, sprache=STANDARD_SPRACHE):
+    def __init__(
+        self, hass, name, schulferien_entity_id, feiertag_entity_id, sprache=STANDARD_SPRACHE
+    ):
         self._hass = hass
         self._name = name
         self._schulferien_entity_id = schulferien_entity_id
@@ -302,10 +312,14 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
     brueckentage = config.get("bridge_days", [])
 
     # Erstellen des Schulferien-Sensors
-    schulferien_sensor = SchulferienSensor(hass, f"{name}_schulferien", land, region, brueckentage, sprache=STANDARD_SPRACHE)
-    
+    schulferien_sensor = SchulferienSensor(
+        hass, f"{name}_schulferien", land, region, brueckentage, sprache=STANDARD_SPRACHE
+    )
+
     # Erstellen des Feiertag-Sensors
-    feiertag_sensor = FeiertagSensor(hass, f"{name}_feiertag", land, region, sprache=STANDARD_SPRACHE)
+    feiertag_sensor = FeiertagSensor(
+        hass, f"{name}_feiertag", land, region, sprache=STANDARD_SPRACHE
+    )
 
     # Erstellen des Kombi-Sensors, der die Zustände der beiden Sensoren kombiniert
     kombi_sensor = SchulferienFeiertagSensor(
@@ -321,4 +335,3 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
 
     # Sensoren zu Home Assistant hinzufügen
     async_add_entities([schulferien_sensor, feiertag_sensor, kombi_sensor])
-

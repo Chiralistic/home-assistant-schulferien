@@ -1,0 +1,16 @@
+{
+    "name_schulferien": "Vacaciones escolares",
+    "name_feiertag": "Día festivo",
+    "name_combined": "Vacaciones escolares/Día festivo",
+    "current_status": "Día de vacaciones",
+    "no_current_status": "No hay día de vacaciones",
+    "next_holidays": "Próximas vacaciones",
+    "start": "Inicio",
+    "end": "Fin",
+    "country": "País",
+    "region": "Región",
+    "bridge_days": "Días puente",
+    "public_holiday": "Día festivo",
+    "no_public_holiday": "No hay día festivo"
+  }
+  

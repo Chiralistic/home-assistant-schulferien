@@ -1,0 +1,16 @@
+{
+    "name_schulferien": "School Holidays",
+    "name_feiertag": "Public Holiday",
+    "name_combined": "School Holidays/Public Holiday",
+    "current_status": "Holiday",
+    "no_current_status": "No Holiday",
+    "next_holidays": "Next Holidays",
+    "start": "Start",
+    "end": "End",
+    "country": "Country",
+    "region": "Region",
+    "bridge_days": "Bridge Days",
+    "public_holiday": "Public Holiday",
+    "no_public_holiday": "No Public Holiday"
+  }
+  

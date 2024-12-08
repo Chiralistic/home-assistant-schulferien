@@ -1,10 +1,30 @@
 import aiohttp
+import aiofiles
 import logging
+import os
+import json
 from datetime import datetime, timedelta
 from homeassistant.helpers.entity import Entity
 from .const import API_URL_FERIEN, API_URL_FEIERTAGE, STANDARD_SPRACHE, STANDARD_LAND
+from .const import TRANSLATION_PATH, STANDARD_SPRACHE
 
 _LOGGER = logging.getLogger(__name__)
+
+async def lade_uebersetzung(sprache):
+    """Lädt die Übersetzung basierend auf der gewählten Sprache asynchron."""
+    dateipfad = os.path.join(os.path.dirname(__file__), TRANSLATION_PATH, f"{sprache.lower()}.json")
+    try:
+        async with aiofiles.open(dateipfad, "r", encoding="utf-8") as file:
+            inhalt = await file.read()  # Asynchron lesen
+            return json.loads(inhalt)  # JSON parsen
+    except (FileNotFoundError, json.JSONDecodeError) as fehler:
+        _LOGGER.error("Fehler beim Laden der Übersetzung: %s", fehler)
+        return {}
+
+async def async_setup(self):
+    """Asynchrone Methode zum Laden der Übersetzungen."""
+    self._translations = await lade_uebersetzung(self.sprache)
+
 
 async def hole_daten(api_url, api_parameter):
     """Allgemeine Funktion, um Daten von der API abzurufen."""
@@ -59,13 +79,15 @@ def parse_daten(json_daten, brueckentage=None, typ="ferien"):
 class SchulferienSensor(Entity):
     """Sensor für Schulferien und Brückentage."""
 
-    def __init__(self, hass, name, land, region, brueckentage):
+    def __init__(self, hass, name, land, region, brueckentage, sprache=STANDARD_SPRACHE):
         # Initialisierung des Sensors mit den übergebenen Parametern
         self._hass = hass
         self._name = name
         self._land = land
         self._region = region
         self._brueckentage = brueckentage
+        self.sprache = sprache  # Hier wird das Attribut 'sprache' gesetzt
+        self._translations = {}
 
         # Interne Variablen für die Berechnung der Ferien
         self._heute_ferientag = None
@@ -75,7 +97,7 @@ class SchulferienSensor(Entity):
 
     @property
     def name(self):
-        return "Schulferien"  # Der Name des Sensors
+        return self._translations.get("name_schulferien", "Schulferien")  # Der Name des Sensors
 
     @property
     def unique_id(self):
@@ -103,7 +125,7 @@ class SchulferienSensor(Entity):
         api_parameter = {
             "countryIsoCode": self._land,
             "subdivisionCode": self._region,
-            "languageIsoCode": STANDARD_SPRACHE,
+            "languageIsoCode": self.sprache,  # Hier die 'sprache' verwenden
             "validFrom": heute.strftime("%Y-%m-%d"),
             "validTo": (heute + timedelta(days=365)).strftime("%Y-%m-%d"),
         }
@@ -136,14 +158,21 @@ class SchulferienSensor(Entity):
         except RuntimeError:
             _LOGGER.warning("API konnte nicht erreicht werden, Daten sind möglicherweise nicht aktuell.")
 
+    async def async_setup(self):
+        """Asynchrone Methode zum Laden der Übersetzungen für den Schulferien-Sensor."""
+        self._translations = await lade_uebersetzung(self.sprache)
+
+
 class FeiertagSensor(Entity):
     """Sensor für Feiertage."""
 
-    def __init__(self, hass, name, land, region):
+    def __init__(self, hass, name, land, region, sprache=STANDARD_SPRACHE):
         self._hass = hass
         self._name = name
         self._land = land
         self._region = region
+        self.sprache = sprache
+        self._translations = {}
 
         self._heute_feiertag = None
         self._naechster_feiertag_name = None
@@ -151,7 +180,7 @@ class FeiertagSensor(Entity):
 
     @property
     def name(self):
-        return "Feiertag"
+        return self._translations.get("name_feiertag", "Feiertag")
 
     @property
     def unique_id(self):
@@ -175,7 +204,7 @@ class FeiertagSensor(Entity):
         api_parameter = {
             "countryIsoCode": self._land,
             "subdivisionCode": self._region,
-            "languageIsoCode": STANDARD_SPRACHE,
+            "languageIsoCode": self.sprache,
             "validFrom": heute.strftime("%Y-%m-%d"),
             "validTo": (heute + timedelta(days=365)).strftime("%Y-%m-%d"),
         }
@@ -204,20 +233,25 @@ class FeiertagSensor(Entity):
 
         except RuntimeError:
             _LOGGER.warning("API konnte nicht erreicht werden, Daten sind möglicherweise nicht aktuell.")
+    async def async_setup(self):
+        """Asynchrone Methode zum Laden der Feiertags-Übersetzungen."""
+        self._translations = await lade_uebersetzung(self.sprache)
 
 class SchulferienFeiertagSensor(Entity):
     """Kombinierter Sensor für Schulferien und Feiertage."""
 
-    def __init__(self, hass, name, schulferien_entity_id, feiertag_entity_id):
+    def __init__(self, hass, name, schulferien_entity_id, feiertag_entity_id, sprache=STANDARD_SPRACHE):
         self._hass = hass
         self._name = name
         self._schulferien_entity_id = schulferien_entity_id
         self._feiertag_entity_id = feiertag_entity_id
+        self.sprache = sprache
+        self._translations = {}
         self._state = None
 
     @property
     def name(self):
-        return "Schulferien/Feiertag"
+        return self._translations.get("name_combined", "Schulferien/Feiertag")
 
     @property
     def unique_id(self):
@@ -227,15 +261,29 @@ class SchulferienFeiertagSensor(Entity):
     def state(self):
         return "Ferientag/Feiertag" if self._state else "Kein Ferientag/Feiertag"
 
+    @property
+    def extra_state_attributes(self):
+        """Zusätzliche Attribute für den kombinierten Sensor."""
+        return {
+            "Schulferien Sensor": self._schulferien_entity_id,
+            "Feiertag Sensor": self._feiertag_entity_id,
+        }
+
     async def async_update(self):
-        """Kombiniere die Zustände der anderen beiden Sensoren."""
+        """Kombiniere die Zustände der beiden Sensoren (Schulferien und Feiertag)."""
         schulferien_state = self._hass.states.get(self._schulferien_entity_id)
         feiertag_state = self._hass.states.get(self._feiertag_entity_id)
 
+        # Überprüfen, ob entweder der Schulferien- oder der Feiertag-Sensor aktiv ist
         self._state = (
-            (schulferien_state and schulferien_state.state == "Ferientag")
-            or (feiertag_state and feiertag_state.state == "Feiertag")
+            (schulferien_state and schulferien_state.state == "Ferientag") or
+            (feiertag_state and feiertag_state.state == "Feiertag")
         )
+
+    async def async_setup(self):
+        """Asynchrone Methode zum Laden der Übersetzungen für den kombinierten Sensor."""
+        self._translations = await lade_uebersetzung(self.sprache)
+
 
 
 async def async_setup_platform(hass, config, async_add_entities, discovery_info=None):
@@ -246,10 +294,10 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
     brueckentage = config.get("bridge_days", [])
 
     # Erstellen des Schulferien-Sensors
-    schulferien_sensor = SchulferienSensor(hass, f"{name}_schulferien", land, region, brueckentage)
+    schulferien_sensor = SchulferienSensor(hass, f"{name}_schulferien", land, region, brueckentage, sprache=STANDARD_SPRACHE)
     
     # Erstellen des Feiertag-Sensors
-    feiertag_sensor = FeiertagSensor(hass, f"{name}_feiertag", land, region)
+    feiertag_sensor = FeiertagSensor(hass, f"{name}_feiertag", land, region, sprache=STANDARD_SPRACHE)
 
     # Erstellen des Kombi-Sensors, der die Zustände der beiden Sensoren kombiniert
     kombi_sensor = SchulferienFeiertagSensor(
@@ -259,5 +307,10 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
         feiertag_entity_id="sensor.feiertag",
     )
 
+    # Asynchrones Laden der Übersetzungen für beide Sensoren
+    await schulferien_sensor.async_setup()  # Lade die Übersetzungen für den Schulferien-Sensor
+    await feiertag_sensor.async_setup()  # Lade die Übersetzungen für den Feiertag-Sensor
+
     # Sensoren zu Home Assistant hinzufügen
     async_add_entities([schulferien_sensor, feiertag_sensor, kombi_sensor])
+

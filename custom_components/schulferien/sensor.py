@@ -1,4 +1,4 @@
-"""Sensor-Modul für Schulferien und Feiertage in Home Assistant."""
+"""Sensor-Modul für Schulferien und Feiertage sowie Brückentage in Home Assistant."""
 
 import logging
 import os

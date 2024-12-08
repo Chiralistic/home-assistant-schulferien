@@ -1,4 +1,4 @@
-"""Konstanten für die Schulferien-Integration."""
+"""Konstanten für die Schulferien und Feiertags-Integration."""
 
 DOMAIN = "schulferien"
 API_URL_FERIEN = "https://openholidaysapi.org/SchoolHolidays"

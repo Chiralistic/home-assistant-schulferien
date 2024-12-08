@@ -53,7 +53,7 @@ async def hole_daten(api_url, api_parameter):
         except aiohttp.ClientError as fehler:
             # Fehlerbehandlung, falls die API-Anfrage fehlschlägt
             _LOGGER.error("API-Anfrage fehlgeschlagen: %s", fehler)
-            raise RuntimeError(f"API-Anfrage fehlgeschlagen: {fehler}")
+            raise RuntimeError(f"API-Anfrage fehlgeschlagen: {fehler}") from fehler
 
 def parse_daten(json_daten, brueckentage=None, typ="ferien"):
     """Verarbeitet die JSON-Daten und fügt Brückentage oder Feiertage hinzu."""
@@ -307,8 +307,15 @@ async def async_setup_platform(hass, config, async_add_entities):
     brueckentage = config.get("bridge_days", [])
 
     # Erstellen des Schulferien-Sensors
-    schulferien_sensor = SchulferienSensor(hass, f"{name}_schulferien", land, region, brueckentage, sprache=STANDARD_SPRACHE)
-    
+    schulferien_sensor = SchulferienSensor(
+        hass,
+        f"{name}_schulferien",
+        land,
+        region,
+        brueckentage,
+        sprache=STANDARD_SPRACHE
+    )
+
     # Erstellen des Feiertag-Sensors
     feiertag_sensor = FeiertagSensor(hass, f"{name}_feiertag", land, region, sprache=STANDARD_SPRACHE)
 

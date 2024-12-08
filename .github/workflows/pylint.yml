@@ -43,7 +43,10 @@ jobs:
           pip install pylint pytest aiohttp homeassistant pyyaml
 
       # 5. Pylint ausführen
-      - name: Run pylint
+      - name: Debug PYTHONPATH and Run pylint
         run: |
+          echo "Current directory: $(pwd)"
+          echo "PYTHONPATH: ${PYTHONPATH}"
+          pip list
           pylint $(git ls-files '*.py')
           

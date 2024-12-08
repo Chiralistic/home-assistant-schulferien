@@ -8,7 +8,13 @@ from datetime import datetime, timedelta
 import aiohttp
 import aiofiles
 from homeassistant.helpers.entity import Entity
-from .const import API_URL_FERIEN, API_URL_FEIERTAGE, STANDARD_SPRACHE, STANDARD_LAND, TRANSLATION_PATH
+from .const import (
+    API_URL_FERIEN,
+    API_URL_FEIERTAGE,
+    STANDARD_SPRACHE,
+    STANDARD_LAND,
+    TRANSLATION_PATH
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -39,7 +45,8 @@ async def hole_daten(api_url, api_parameter):
                 params=api_parameter,
                 headers={"Accept": "application/json"}
             ) as antwort:
-                antwort.raise_for_status()  # Löst eine Ausnahme aus, wenn die HTTP-Antwort einen Fehlerstatus hat
+                antwort.raise_for_status()
+                # Löst eine Ausnahme aus, wenn die HTTP-Antwort einen Fehlerstatus hat
                 daten = await antwort.json()  # Konvertiere die Antwort in ein JSON-Objekt
                 _LOGGER.debug("API-Antwort erhalten: %s", antwort.status)
                 return daten

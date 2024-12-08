@@ -1,4 +1,4 @@
-homeassistant==2024.12.1  # Stelle sicher, dass du die passende Version verwendest
-aiohttp==3.11.10  # Für asynchrone HTTP-Anfragen
-aiofiles==24.1.0  # Für asynchrone Dateioperationen
-pylint==3.3.2  # Für den Pylint-Check
+homeassistant  # Stelle sicher, dass du die passende Version verwendest
+aiohttp  # Für asynchrone HTTP-Anfragen
+aiofiles  # Für asynchrone Dateioperationen
+pylint  # Für den Pylint-Check

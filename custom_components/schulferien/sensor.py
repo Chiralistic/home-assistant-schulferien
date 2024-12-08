@@ -1,12 +1,14 @@
-import aiohttp
-import aiofiles
+"""Sensor-Modul für Schulferien und Feiertage in Home Assistant."""
+
 import logging
 import os
 import json
 from datetime import datetime, timedelta
+
+import aiohttp
+import aiofiles
 from homeassistant.helpers.entity import Entity
-from .const import API_URL_FERIEN, API_URL_FEIERTAGE, STANDARD_SPRACHE, STANDARD_LAND
-from .const import TRANSLATION_PATH, STANDARD_SPRACHE
+from .const import API_URL_FERIEN, API_URL_FEIERTAGE, STANDARD_SPRACHE, STANDARD_LAND, TRANSLATION_PATH
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -21,7 +23,7 @@ async def lade_uebersetzung(sprache):
         _LOGGER.error("Fehler beim Laden der Übersetzung: %s", fehler)
         return {}
 
-async def async_setup(self):
+async def async_load_translations(self):
     """Asynchrone Methode zum Laden der Übersetzungen."""
     self._translations = await lade_uebersetzung(self.sprache)
 
@@ -32,7 +34,11 @@ async def hole_daten(api_url, api_parameter):
     async with aiohttp.ClientSession() as session:
         try:
             # Die API-Abfrage wird durchgeführt
-            async with session.get(api_url, params=api_parameter, headers={"Accept": "application/json"}) as antwort:
+            async with session.get(
+                api_url,
+                params=api_parameter,
+                headers={"Accept": "application/json"}
+            ) as antwort:
                 antwort.raise_for_status()  # Löst eine Ausnahme aus, wenn die HTTP-Antwort einen Fehlerstatus hat
                 daten = await antwort.json()  # Konvertiere die Antwort in ein JSON-Objekt
                 _LOGGER.debug("API-Antwort erhalten: %s", antwort.status)
@@ -158,7 +164,7 @@ class SchulferienSensor(Entity):
         except RuntimeError:
             _LOGGER.warning("API konnte nicht erreicht werden, Daten sind möglicherweise nicht aktuell.")
 
-    async def async_setup(self):
+    async def async_load_translations(self):
         """Asynchrone Methode zum Laden der Übersetzungen für den Schulferien-Sensor."""
         self._translations = await lade_uebersetzung(self.sprache)
 
@@ -233,7 +239,7 @@ class FeiertagSensor(Entity):
 
         except RuntimeError:
             _LOGGER.warning("API konnte nicht erreicht werden, Daten sind möglicherweise nicht aktuell.")
-    async def async_setup(self):
+    async def async_load_translations(self):
         """Asynchrone Methode zum Laden der Feiertags-Übersetzungen."""
         self._translations = await lade_uebersetzung(self.sprache)
 
@@ -280,13 +286,13 @@ class SchulferienFeiertagSensor(Entity):
             (feiertag_state and feiertag_state.state == "Feiertag")
         )
 
-    async def async_setup(self):
+    async def async_load_translations(self):
         """Asynchrone Methode zum Laden der Übersetzungen für den kombinierten Sensor."""
         self._translations = await lade_uebersetzung(self.sprache)
 
 
 
-async def async_setup_platform(hass, config, async_add_entities, discovery_info=None):
+async def async_setup_platform(hass, config, async_add_entities):
     """Setup der Sensoren für Schulferien, Feiertage und die Kombination."""
     name = config.get("name", "Schulferien/Feiertag")
     land = config.get("country_code", STANDARD_LAND)
@@ -308,9 +314,9 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
     )
 
     # Asynchrones Laden der Übersetzungen für beide Sensoren
-    await schulferien_sensor.async_setup()  # Lade die Übersetzungen für den Schulferien-Sensor
-    await feiertag_sensor.async_setup()  # Lade die Übersetzungen für den Feiertag-Sensor
+    await schulferien_sensor.async_load_translations()  # Lade die Übersetzungen für den Schulferien-Sensor
+    await feiertag_sensor.async_load_translations()  # Lade die Übersetzungen für den Feiertag-Sensor
+    await kombi_sensor.async_load_translations()
 
     # Sensoren zu Home Assistant hinzufügen
     async_add_entities([schulferien_sensor, feiertag_sensor, kombi_sensor])
-

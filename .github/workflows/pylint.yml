@@ -1,16 +1,11 @@
-# Name des Workflows, der in GitHub Actions angezeigt wird
 name: Pylint Check
 
-# Der Workflow wird bei jedem Push aufgerufen
 on: [push]
 
-# Definition des Jobs, der den Code analysiert
 jobs:
   pylint:
-    # Der Job wird auf der neuesten Ubuntu-Umgebung ausgeführt
     runs-on: ubuntu-latest
 
-    # Der Job wird für mehrere Python-Versionen ausgeführt
     strategy:
       matrix:
         python-version: ["3.8", "3.9", "3.10"]
@@ -26,7 +21,13 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
-      # 3. Caching von Python-Abhängigkeiten
+      # 3. Systemabhängige Abhängigkeiten installieren (z.B. build-essential, libyaml-dev)
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential libyaml-dev
+
+      # 4. Caching von Python-Abhängigkeiten
       - name: Cache Python dependencies
         uses: actions/cache@v3
         with:
@@ -35,18 +36,14 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-pip-
 
-      # 4. Abhängigkeiten installieren
+      # 5. Abhängigkeiten installieren
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install --upgrade setuptools wheel
           pip install pylint pytest aiohttp homeassistant pyyaml
 
-      # 5. Pylint ausführen
-      - name: Debug PYTHONPATH and Run pylint
+      # 6. Pylint ausführen
+      - name: Run pylint
         run: |
-          echo "Current directory: $(pwd)"
-          echo "PYTHONPATH: ${PYTHONPATH}"
-          pip list
           pylint $(git ls-files '*.py')
-          

@@ -1,34 +1,30 @@
-# Name des Workflows, der in GitHub Actions angezeigt wird
-name: Pylint Check
+name: CI - Pytest & Pylint
 
-# Der Workflow wird bei jedem Push aufgerufen
-on: [push]
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
 
-# Definition des Jobs, der den Code analysiert
 jobs:
-  pylint:
-    # Der Job wird auf der neuesten Ubuntu-Umgebung ausgeführt
+  test-and-lint:
     runs-on: ubuntu-latest
 
-    # Der Job wird für mehrere Python-Versionen ausgeführt
     strategy:
       matrix:
-        python-version: ["3.8", "3.9", "3.10"]
+        python-version: ["3.10", "3.11"]
 
     steps:
-      # 1. Repository auschecken
       - name: Checkout Repository
         uses: actions/checkout@v4
-        # Lädt den aktuellen Code aus dem Repository in die Arbeitsumgebung
 
-      # 2. Python-Umgebung einrichten
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v3
         with:
           python-version: ${{ matrix.python-version }}
-        # Richtet die Python-Version ein, die in der Matrix angegeben ist
 
-      # 3. Abhängigkeiten installieren
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
@@ -38,6 +34,13 @@ jobs:
 
       # 4. Pylint ausführen
       - name: Analysing the code with pylint
+          pip install --upgrade setuptools wheel
+          pip install pylint pytest aiohttp homeassistant pyyaml
+
+      - name: Check installed packages
+        run: |
+          pip freeze
+
+      - name: Run pylint
         run: |
           pylint $(git ls-files '*.py')
-        # Führt pylint für alle Python-Dateien im Repository aus

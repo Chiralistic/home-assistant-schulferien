@@ -1,46 +1,54 @@
-name: CI - Pytest & Pylint
+# Name des Workflows, der in GitHub Actions angezeigt wird
+name: Pylint Check
 
-on:
-  push:
-    branches:
-      - main
-  pull_request:
-    branches:
-      - main
+# Der Workflow wird bei jedem Push aufgerufen
+on: [push]
 
+# Definition des Jobs, der den Code analysiert
 jobs:
-  test-and-lint:
+  pylint:
+    # Der Job wird auf der neuesten Ubuntu-Umgebung ausgeführt
     runs-on: ubuntu-latest
 
+    # Der Job wird für mehrere Python-Versionen ausgeführt
     strategy:
       matrix:
-        python-version: ["3.10", "3.11"]
+        python-version: ["3.8", "3.9", "3.10"]
 
     steps:
+      # 1. Repository auschecken
       - name: Checkout Repository
         uses: actions/checkout@v4
 
+      # 2. Python-Umgebung einrichten
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v3
         with:
           python-version: ${{ matrix.python-version }}
 
+      # 3. Caching von Python-Abhängigkeiten
+      - name: Cache Python dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      # 4. Abhängigkeiten installieren
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install --upgrade setuptools wheel
           pip install pylint pytest aiohttp homeassistant pyyaml
-        # Aktualisiert pip und installiert pylint sowie Abhängigkeiten für Home Assistant-Adapter
 
-      # 4. Pylint ausführen
-      - name: Analysing the code with pylint
-          pip install --upgrade setuptools wheel
-          pip install pylint pytest aiohttp homeassistant pyyaml
-
-      - name: Check installed packages
-        run: |
-          pip freeze
-
+      # 5. Pylint ausführen
       - name: Run pylint
         run: |
           pylint $(git ls-files '*.py')
+
+      # 6. Detaillierte Fehlermeldungen mit Anmerkungen
+      - name: Run pylint with annotations
+        uses: cclauss/GitHub-Action-for-pylint@0.6.0
+        with:
+          python-root-list: "."

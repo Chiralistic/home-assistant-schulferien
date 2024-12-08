@@ -46,9 +46,3 @@ jobs:
       - name: Run pylint
         run: |
           pylint $(git ls-files '*.py')
-
-      # 6. Detaillierte Fehlermeldungen mit Anmerkungen
-      - name: Run pylint with annotations
-        uses: cclauss/GitHub-Action-for-pylint@v0
-        with:
-          python-root-list: "."

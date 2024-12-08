@@ -1,13 +1,15 @@
 name: Pylint Check
 
 on: [push]
+
+
 jobs:
   lint:
     runs-on: ubuntu-latest
     
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v4
+      uses: actions/checkout@v3
 
     - name: Set up Python
       uses: actions/setup-python@v4
@@ -21,4 +23,4 @@ jobs:
 
     - name: Run Pylint
       run: |
-        pylint --max-line-length=100 --disable=R,C
+        pylint $(find . -name "*.py") --max-line-length=100

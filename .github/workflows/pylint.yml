@@ -49,6 +49,6 @@ jobs:
 
       # 6. Detaillierte Fehlermeldungen mit Anmerkungen
       - name: Run pylint with annotations
-        uses: cclauss/GitHub-Action-for-pylint@0.6.0
+        uses: cclauss/GitHub-Action-for-pylint@v0
         with:
           python-root-list: "."

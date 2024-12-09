@@ -46,7 +46,7 @@ async def hole_daten(api_url, api_parameter):
                 headers={"Accept": "application/json"}
             ) as antwort:
                 # Löst eine Ausnahme aus, wenn die HTTP-Antwort einen Fehlerstatus hat
-                antwort.raise_for_status()  
+                antwort.raise_for_status()
                 daten = await antwort.json()  # Konvertiere die Antwort in ein JSON-Objekt
                 _LOGGER.debug("API-Antwort erhalten: %s", antwort.status)
                 return daten
@@ -103,6 +103,7 @@ class SchulferienSensor(Entity):
         self._brueckentage = brueckentage
         self.sprache = sprache  # Hier wird das Attribut 'sprache' gesetzt
         self._translations = {}
+        self._last_update_date = None  # Speichert den Tag der letzten Abfrage
 
         # Interne Variablen für die Berechnung der Ferien
         self._heute_ferientag = None
@@ -137,6 +138,13 @@ class SchulferienSensor(Entity):
     async def async_update(self):
         """Aktualisiere den Sensor mit den neuesten Daten von der API."""
         heute = datetime.now().date()
+
+        # Prüfen, ob die API heute schon abgefragt wurde
+        if self._last_update_date == heute:
+            _LOGGER.debug("Die API wurde heute bereits abgefragt.")
+            return
+
+        _LOGGER.debug("Starte API-Abfrage für Schulferien.")
         api_parameter = {
             "countryIsoCode": self._land,
             "subdivisionCode": self._region,
@@ -170,6 +178,9 @@ class SchulferienSensor(Entity):
                 self._naechste_ferien_beginn = None
                 self._naechste_ferien_ende = None
 
+            # Aktualisiere den Tag der letzten Abfrage
+            self._last_update_date = heute
+
         except RuntimeError:
             _LOGGER.warning("API konnte nicht erreicht werden.")
 
@@ -188,6 +199,7 @@ class FeiertagSensor(Entity):
         self._region = region
         self.sprache = sprache
         self._translations = {}
+        self._last_update_date = None  # Speichert den Tag der letzten Abfrage
 
         self._heute_feiertag = None
         self._naechster_feiertag_name = None
@@ -213,9 +225,17 @@ class FeiertagSensor(Entity):
             "Nächster Feiertag": self._naechster_feiertag_name,
             "Datum des nächsten Feiertags": self._naechster_feiertag_datum,
         }
-        
+
     async def async_update(self):
+        """Aktualisiere den Sensor mit den neuesten Daten von der API (einmal täglich)."""
         heute = datetime.now().date()
+
+        # Prüfen, ob die API heute schon abgefragt wurde
+        if self._last_update_date == heute:
+            _LOGGER.debug("Die API wurde heute bereits abgefragt.")
+            return
+
+        _LOGGER.debug("Starte API-Abfrage für Feiertage.")
         api_parameter = {
             "countryIsoCode": self._land,
             "subdivisionCode": self._region,
@@ -247,9 +267,13 @@ class FeiertagSensor(Entity):
             else:
                 self._naechster_feiertag_name = None
                 self._naechster_feiertag_datum = None
+            
+            # Aktualisiere den Tag der letzten Abfrage
+            self._last_update_date = heute
 
         except RuntimeError:
             _LOGGER.warning("API konnte nicht erreicht werden.")
+            
     async def load_translation(self):
         """Asynchrone Methode zum Laden der Feiertags-Übersetzungen."""
         self._translations = await lade_uebersetzung(self.sprache)

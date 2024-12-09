@@ -34,26 +34,32 @@ async def load_translation(self):
     self._translations = await lade_uebersetzung(self.sprache)
 
 
-async def hole_daten(api_url, api_parameter):
+async def hole_daten(api_url, api_parameter, session=None):
     """Allgemeine Funktion, um Daten von der API abzurufen."""
     _LOGGER.debug("Sende Anfrage an API: %s mit Parametern %s", api_url, api_parameter)
-    async with aiohttp.ClientSession() as session:
-        try:
-            # Die API-Abfrage wird durchgeführt
-            async with session.get(
-                api_url,
-                params=api_parameter,
-                headers={"Accept": "application/json"}
-            ) as antwort:
-                # Löst eine Ausnahme aus, wenn die HTTP-Antwort einen Fehlerstatus hat
-                antwort.raise_for_status()
-                daten = await antwort.json()  # Konvertiere die Antwort in ein JSON-Objekt
-                _LOGGER.debug("API-Antwort erhalten: %s", antwort.status)
-                return daten
-        except aiohttp.ClientError as fehler:
-            # Fehlerbehandlung, falls die API-Anfrage fehlschlägt
-            _LOGGER.error("API-Anfrage fehlgeschlagen: %s", fehler)
-            raise RuntimeError(f"API-Anfrage fehlgeschlagen: {fehler}") from fehler
+    close_session = False
+    if session is None:
+        session = aiohttp.ClientSession()
+        close_session = True
+    try:
+        # Die API-Abfrage wird durchgeführt
+        async with session.get(
+            api_url,
+            params=api_parameter,
+            headers={"Accept": "application/json"}
+        ) as antwort:
+            # Löst eine Ausnahme aus, wenn die HTTP-Antwort einen Fehlerstatus hat
+            antwort.raise_for_status()
+            daten = await antwort.json()  # Konvertiere die Antwort in ein JSON-Objekt
+            _LOGGER.debug("API-Antwort erhalten: %s", antwort.status)
+            return daten
+    except aiohttp.ClientError as fehler:
+        # Fehlerbehandlung, falls die API-Anfrage fehlschlägt
+        _LOGGER.error("API-Anfrage fehlgeschlagen: %s", fehler)
+        raise RuntimeError(f"API-Anfrage fehlgeschlagen: {fehler}") from fehler
+    finally:
+        if close_session:
+            await session.close()
 
 def parse_daten(json_daten, brueckentage=None, typ="ferien"):
     """Verarbeitet die JSON-Daten und fügt Brückentage oder Feiertage hinzu."""
@@ -64,9 +70,9 @@ def parse_daten(json_daten, brueckentage=None, typ="ferien"):
             # Extrahiere den Namen des Feiertags oder der Ferien in deutscher Sprache
             name = next(
                 (name_item["text"]
-                for name_item in eintrag["name"]
-                if name_item["language"] == "DE"),
-                eintrag["name"][0]["text"]
+                for name_item in eintrag.get("name", [])
+                if name_item.get("language") == "DE"),
+                eintrag.get("name", [{"text": "Unbekannt"}])[0]["text"]
             )
             liste.append({
                 "name": name,
@@ -135,27 +141,26 @@ class SchulferienSensor(Entity):
             "Brückentage": self._brueckentage,
         }
 
-    async def async_update(self):
+    async def async_update(self, session=None):
         """Aktualisiere den Sensor mit den neuesten Daten von der API."""
         heute = datetime.now().date()
 
         # Prüfen, ob die API heute schon abgefragt wurde
         if self._last_update_date == heute:
-            _LOGGER.debug("Die API wurde heute bereits abgefragt.")
+            _LOGGER.debug("Die API für Schulferien wurde heute bereits abgefragt.")
             return
 
         _LOGGER.debug("Starte API-Abfrage für Schulferien.")
         api_parameter = {
             "countryIsoCode": self._land,
             "subdivisionCode": self._region,
-            "languageIsoCode": self.sprache,  # Hier die 'sprache' verwenden
+            "languageIsoCode": self.sprache,
             "validFrom": heute.strftime("%Y-%m-%d"),
             "validTo": (heute + timedelta(days=365)).strftime("%Y-%m-%d"),
         }
 
         try:
-            # Hole die Ferien-Daten von der API
-            ferien_daten = await hole_daten(API_URL_FERIEN, api_parameter)
+            ferien_daten = await hole_daten(API_URL_FERIEN, api_parameter, session)
             ferien_liste = parse_daten(ferien_daten, self._brueckentage)
 
             # Überprüfe, ob heute ein Ferientag ist
@@ -183,6 +188,7 @@ class SchulferienSensor(Entity):
 
         except RuntimeError:
             _LOGGER.warning("API konnte nicht erreicht werden.")
+
 
     async def load_translation(self):
         """Asynchrone Methode zum Laden der Übersetzungen für den Schulferien-Sensor."""
@@ -226,13 +232,13 @@ class FeiertagSensor(Entity):
             "Datum des nächsten Feiertags": self._naechster_feiertag_datum,
         }
 
-    async def async_update(self):
-        """Aktualisiere den Sensor mit den neuesten Daten von der API (einmal täglich)."""
+    async def async_update(self, session=None):
+        """Aktualisiere den Sensor mit den neuesten Daten von der API."""
         heute = datetime.now().date()
 
         # Prüfen, ob die API heute schon abgefragt wurde
         if self._last_update_date == heute:
-            _LOGGER.debug("Die API wurde heute bereits abgefragt.")
+            _LOGGER.debug("Die API für Feiertage wurde heute bereits abgefragt.")
             return
 
         _LOGGER.debug("Starte API-Abfrage für Feiertage.")
@@ -245,8 +251,7 @@ class FeiertagSensor(Entity):
         }
 
         try:
-            # Hole die Feiertage-Daten von der API
-            feiertage_daten = await hole_daten(API_URL_FEIERTAGE, api_parameter)
+            feiertage_daten = await hole_daten(API_URL_FEIERTAGE, api_parameter, session)
             feiertage_liste = parse_daten(feiertage_daten, typ="feiertage")
 
             # Überprüfe, ob heute ein Feiertag ist
@@ -261,19 +266,18 @@ class FeiertagSensor(Entity):
             if zukunft_feiertage:
                 naechster_feiertag = min(zukunft_feiertage, key=lambda f: f["start_datum"])
                 self._naechster_feiertag_name = naechster_feiertag["name"]
-                self._naechster_feiertag_datum = naechster_feiertag["start_datum"].strftime(
-                    "%d.%m.%Y"
-                )
+                self._naechster_feiertag_datum = naechster_feiertag["start_datum"].strftime("%d.%m.%Y")
             else:
                 self._naechster_feiertag_name = None
                 self._naechster_feiertag_datum = None
-            
+
             # Aktualisiere den Tag der letzten Abfrage
             self._last_update_date = heute
 
         except RuntimeError:
             _LOGGER.warning("API konnte nicht erreicht werden.")
-            
+
+
     async def load_translation(self):
         """Asynchrone Methode zum Laden der Feiertags-Übersetzungen."""
         self._translations = await lade_uebersetzung(self.sprache)
@@ -327,8 +331,6 @@ class SchulferienFeiertagSensor(Entity):
         """Asynchrone Methode zum Laden der Übersetzungen für den kombinierten Sensor."""
         self._translations = await lade_uebersetzung(self.sprache)
 
-
-
 async def async_setup_platform(hass, config, async_add_entities, discovery_info=None):
     """Setup der Sensoren für Schulferien, Feiertage und die Kombination."""
     name = config.get("name", "Schulferien/Feiertag")
@@ -336,27 +338,32 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
     region = config.get("region", "DE-NI")
     brueckentage = config.get("bridge_days", [])
 
-    # Erstellen des Schulferien-Sensors
-    schulferien_sensor = SchulferienSensor(
-        hass, f"{name}_schulferien", land, region, brueckentage, sprache=STANDARD_SPRACHE
-    )
+    async with aiohttp.ClientSession() as session:
+        # Erstellen des Schulferien-Sensors
+        schulferien_sensor = SchulferienSensor(
+            hass, f"{name}_schulferien", land, region, brueckentage, sprache=STANDARD_SPRACHE
+        )
 
-    # Erstellen des Feiertag-Sensors
-    feiertag_sensor = FeiertagSensor(
-        hass, f"{name}_feiertag", land, region, sprache=STANDARD_SPRACHE
-    )
+        # Erstellen des Feiertag-Sensors
+        feiertag_sensor = FeiertagSensor(
+            hass, f"{name}_feiertag", land, region, sprache=STANDARD_SPRACHE
+        )
 
-    # Erstellen des Kombi-Sensors, der die Zustände der beiden Sensoren kombiniert
-    kombi_sensor = SchulferienFeiertagSensor(
-        hass,
-        f"{name}_kombiniert",
-        schulferien_entity_id="sensor.schulferien",
-        feiertag_entity_id="sensor.feiertag",
-    )
+        # Erstellen des Kombi-Sensors, der die Zustände der beiden Sensoren kombiniert
+        kombi_sensor = SchulferienFeiertagSensor(
+            hass,
+            f"{name}_kombiniert",
+            schulferien_entity_id="sensor.schulferien",
+            feiertag_entity_id="sensor.feiertag",
+        )
 
-    # Asynchrones Laden der Übersetzungen für beide Sensoren
-    await schulferien_sensor.load_translation()  # Lade die Übersetzungen für den Schulferien-Sensor
-    await feiertag_sensor.load_translation()  # Lade die Übersetzungen für den Feiertag-Sensor
+        # Asynchrones Laden der Übersetzungen für beide Sensoren
+        await schulferien_sensor.load_translation()
+        await feiertag_sensor.load_translation()
 
-    # Sensoren zu Home Assistant hinzufügen
-    async_add_entities([schulferien_sensor, feiertag_sensor, kombi_sensor])
+        # Sensoren zu Home Assistant hinzufügen
+        async_add_entities([schulferien_sensor, feiertag_sensor, kombi_sensor])
+
+        # Initialisiere die Daten für beide Sensoren mit der gemeinsamen Session
+        await schulferien_sensor.async_update(session)
+        await feiertag_sensor.async_update(session)

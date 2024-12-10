@@ -1,16 +1,43 @@
 {
-    "name_schulferien": "Skoleferier",
-    "name_feiertag": "Helligdag",
-    "name_combined": "Skoleferier/Helligdag",
-    "current_status": "Feriedag",
-    "no_current_status": "Ingen feriedag",
-    "next_holidays": "Næste ferie",
-    "start": "Start",
-    "end": "Slut",
-    "country": "Land",
-    "region": "Region",
-    "bridge_days": "Bro-dage",
-    "public_holiday": "Helligdag",
-    "no_public_holiday": "Ingen helligdag"
+  "sensor": {
+      "schulferien": {
+          "name": "Skoleferier",
+          "state": {
+              "ferientag": "Feriedag",
+              "kein_ferientag": "Ingen feriedag"
+          },
+          "attributes": {
+              "land": "Land",
+              "region": "Region",
+              "naechste_ferien": "Næste ferie",
+              "beginn": "Start",
+              "ende": "Slut",
+              "brueckentage": "Bro-dage"
+          }
+      },
+      "feiertag": {
+          "name": "Helligdag",
+          "state": {
+              "feiertag": "Helligdag",
+              "kein_feiertag": "Ingen helligdag"
+          },
+          "attributes": {
+              "land": "Land",
+              "region": "Region",
+              "naechster_feiertag": "Næste helligdag",
+              "datum": "Dato"
+          }
+      },
+      "kombiniert": {
+          "name": "Skoleferier/Helligdag",
+          "state": {
+              "ferientag_feiertag": "Feriedag/Helligdag",
+              "kein_ferientag_feiertag": "Ingen feriedag/helligdag"
+          },
+          "attributes": {
+              "schulferien_sensor": "Skoleferie-sensor",
+              "feiertag_sensor": "Helligdags-sensor"
+          }
+      }
   }
-  
+}

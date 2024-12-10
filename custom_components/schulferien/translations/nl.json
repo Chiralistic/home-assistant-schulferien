@@ -1,16 +1,43 @@
 {
-    "name_schulferien": "Schoolvakanties",
-    "name_feiertag": "Feestdag",
-    "name_combined": "Schoolvakanties/Feestdag",
-    "current_status": "Vakantiedag",
-    "no_current_status": "Geen vakantiedag",
-    "next_holidays": "Volgende vakantie",
-    "start": "Begin",
-    "end": "Einde",
-    "country": "Land",
-    "region": "Regio",
-    "bridge_days": "Brugdagen",
-    "public_holiday": "Feestdag",
-    "no_public_holiday": "Geen feestdag"
+  "sensor": {
+      "schulferien": {
+          "name": "Schoolvakanties",
+          "state": {
+              "ferientag": "Vakantiedag",
+              "kein_ferientag": "Geen vakantiedag"
+          },
+          "attributes": {
+              "land": "Land",
+              "region": "Regio",
+              "naechste_ferien": "Volgende vakanties",
+              "beginn": "Begin",
+              "ende": "Einde",
+              "brueckentage": "Brugdagen"
+          }
+      },
+      "feiertag": {
+          "name": "Feestdag",
+          "state": {
+              "feiertag": "Feestdag",
+              "kein_feiertag": "Geen feestdag"
+          },
+          "attributes": {
+              "land": "Land",
+              "region": "Regio",
+              "naechster_feiertag": "Volgende feestdag",
+              "datum": "Datum"
+          }
+      },
+      "kombiniert": {
+          "name": "Schoolvakanties/Feestdag",
+          "state": {
+              "ferientag_feiertag": "Vakantie/Feestdag",
+              "kein_ferientag_feiertag": "Geen vakantie/feestdag"
+          },
+          "attributes": {
+              "schulferien_sensor": "Schoolvakantie sensor",
+              "feiertag_sensor": "Feestdag sensor"
+          }
+      }
   }
-  
+}

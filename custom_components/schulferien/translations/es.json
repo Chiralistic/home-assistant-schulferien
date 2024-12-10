@@ -1,16 +1,43 @@
 {
-    "name_schulferien": "Vacaciones escolares",
-    "name_feiertag": "Día festivo",
-    "name_combined": "Vacaciones escolares/Día festivo",
-    "current_status": "Día de vacaciones",
-    "no_current_status": "No hay día de vacaciones",
-    "next_holidays": "Próximas vacaciones",
-    "start": "Inicio",
-    "end": "Fin",
-    "country": "País",
-    "region": "Región",
-    "bridge_days": "Días puente",
-    "public_holiday": "Día festivo",
-    "no_public_holiday": "No hay día festivo"
+  "sensor": {
+      "schulferien": {
+          "name": "Vacaciones escolares",
+          "state": {
+              "ferientag": "Día de vacaciones",
+              "kein_ferientag": "No hay vacaciones"
+          },
+          "attributes": {
+              "land": "País",
+              "region": "Región",
+              "naechste_ferien": "Próximas vacaciones",
+              "beginn": "Inicio",
+              "ende": "Fin",
+              "brueckentage": "Días puente"
+          }
+      },
+      "feiertag": {
+          "name": "Día festivo",
+          "state": {
+              "feiertag": "Día festivo",
+              "kein_feiertag": "No es día festivo"
+          },
+          "attributes": {
+              "land": "País",
+              "region": "Región",
+              "naechster_feiertag": "Próximo día festivo",
+              "datum": "Fecha"
+          }
+      },
+      "kombiniert": {
+          "name": "Vacaciones escolares/Día festivo",
+          "state": {
+              "ferientag_feiertag": "Vacaciones/Festivo",
+              "kein_ferientag_feiertag": "No hay vacaciones/festivo"
+          },
+          "attributes": {
+              "schulferien_sensor": "Sensor de vacaciones escolares",
+              "feiertag_sensor": "Sensor de días festivos"
+          }
+      }
   }
-  
+}

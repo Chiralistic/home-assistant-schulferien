@@ -1,16 +1,43 @@
 {
-    "name_schulferien": "Vacanze scolastiche",
-    "name_feiertag": "Giorno festivo",
-    "name_combined": "Vacanze scolastiche/Giorno festivo",
-    "current_status": "Giorno di vacanza",
-    "no_current_status": "Nessun giorno di vacanza",
-    "next_holidays": "Prossime vacanze",
-    "start": "Inizio",
-    "end": "Fine",
-    "country": "Paese",
-    "region": "Regione",
-    "bridge_days": "Giorni ponte",
-    "public_holiday": "Giorno festivo",
-    "no_public_holiday": "Nessun giorno festivo"
+  "sensor": {
+      "schulferien": {
+          "name": "Vacanze scolastiche",
+          "state": {
+              "ferientag": "Giorno di vacanza",
+              "kein_ferientag": "Nessuna vacanza"
+          },
+          "attributes": {
+              "land": "Paese",
+              "region": "Regione",
+              "naechste_ferien": "Prossime vacanze",
+              "beginn": "Inizio",
+              "ende": "Fine",
+              "brueckentage": "Giorni ponte"
+          }
+      },
+      "feiertag": {
+          "name": "Giorno festivo",
+          "state": {
+              "feiertag": "Giorno festivo",
+              "kein_feiertag": "Nessun giorno festivo"
+          },
+          "attributes": {
+              "land": "Paese",
+              "region": "Regione",
+              "naechster_feiertag": "Prossimo giorno festivo",
+              "datum": "Data"
+          }
+      },
+      "kombiniert": {
+          "name": "Vacanze scolastiche/Giorno festivo",
+          "state": {
+              "ferientag_feiertag": "Vacanze/Festivo",
+              "kein_ferientag_feiertag": "Nessuna vacanza/festivo"
+          },
+          "attributes": {
+              "schulferien_sensor": "Sensore vacanze scolastiche",
+              "feiertag_sensor": "Sensore giorni festivi"
+          }
+      }
   }
-  
+}

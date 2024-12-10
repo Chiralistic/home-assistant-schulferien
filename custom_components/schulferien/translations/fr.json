@@ -1,16 +1,43 @@
 {
-    "name_schulferien": "Vacances scolaires",
-    "name_feiertag": "Jour férié",
-    "name_combined": "Vacances scolaires/Jour férié",
-    "current_status": "Jour de vacances",
-    "no_current_status": "Pas de jour de vacances",
-    "next_holidays": "Prochaines vacances",
-    "start": "Début",
-    "end": "Fin",
-    "country": "Pays",
-    "region": "Région",
-    "bridge_days": "Jours de pont",
-    "public_holiday": "Jour férié",
-    "no_public_holiday": "Pas de jour férié"
+  "sensor": {
+      "schulferien": {
+          "name": "Vacances scolaires",
+          "state": {
+              "ferientag": "Jour de vacances",
+              "kein_ferientag": "Pas de vacances"
+          },
+          "attributes": {
+              "land": "Pays",
+              "region": "Région",
+              "naechste_ferien": "Prochaines vacances",
+              "beginn": "Début",
+              "ende": "Fin",
+              "brueckentage": "Jours fériés"
+          }
+      },
+      "feiertag": {
+          "name": "Jour férié",
+          "state": {
+              "feiertag": "Jour férié",
+              "kein_feiertag": "Pas de jour férié"
+          },
+          "attributes": {
+              "land": "Pays",
+              "region": "Région",
+              "naechster_feiertag": "Prochain jour férié",
+              "datum": "Date"
+          }
+      },
+      "kombiniert": {
+          "name": "Vacances scolaires/Jour férié",
+          "state": {
+              "ferientag_feiertag": "Vacances/Jour férié",
+              "kein_ferientag_feiertag": "Pas de vacances/jour férié"
+          },
+          "attributes": {
+              "schulferien_sensor": "Capteur de vacances scolaires",
+              "feiertag_sensor": "Capteur de jours fériés"
+          }
+      }
   }
-  
+}

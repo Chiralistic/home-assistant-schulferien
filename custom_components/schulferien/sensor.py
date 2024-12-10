@@ -29,7 +29,7 @@ async def lade_uebersetzung(sprache: str) -> dict:
         _LOGGER.error("Fehler beim Laden der Übersetzung: %s", fehler)
         return {}
 
-async def hole_daten(api_url: str, api_parameter: dict, session: aiohttp.ClientSession = None) -> dict:
+async def hole_daten(api_url, api_parameter, session=None):
     """Allgemeine Funktion, um Daten von der API abzurufen."""
     _LOGGER.debug("Sende Anfrage an API: %s mit Parametern %s", api_url, api_parameter)
     close_session = False
@@ -56,10 +56,10 @@ async def hole_daten(api_url: str, api_parameter: dict, session: aiohttp.ClientS
             _LOGGER.debug("API-Antwort erhalten: %s", antwort.status)
             return daten
 
-    except asyncio.TimeoutError:
-        _LOGGER.error("Die Anfrage zur API hat das Timeout überschritten.")
-        raise RuntimeError("API-Anfrage überschritt das Timeout-Limit.")
-        
+    except aiohttp.ClientTimeout as fehler:
+        _LOGGER.error("Die Anfrage zur API hat das Timeout überschritten: %s", fehler)
+        raise RuntimeError("API-Anfrage überschritt das Timeout-Limit.") from fehler
+
     except aiohttp.ClientError as fehler:
         _LOGGER.error("API-Anfrage fehlgeschlagen: %s", fehler)
         raise RuntimeError(f"API-Anfrage fehlgeschlagen: {fehler}") from fehler
@@ -136,8 +136,8 @@ class SchulferienSensor(BaseSensor):
 
     @property
     def name(self):
-        """Eindeutiger Name für den Sensor."""
-        return self._translations.get("name_schulferien", "Schulferien")
+        """Eindeutiger Name für den Schulferien-Sensor."""
+        return self._translations.get("sensor.schulferien.name", "Schulferien")
 
     @property
     def unique_id(self):
@@ -147,19 +147,27 @@ class SchulferienSensor(BaseSensor):
     @property
     def state(self):
         """Der aktuelle Zustand des Sensors."""
-        return "Ferientag" if self._ferien_info["heute_ferientag"] else "Kein Ferientag"
+        return self._translations.get(
+            "sensor.schulferien.state.ferientag" if self._ferien_info["heute_ferientag"] else "sensor.schulferien.state.kein_ferientag",
+            "Ferientag" if self._ferien_info["heute_ferientag"] else "Kein Ferientag"
+        )
 
     @property
     def extra_state_attributes(self):
         """Zusätzliche Attribute für die Anzeige im UI."""
         return {
-            "Land": self._land,
-            "Region": self._region,
-            "Nächste Ferien": self._ferien_info["naechste_ferien_name"],
-            "Beginn": self._ferien_info["naechste_ferien_beginn"],
-            "Ende": self._ferien_info["naechste_ferien_ende"],
-            "Brückentage": self._brueckentage,
+            self._translations.get("sensor.schulferien.attributes.land", "Land"): self._land,
+            self._translations.get("sensor.schulferien.attributes.region", "Region"): self._region,
+            self._translations.get("sensor.schulferien.attributes.naechste_ferien", "Nächste Ferien"):
+                self._ferien_info["naechste_ferien_name"],
+            self._translations.get("sensor.schulferien.attributes.beginn", "Beginn"):
+                self._ferien_info["naechste_ferien_beginn"],
+            self._translations.get("sensor.schulferien.attributes.ende", "Ende"):
+                self._ferien_info["naechste_ferien_ende"],
+            self._translations.get("sensor.schulferien.attributes.brueckentage", "Brückentage"):
+                self._brueckentage,
         }
+
 
     async def async_update(self, session=None):
         """Aktualisiere den Sensor mit den neuesten Daten von der API."""
@@ -231,8 +239,8 @@ class FeiertagSensor(BaseSensor):
 
     @property
     def name(self):
-        """Eindeutiger Name für den Sensor."""
-        return self._translations.get("name_feiertag", "Feiertag")
+        """Eindeutiger Name für den Feiertag-Sensor."""
+        return self._translations.get("sensor.feiertag.name", "Feiertag")
 
     @property
     def unique_id(self):
@@ -242,17 +250,23 @@ class FeiertagSensor(BaseSensor):
     @property
     def state(self):
         """Der aktuelle Zustand des Sensors."""
-        return "Feiertag" if self._heute_feiertag else "Kein Feiertag"
+        return self._translations.get(
+            "sensor.feiertag.state.feiertag" if self._heute_feiertag else "sensor.feiertag.state.kein_feiertag",
+            "Feiertag" if self._heute_feiertag else "Kein Feiertag"
+        )
 
     @property
     def extra_state_attributes(self):
         """Zusätzliche Attribute für die Anzeige im UI."""
         return {
-            "Land": self._land,
-            "Region": self._region,
-            "Nächster Feiertag": self._naechster_feiertag_name,
-            "Datum des nächsten Feiertags": self._naechster_feiertag_datum,
+            self._translations.get("sensor.feiertag.attributes.land", "Land"): self._land,
+            self._translations.get("sensor.feiertag.attributes.region", "Region"): self._region,
+            self._translations.get("sensor.feiertag.attributes.naechster_feiertag", "Nächster Feiertag"):
+                self._naechster_feiertag_name,
+            self._translations.get("sensor.feiertag.attributes.datum", "Datum des nächsten Feiertags"):
+                self._naechster_feiertag_datum,
         }
+
 
     async def async_update(self, session=None):
         """Aktualisiere den Sensor mit den neuesten Daten von der API."""
@@ -290,7 +304,9 @@ class FeiertagSensor(BaseSensor):
             if zukunft_feiertage:
                 naechster_feiertag = min(zukunft_feiertage, key=lambda f: f["start_datum"])
                 self._naechster_feiertag_name = naechster_feiertag["name"]
-                self._naechster_feiertag_datum = naechster_feiertag["start_datum"].strftime("%d.%m.%Y")
+                self._naechster_feiertag_datum = naechster_feiertag["start_datum"].strftime(
+                    "%d.%m.%Y"
+                )
             else:
                 self._naechster_feiertag_name = None
                 self._naechster_feiertag_datum = None
@@ -319,7 +335,7 @@ class SchulferienFeiertagSensor(BaseSensor):
     @property
     def name(self):
         """Eindeutiger Name für den kombinierten Sensor."""
-        return self._translations.get("name_combined", "Schulferien/Feiertag")
+        return self._translations.get("sensor.kombiniert.name", "Schulferien/Feiertag")
 
     @property
     def unique_id(self):
@@ -329,15 +345,19 @@ class SchulferienFeiertagSensor(BaseSensor):
     @property
     def state(self):
         """Der aktuelle Zustand des Sensors."""
-        return "Ferientag/Feiertag" if self._state else "Kein Ferientag/Feiertag"
+        return self._translations.get(
+            "sensor.kombiniert.state.ferientag_feiertag" if self._state else "sensor.kombiniert.state.kein_ferientag_feiertag",
+            "Ferientag/Feiertag" if self._state else "Kein Ferientag/Feiertag"
+        )
 
     @property
     def extra_state_attributes(self):
         """Zusätzliche Attribute für die Anzeige im UI."""
         return {
-            "Schulferien Sensor": self._schulferien_entity_id,
-            "Feiertag Sensor": self._feiertag_entity_id,
+            self._translations.get("sensor.kombiniert.attributes.schulferien_sensor", "Schulferien Sensor"): self._schulferien_entity_id,
+            self._translations.get("sensor.kombiniert.attributes.feiertag_sensor", "Feiertag Sensor"): self._feiertag_entity_id,
         }
+
 
     async def async_update(self):
         """Kombiniere die Zustände der Schulferien- und Feiertag-Sensoren."""
@@ -345,8 +365,12 @@ class SchulferienFeiertagSensor(BaseSensor):
         feiertag_state = self._hass.states.get(self._feiertag_entity_id)
 
         # Logge die Zustände der einzelnen Sensoren
-        _LOGGER.debug("Schulferien-Sensorzustand: %s", schulferien_state.state if schulferien_state else "None")
-        _LOGGER.debug("Feiertag-Sensorzustand: %s", feiertag_state.state if feiertag_state else "None")
+        _LOGGER.debug(
+            "Schulferien-Sensorzustand: %s", schulferien_state.state if schulferien_state else "None"
+        )
+        _LOGGER.debug(
+            "Feiertag-Sensorzustand: %s", feiertag_state.state if feiertag_state else "None"
+        )
 
         self._state = (
             (schulferien_state and schulferien_state.state == "Ferientag") or
@@ -359,6 +383,8 @@ class SchulferienFeiertagSensor(BaseSensor):
 
 async def async_setup_platform(hass, config, async_add_entities, discovery_info=None):
     """Setup der Sensoren für Schulferien, Feiertage und die Kombination."""
+
+    del discovery_info  # Ignoriere den ungenutzten Parameter, der aber von HA verlangt wird
 
     name = config.get("name", "Schulferien/Feiertag")
     land = config.get("country_code", STANDARD_LAND)

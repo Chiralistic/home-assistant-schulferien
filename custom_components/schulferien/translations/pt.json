@@ -1,16 +1,43 @@
 {
-    "name_schulferien": "Férias escolares",
-    "name_feiertag": "Feriado",
-    "name_combined": "Férias escolares/Feriado",
-    "current_status": "Dia de férias",
-    "no_current_status": "Sem dia de férias",
-    "next_holidays": "Próximas férias",
-    "start": "Início",
-    "end": "Fim",
-    "country": "País",
-    "region": "Região",
-    "bridge_days": "Dias ponte",
-    "public_holiday": "Feriado",
-    "no_public_holiday": "Sem feriado"
+  "sensor": {
+      "schulferien": {
+          "name": "Férias escolares",
+          "state": {
+              "ferientag": "Dia de férias",
+              "kein_ferientag": "Sem férias"
+          },
+          "attributes": {
+              "land": "País",
+              "region": "Região",
+              "naechste_ferien": "Próximas férias",
+              "beginn": "Início",
+              "ende": "Fim",
+              "brueckentage": "Dias ponte"
+          }
+      },
+      "feiertag": {
+          "name": "Feriado",
+          "state": {
+              "feiertag": "Feriado",
+              "kein_feiertag": "Sem feriado"
+          },
+          "attributes": {
+              "land": "País",
+              "region": "Região",
+              "naechster_feiertag": "Próximo feriado",
+              "datum": "Data"
+          }
+      },
+      "kombiniert": {
+          "name": "Férias escolares/Feriado",
+          "state": {
+              "ferientag_feiertag": "Férias/Feriado",
+              "kein_ferientag_feiertag": "Sem férias/feriado"
+          },
+          "attributes": {
+              "schulferien_sensor": "Sensor de férias escolares",
+              "feiertag_sensor": "Sensor de feriados"
+          }
+      }
   }
-  
+}

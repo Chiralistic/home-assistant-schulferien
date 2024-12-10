@@ -1,4 +1,7 @@
-homeassistant  # Stelle sicher, dass du die passende Version verwendest
 aiohttp  # Für asynchrone HTTP-Anfragen
 aiofiles  # Für asynchrone Dateioperationen
+colorlog==6.9.0
+homeassistant==2024.6.0
+pip>=21.3.1
 pylint  # Für den Pylint-Check
+ruff==0.8.2

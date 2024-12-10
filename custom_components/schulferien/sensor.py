@@ -112,22 +112,23 @@ class SchulferienSensor(Entity):
         self._last_update_date = None  # Speichert den Tag der letzten Abfrage
 
         # Interne Variablen für die Berechnung der Ferien
-        self._heute_ferientag = None
-        self._naechste_ferien_name = None
-        self._naechste_ferien_beginn = None
-        self._naechste_ferien_ende = None
+        self._ferien_info = {
+            "heute_ferientag": None,
+            "naechste_ferien_name": None,
+            "naechste_ferien_beginn": None,
+            "naechste_ferien_ende": None,
+        }
 
+    def get_translations(self):
+        """Gibt die Übersetzungen zurück."""
+        return self._translations
     @property
     def name(self):
-        return self._translations.get("name_schulferien", "Schulferien")  # Der Name des Sensors
-
-    @property
-    def unique_id(self):
-        return "sensor.schulferien"  # Eindeutige ID für den Sensor
+        return self.get_translations().get("name_schulferien", "Schulferien")  # Eindeutige ID für den Sensor
 
     @property
     def state(self):
-        return "Ferientag" if self._heute_ferientag else "Kein Ferientag"  # Der Zustand des Sensors
+        return "Ferientag" if self._ferien_info["heute_ferientag"] else "Kein Ferientag"  # Der Zustand des Sensors
 
     @property
     def extra_state_attributes(self):
@@ -135,9 +136,9 @@ class SchulferienSensor(Entity):
         return {
             "Land": self._land,
             "Region": self._region,
-            "Nächste Ferien": self._naechste_ferien_name,
-            "Beginn": self._naechste_ferien_beginn,
-            "Ende": self._naechste_ferien_ende,
+            "Nächste Ferien": self._ferien_info["naechste_ferien_name"],
+            "Beginn": self._ferien_info["naechste_ferieng_beginn"],
+            "Ende": self._ferien_info["naechste_ferien_ende"],
             "Brückentage": self._brueckentage,
         }
 
@@ -164,7 +165,7 @@ class SchulferienSensor(Entity):
             ferien_liste = parse_daten(ferien_daten, self._brueckentage)
 
             # Überprüfe, ob heute ein Ferientag ist
-            self._heute_ferientag = any(
+            self._ferien_info["heute_ferientag"] = any(
                 ferien["start_datum"] <= heute <= ferien["end_datum"]
                 for ferien in ferien_liste
             )
@@ -175,13 +176,13 @@ class SchulferienSensor(Entity):
             ]
             if zukunftsferien:
                 naechste_ferien = min(zukunftsferien, key=lambda f: f["start_datum"])
-                self._naechste_ferien_name = naechste_ferien["name"]
-                self._naechste_ferien_beginn = naechste_ferien["start_datum"].strftime("%d.%m.%Y")
-                self._naechste_ferien_ende = naechste_ferien["end_datum"].strftime("%d.%m.%Y")
+                self._ferien_info["naechste_ferien_name"] = naechste_ferien["name"]
+                self._ferien_info["naechste_ferien_beginn"] = naechste_ferien["start_datum"].strftime("%d.%m.%Y")
+                self._ferien_info["naechste_ferien_ende"] = naechste_ferien["end_datum"].strftime("%d.%m.%Y")
             else:
-                self._naechste_ferien_name = None
-                self._naechste_ferien_beginn = None
-                self._naechste_ferien_ende = None
+                self._ferien_info["naechste_ferien_name"] = None
+                self._ferien_info["naechste_ferien_beginn"] = None
+                self._ferien_info["naechste_ferien_ende"] = None
 
             # Aktualisiere den Tag der letzten Abfrage
             self._last_update_date = heute
@@ -211,9 +212,13 @@ class FeiertagSensor(Entity):
         self._naechster_feiertag_name = None
         self._naechster_feiertag_datum = None
 
+    def get_translations(self):
+        """Gibt die Übersetzungen zurück."""
+        return self._translations
+
     @property
     def name(self):
-        return self._translations.get("name_feiertag", "Feiertag")
+        return self.get_translations.get("name_feiertag", "Feiertag")
 
     @property
     def unique_id(self):
@@ -266,7 +271,9 @@ class FeiertagSensor(Entity):
             if zukunft_feiertage:
                 naechster_feiertag = min(zukunft_feiertage, key=lambda f: f["start_datum"])
                 self._naechster_feiertag_name = naechster_feiertag["name"]
-                self._naechster_feiertag_datum = naechster_feiertag["start_datum"].strftime("%d.%m.%Y")
+                self._naechster_feiertag_datum = naechster_feiertag["start_datum"].strftime(
+                    "%d.%m.%Y"
+                )
             else:
                 self._naechster_feiertag_name = None
                 self._naechster_feiertag_datum = None
@@ -296,9 +303,13 @@ class SchulferienFeiertagSensor(Entity):
         self._translations = {}
         self._state = None
 
+    def get_translations(self):
+        """Gibt die Übersetzungen zurück."""
+        return self._translations
+
     @property
     def name(self):
-        return self._translations.get("name_combined", "Schulferien/Feiertag")
+        return self.get_translations.get("name_combined", "Schulferien/Feiertag")
 
     @property
     def unique_id(self):

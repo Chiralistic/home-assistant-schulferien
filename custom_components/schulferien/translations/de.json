@@ -1,43 +1,26 @@
 {
-  "sensor": {
-      "schulferien": {
-          "name": "Schulferien",
-          "state": {
-              "ferientag": "Ferientag",
-              "kein_ferientag": "Kein Ferientag"
-          },
-          "attributes": {
-              "land": "Land",
-              "region": "Region",
-              "naechste_ferien": "Nächste Ferien",
-              "beginn": "Beginn",
-              "ende": "Ende",
-              "brueckentage": "Brückentage"
-          }
-      },
-      "feiertag": {
-          "name": "Feiertag",
-          "state": {
-              "feiertag": "Feiertag",
-              "kein_feiertag": "Kein Feiertag"
-          },
-          "attributes": {
-              "land": "Land",
-              "region": "Region",
-              "naechster_feiertag": "Nächster Feiertag",
-              "datum": "Datum"
-          }
-      },
-      "kombiniert": {
-          "name": "Schulferien/Feiertag",
-          "state": {
-              "ferientag_feiertag": "Ferientag/Feiertag",
-              "kein_ferientag_feiertag": "Kein Ferientag/Feiertag"
-          },
-          "attributes": {
-              "schulferien_sensor": "Schulferien-Sensor",
-              "feiertag_sensor": "Feiertag-Sensor"
-          }
-      }
+    "sensor.schulferien.name": "Schulferien",
+    "sensor.schulferien.state.ferientag": "Ferientag",
+    "sensor.schulferien.state.kein_ferientag": "Kein Ferientag",
+    "sensor.schulferien.attributes.land": "Land",
+    "sensor.schulferien.attributes.region": "Region",
+    "sensor.schulferien.attributes.naechste_ferien": "Nächste Ferien",
+    "sensor.schulferien.attributes.beginn": "Beginn",
+    "sensor.schulferien.attributes.ende": "Ende",
+    "sensor.schulferien.attributes.brueckentage": "Brückentage",
+  
+    "sensor.feiertag.name": "Feiertag",
+    "sensor.feiertag.state.feiertag": "Feiertag",
+    "sensor.feiertag.state.kein_feiertag": "Kein Feiertag",
+    "sensor.feiertag.attributes.land": "Land",
+    "sensor.feiertag.attributes.region": "Region",
+    "sensor.feiertag.attributes.naechster_feiertag": "Nächster Feiertag",
+    "sensor.feiertag.attributes.datum": "Datum",
+  
+    "sensor.kombiniert.name": "Schulferien/Feiertag",
+    "sensor.kombiniert.state.ferientag_feiertag": "Ferientag/Feiertag",
+    "sensor.kombiniert.state.kein_ferientag_feiertag": "Kein Ferientag/Feiertag",
+    "sensor.kombiniert.attributes.schulferien_sensor": "Schulferien-Sensor",
+    "sensor.kombiniert.attributes.feiertag_sensor": "Feiertag-Sensor"
   }
-}
+  

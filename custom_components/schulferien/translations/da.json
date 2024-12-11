@@ -1,43 +1,26 @@
 {
-  "sensor": {
-      "schulferien": {
-          "name": "Skoleferier",
-          "state": {
-              "ferientag": "Feriedag",
-              "kein_ferientag": "Ingen feriedag"
-          },
-          "attributes": {
-              "land": "Land",
-              "region": "Region",
-              "naechste_ferien": "Næste ferie",
-              "beginn": "Start",
-              "ende": "Slut",
-              "brueckentage": "Bro-dage"
-          }
-      },
-      "feiertag": {
-          "name": "Helligdag",
-          "state": {
-              "feiertag": "Helligdag",
-              "kein_feiertag": "Ingen helligdag"
-          },
-          "attributes": {
-              "land": "Land",
-              "region": "Region",
-              "naechster_feiertag": "Næste helligdag",
-              "datum": "Dato"
-          }
-      },
-      "kombiniert": {
-          "name": "Skoleferier/Helligdag",
-          "state": {
-              "ferientag_feiertag": "Feriedag/Helligdag",
-              "kein_ferientag_feiertag": "Ingen feriedag/helligdag"
-          },
-          "attributes": {
-              "schulferien_sensor": "Skoleferie-sensor",
-              "feiertag_sensor": "Helligdags-sensor"
-          }
-      }
+    "sensor.schulferien.name": "Skoleferier",
+    "sensor.schulferien.state.ferientag": "Feriedag",
+    "sensor.schulferien.state.kein_ferientag": "Ingen feriedag",
+    "sensor.schulferien.attributes.land": "Land",
+    "sensor.schulferien.attributes.region": "Region",
+    "sensor.schulferien.attributes.naechste_ferien": "Næste ferie",
+    "sensor.schulferien.attributes.beginn": "Start",
+    "sensor.schulferien.attributes.ende": "Slut",
+    "sensor.schulferien.attributes.brueckentage": "Bro-dage",
+  
+    "sensor.feiertag.name": "Helligdag",
+    "sensor.feiertag.state.feiertag": "Helligdag",
+    "sensor.feiertag.state.kein_feiertag": "Ingen helligdag",
+    "sensor.feiertag.attributes.land": "Land",
+    "sensor.feiertag.attributes.region": "Region",
+    "sensor.feiertag.attributes.naechster_feiertag": "Næste helligdag",
+    "sensor.feiertag.attributes.datum": "Dato",
+  
+    "sensor.kombiniert.name": "Skoleferie/Helligdag",
+    "sensor.kombiniert.state.ferientag_feiertag": "Feriedag/Helligdag",
+    "sensor.kombiniert.state.kein_ferientag_feiertag": "Ingen feriedag/helligdag",
+    "sensor.kombiniert.attributes.schulferien_sensor": "Skoleferie-sensor",
+    "sensor.kombiniert.attributes.feiertag_sensor": "Helligdag-sensor"
   }
-}
+  

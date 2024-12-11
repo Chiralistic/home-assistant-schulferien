@@ -1,43 +1,26 @@
 {
-  "sensor": {
-      "schulferien": {
-          "name": "Vacances scolaires",
-          "state": {
-              "ferientag": "Jour de vacances",
-              "kein_ferientag": "Pas de vacances"
-          },
-          "attributes": {
-              "land": "Pays",
-              "region": "Région",
-              "naechste_ferien": "Prochaines vacances",
-              "beginn": "Début",
-              "ende": "Fin",
-              "brueckentage": "Jours fériés"
-          }
-      },
-      "feiertag": {
-          "name": "Jour férié",
-          "state": {
-              "feiertag": "Jour férié",
-              "kein_feiertag": "Pas de jour férié"
-          },
-          "attributes": {
-              "land": "Pays",
-              "region": "Région",
-              "naechster_feiertag": "Prochain jour férié",
-              "datum": "Date"
-          }
-      },
-      "kombiniert": {
-          "name": "Vacances scolaires/Jour férié",
-          "state": {
-              "ferientag_feiertag": "Vacances/Jour férié",
-              "kein_ferientag_feiertag": "Pas de vacances/jour férié"
-          },
-          "attributes": {
-              "schulferien_sensor": "Capteur de vacances scolaires",
-              "feiertag_sensor": "Capteur de jours fériés"
-          }
-      }
+    "sensor.schulferien.name": "Vacances scolaires",
+    "sensor.schulferien.state.ferientag": "Jour de vacances",
+    "sensor.schulferien.state.kein_ferientag": "Pas de vacances",
+    "sensor.schulferien.attributes.land": "Pays",
+    "sensor.schulferien.attributes.region": "Région",
+    "sensor.schulferien.attributes.naechste_ferien": "Prochaines vacances",
+    "sensor.schulferien.attributes.beginn": "Début",
+    "sensor.schulferien.attributes.ende": "Fin",
+    "sensor.schulferien.attributes.brueckentage": "Jours fériés",
+  
+    "sensor.feiertag.name": "Jour férié",
+    "sensor.feiertag.state.feiertag": "Jour férié",
+    "sensor.feiertag.state.kein_feiertag": "Pas de jour férié",
+    "sensor.feiertag.attributes.land": "Pays",
+    "sensor.feiertag.attributes.region": "Région",
+    "sensor.feiertag.attributes.naechster_feiertag": "Prochain jour férié",
+    "sensor.feiertag.attributes.datum": "Date",
+  
+    "sensor.kombiniert.name": "Vacances scolaires/Jour férié",
+    "sensor.kombiniert.state.ferientag_feiertag": "Vacances/Jour férié",
+    "sensor.kombiniert.state.kein_ferientag_feiertag": "Pas de vacances/jour férié",
+    "sensor.kombiniert.attributes.schulferien_sensor": "Capteur de vacances scolaires",
+    "sensor.kombiniert.attributes.feiertag_sensor": "Capteur de jours fériés"
   }
-}
+  

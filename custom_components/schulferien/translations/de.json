@@ -1,46 +1,15 @@
 {
-    "entity": {
-      "sensor": {
-        "schulferien": {
-          "name": "Schulferien",
-          "state": {
-            "ferientag": "Ferientag",
-            "kein_ferientag": "Kein Ferientag"
-          },
-          "attributes": {
-            "land": "Land",
-            "region": "Region",
-            "naechste_ferien": "Nächste Ferien",
-            "beginn": "Beginn",
-            "ende": "Ende",
-            "brueckentage": "Brückentage"
-          }
-        },
-        "feiertag": {
-          "name": "Feiertag",
-          "state": {
-            "feiertag": "Feiertag",
-            "kein_feiertag": "Kein Feiertag"
-          },
-          "attributes": {
-            "land": "Land",
-            "region": "Region",
-            "naechster_feiertag": "Nächster Feiertag",
-            "datum": "Datum des nächsten Feiertags"
-          }
-        },
-        "kombiniert": {
-          "name": "Schulferien/Feiertag",
-          "state": {
-            "ferientag_feiertag": "Ferientag/Feiertag",
-            "kein_ferientag_feiertag": "Kein Ferientag/Feiertag"
-          },
-          "attributes": {
-            "schulferien_sensor": "Schulferien-Sensor",
-            "feiertag_sensor": "Feiertag-Sensor"
-          }
-        }
-      }
-    }
+    "name_schulferien": "Schulferien",
+    "name_feiertag": "Feiertag",
+    "name_combined": "Schulferien/Feiertag",
+    "current_status": "Ferientag",
+    "no_current_status": "Kein Ferientag",
+    "next_holidays": "Nächste Ferien",
+    "start": "Beginn",
+    "end": "Ende",
+    "country": "Land",
+    "region": "Region",
+    "bridge_days": "Brückentage",
+    "public_holiday": "Feiertag",
+    "no_public_holiday": "Kein Feiertag"
   }
-  

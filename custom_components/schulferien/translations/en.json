@@ -6,14 +6,6 @@
           "state": {
             "ferientag": "Holiday",
             "kein_ferientag": "No Holiday"
-          },
-          "attributes": {
-            "land": "Country",
-            "region": "Region",
-            "naechste_ferien": "Next Holidays",
-            "beginn": "Start",
-            "ende": "End",
-            "brueckentage": "Bridge Days"
           }
         },
         "feiertag": {
@@ -21,12 +13,6 @@
           "state": {
             "feiertag": "Public Holiday",
             "kein_feiertag": "No Public Holiday"
-          },
-          "attributes": {
-            "land": "Country",
-            "region": "Region",
-            "naechster_feiertag": "Next Public Holiday",
-            "datum": "Date of the Next Public Holiday"
           }
         },
         "kombiniert": {
@@ -34,10 +20,6 @@
           "state": {
             "ferientag_feiertag": "Holiday/Public Holiday",
             "kein_ferientag_feiertag": "No Holiday/Public Holiday"
-          },
-          "attributes": {
-            "schulferien_sensor": "School Holiday Sensor",
-            "feiertag_sensor": "Public Holiday Sensor"
           }
         }
       }

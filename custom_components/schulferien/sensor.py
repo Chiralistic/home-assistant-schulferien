@@ -170,10 +170,8 @@ class FeiertagSensor(Entity):
     def __init__(self, hass, config):
         self._hass = hass
         self._name = config["name"]
-        self._land = config["land"]
-        self._region = config["region"]
+        self._location = {"land": config["land"], "region": config["region"]}
         self._last_update_date = None
-        self._heute_feiertag = None
         self._heute_feiertag = None
         self._naechster_feiertag = {"name": None, "datum": None}
 
@@ -183,7 +181,7 @@ class FeiertagSensor(Entity):
 
     @property
     def unique_id(self):
-        return f"sensor.feiertag_{self._land}_{self._region}_{self._name}"
+        return f"sensor.feiertag_{self._location['land']}_{self._location['region']}_{self._name}"
 
     @property
     def state(self):
@@ -192,14 +190,13 @@ class FeiertagSensor(Entity):
     @property
     def extra_state_attributes(self):
         return {
-            "Land": self._land,
-            "Region": self._region,
+            "Land": self._location["land"],
+            "Region": self._location["region"],
             "Nächster Feiertag": self._naechster_feiertag["name"],
             "Datum des nächsten Feiertags": self._naechster_feiertag["datum"],
         }
 
     async def async_update(self, session=None):
-        """Aktualisiere den Sensor mit den neuesten Daten von der API."""    
         heute = datetime.now().date()
         if self._last_update_date == heute:
             _LOGGER.debug("Die API für Feiertage wurde heute bereits abgefragt.")
@@ -212,8 +209,8 @@ class FeiertagSensor(Entity):
 
         try:
             api_parameter = {
-                "countryIsoCode": self._land,
-                "subdivisionCode": self._region,
+                "countryIsoCode": self._location["land"],
+                "subdivisionCode": self._location["region"],
                 "validFrom": heute.strftime("%Y-%m-%d"),
                 "validTo": (heute + timedelta(days=365)).strftime("%Y-%m-%d"),
             }
@@ -229,15 +226,16 @@ class FeiertagSensor(Entity):
                 feiertag for feiertag in feiertage_liste if feiertag["start_datum"] > heute
             ]
             if zukunft_feiertage:
-                naechster_feiertag = min(zukunft_feiertage, key=lambda f: f["start_datum"])
+                naechster_feiertag = min(
+                    zukunft_feiertage, key=lambda f: f["start_datum"]
+                )
                 self._naechster_feiertag["name"] = naechster_feiertag["name"]
                 self._naechster_feiertag["datum"] = naechster_feiertag["start_datum"].strftime(
                     "%d.%m.%Y"
                 )
-
             else:
-                self._naechster_feiertag_name = None
-                self._naechster_feiertag_datum = None
+                self._naechster_feiertag["name"] = None
+                self._naechster_feiertag["datum"] = None
 
             self._last_update_date = heute
 

@@ -174,8 +174,8 @@ class FeiertagSensor(Entity):
         self._region = config["region"]
         self._last_update_date = None
         self._heute_feiertag = None
-        self._naechster_feiertag_name = None
-        self._naechster_feiertag_datum = None
+        self._heute_feiertag = None
+        self._naechster_feiertag = {"name": None, "datum": None}
 
     @property
     def name(self):
@@ -194,8 +194,8 @@ class FeiertagSensor(Entity):
         return {
             "Land": self._land,
             "Region": self._region,
-            "Nächster Feiertag": self._naechster_feiertag_name,
-            "Datum des nächsten Feiertags": self._naechster_feiertag_datum,
+            "Nächster Feiertag": self._naechster_feiertag["name"],
+            "Datum des nächsten Feiertags": self._naechster_feiertag["datum"],
         }
 
     async def async_update(self, session=None):
@@ -230,10 +230,11 @@ class FeiertagSensor(Entity):
             ]
             if zukunft_feiertage:
                 naechster_feiertag = min(zukunft_feiertage, key=lambda f: f["start_datum"])
-                self._naechster_feiertag_name = naechster_feiertag["name"]
-                self._naechster_feiertag_datum = naechster_feiertag["start_datum"].strftime(
+                self._naechster_feiertag["name"] = naechster_feiertag["name"]
+                self._naechster_feiertag["datum"] = naechster_feiertag["start_datum"].strftime(
                     "%d.%m.%Y"
                 )
+
             else:
                 self._naechster_feiertag_name = None
                 self._naechster_feiertag_datum = None
@@ -282,12 +283,12 @@ class SchulferienFeiertagSensor(Entity):
         schulferien_state = self._hass.states.get(self._schulferien_entity_id)
         feiertag_state = self._hass.states.get(self._feiertag_entity_id)
 
-        _LOGGER.debug(
-            "Schulferien-Sensorzustand: %s", schulferien_state.state if schulferien_state else "None"
-        )
-        _LOGGER.debug(
-            "Feiertag-Sensorzustand: %s", feiertag_state.state if feiertag_state else "None"
-        )
+        schulferien_zustand = schulferien_state.state if schulferien_state else "None"
+        _LOGGER.debug("Schulferien-Sensorzustand: %s", schulferien_zustand)
+
+        feiertag_zustand = feiertag_state.state if feiertag_state else "None"
+        _LOGGER.debug("Feiertag-Sensorzustand: %s", feiertag_zustand)
+
 
         self._state = (
             (schulferien_state and schulferien_state.state == "Ferientag") or

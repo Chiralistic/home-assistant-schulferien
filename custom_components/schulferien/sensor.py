@@ -5,11 +5,13 @@ from datetime import datetime, timedelta
 
 import aiohttp
 from homeassistant.helpers.entity import Entity
-from .const import API_URL_FERIEN, API_URL_FEIERTAGE, STANDARD_LAND
+from .const import API_URL_FERIEN, API_URL_FEIERTAGE
 
 _LOGGER = logging.getLogger(__name__)
 
-async def hole_daten(api_url: str, api_parameter: dict, session: aiohttp.ClientSession = None) -> dict:
+async def hole_daten(
+    api_url: str, api_parameter: dict, session: aiohttp.ClientSession = None
+) -> dict:
     """Allgemeine Funktion, um Daten von der API abzurufen."""
     _LOGGER.debug("Sende Anfrage an API: %s mit Parametern %s", api_url, api_parameter)
     close_session = False
@@ -20,14 +22,19 @@ async def hole_daten(api_url: str, api_parameter: dict, session: aiohttp.ClientS
     timeout = aiohttp.ClientTimeout(total=10, connect=5, sock_read=5)
 
     try:
-        async with session.get(api_url, params=api_parameter, headers={"Accept": "application/json"}, timeout=timeout) as antwort:
+        async with session.get(
+            api_url,
+            params=api_parameter,
+            headers={"Accept": "application/json"},
+            timeout=timeout
+        ) as antwort:
             antwort.raise_for_status()
             daten = await antwort.json()
             _LOGGER.debug("API-Antwort erhalten: %s", antwort.status)
             return daten
-    except aiohttp.ClientTimeout as fehler:
+    except aiohttp.ClientTimeout as fehler: # pylint: disable=E0712
         _LOGGER.error("Die Anfrage zur API hat das Timeout überschritten: %s", fehler)
-        raise RuntimeError("API-Anfrage überschritt das Timeout-Limit.") from fehler
+        raise RuntimeError("API-Anfrage überschritt das Timeout-Limit.") from fehler # pylint: disable=E0705
     except aiohttp.ClientError as fehler:
         _LOGGER.error("API-Anfrage fehlgeschlagen: %s", fehler)
         raise RuntimeError(f"API-Anfrage fehlgeschlagen: {fehler}") from fehler
@@ -63,7 +70,7 @@ def parse_daten(json_daten, brueckentage=None, typ="ferien"):
         _LOGGER.error("Fehler beim Verarbeiten der JSON-Daten: %s", fehler)
         raise RuntimeError("Ungültige JSON-Daten erhalten.") from fehler
 
-class SchulferienSensor(Entity):
+class SchulferienSensor(Entity): # pylint: disable=R0902
     """Sensor für Schulferien und Brückentage."""
 
     def __init__(self, hass, config):
@@ -135,8 +142,12 @@ class SchulferienSensor(Entity):
             if zukunftsferien:
                 naechste_ferien = min(zukunftsferien, key=lambda f: f["start_datum"])
                 self._ferien_info["naechste_ferien_name"] = naechste_ferien["name"]
-                self._ferien_info["naechste_ferien_beginn"] = naechste_ferien["start_datum"].strftime("%d.%m.%Y")
-                self._ferien_info["naechste_ferien_ende"] = naechste_ferien["end_datum"].strftime("%d.%m.%Y")
+                self._ferien_info["naechste_ferien_beginn"] = naechste_ferien[
+                    "start_datum"
+                ].strftime("%d.%m.%Y")
+                self._ferien_info["naechste_ferien_ende"] = naechste_ferien[
+                    "end_datum"
+                ].strftime("%d.%m.%Y")
             else:
                 self._ferien_info["naechste_ferien_name"] = None
                 self._ferien_info["naechste_ferien_beginn"] = None
@@ -188,6 +199,7 @@ class FeiertagSensor(Entity):
         }
 
     async def async_update(self, session=None):
+        """Aktualisiere den Sensor mit den neuesten Daten von der API."""    
         heute = datetime.now().date()
         if self._last_update_date == heute:
             _LOGGER.debug("Die API für Feiertage wurde heute bereits abgefragt.")
@@ -209,13 +221,19 @@ class FeiertagSensor(Entity):
             feiertage_daten = await hole_daten(API_URL_FEIERTAGE, api_parameter, session)
             feiertage_liste = parse_daten(feiertage_daten, typ="feiertage")
 
-            self._heute_feiertag = any(feiertag["start_datum"] == heute for feiertag in feiertage_liste)
+            self._heute_feiertag = any(
+                feiertag["start_datum"] == heute for feiertag in feiertage_liste
+            )
 
-            zukunft_feiertage = [feiertag for feiertag in feiertage_liste if feiertag["start_datum"] > heute]
+            zukunft_feiertage = [
+                feiertag for feiertag in feiertage_liste if feiertag["start_datum"] > heute
+            ]
             if zukunft_feiertage:
                 naechster_feiertag = min(zukunft_feiertage, key=lambda f: f["start_datum"])
                 self._naechster_feiertag_name = naechster_feiertag["name"]
-                self._naechster_feiertag_datum = naechster_feiertag["start_datum"].strftime("%d.%m.%Y")
+                self._naechster_feiertag_datum = naechster_feiertag["start_datum"].strftime(
+                    "%d.%m.%Y"
+                )
             else:
                 self._naechster_feiertag_name = None
                 self._naechster_feiertag_datum = None
@@ -260,11 +278,16 @@ class SchulferienFeiertagSensor(Entity):
         }
 
     async def async_update(self):
+        """Kombiniere die Zustände der Schulferien- und Feiertag-Sensoren."""
         schulferien_state = self._hass.states.get(self._schulferien_entity_id)
         feiertag_state = self._hass.states.get(self._feiertag_entity_id)
 
-        _LOGGER.debug("Schulferien-Sensorzustand: %s", schulferien_state.state if schulferien_state else "None")
-        _LOGGER.debug("Feiertag-Sensorzustand: %s", feiertag_state.state if feiertag_state else "None")
+        _LOGGER.debug(
+            "Schulferien-Sensorzustand: %s", schulferien_state.state if schulferien_state else "None"
+        )
+        _LOGGER.debug(
+            "Feiertag-Sensorzustand: %s", feiertag_state.state if feiertag_state else "None"
+        )
 
         self._state = (
             (schulferien_state and schulferien_state.state == "Ferientag") or
@@ -275,7 +298,7 @@ class SchulferienFeiertagSensor(Entity):
 
 
 
-async def async_setup_platform(hass, config, async_add_entities, discovery_info=None):
+async def async_setup_platform(hass, config, async_add_entities, discovery_info=None): # pylint: disable=W0613
     """Setup der Sensoren für Schulferien, Feiertage und die Kombination."""
 
     name = config.get("name", "Schulferien/Feiertag")

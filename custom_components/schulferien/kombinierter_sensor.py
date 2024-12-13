@@ -1,9 +1,4 @@
-"""KombinierterSensor-Modul für die Schulferien-Integration."""
-
-import logging
 from homeassistant.helpers.entity import Entity
-
-_LOGGER = logging.getLogger(__name__)
 
 class SchulferienFeiertagSensor(Entity):
     """Kombinierter Sensor für Schulferien und Feiertage."""
@@ -21,7 +16,7 @@ class SchulferienFeiertagSensor(Entity):
 
     @property
     def unique_id(self):
-        return f"sensor.schulferien_feiertag_{self._name}"
+        return "sensor.schulferien_feiertag"
 
     @property
     def state(self):

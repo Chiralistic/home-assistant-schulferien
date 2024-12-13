@@ -1,13 +1,7 @@
-"""FeiertagSensor-Modul für die Schulferien-Integration."""
-
-import logging
-from datetime import datetime, timedelta
-import aiohttp
+from datetime import datetime
 from homeassistant.helpers.entity import Entity
 from .api_utils import hole_daten, parse_daten
 from .const import API_URL_FEIERTAGE
-
-_LOGGER = logging.getLogger(__name__)
 
 class FeiertagSensor(Entity):
     """Sensor für Feiertage."""
@@ -15,8 +9,7 @@ class FeiertagSensor(Entity):
     def __init__(self, hass, config):
         self._hass = hass
         self._name = config["name"]
-        self._land = config["land"]
-        self._region = config["region"]
+        self._location = {"land": config["land"], "region": config["region"]}
         self._last_update_date = None
         self._heute_feiertag = None
         self._naechster_feiertag = {"name": None, "datum": None}
@@ -27,7 +20,7 @@ class FeiertagSensor(Entity):
 
     @property
     def unique_id(self):
-        return f"sensor.feiertag_{self._land}_{self._region}_{self._name}"
+        return f"sensor.feiertag_{self._location['land']}_{self._location['region']}_{self._name}"
 
     @property
     def state(self):
@@ -36,14 +29,13 @@ class FeiertagSensor(Entity):
     @property
     def extra_state_attributes(self):
         return {
-            "Land": self._land,
-            "Region": self._region,
+            "Land": self._location["land"],
+            "Region": self._location["region"],
             "Nächster Feiertag": self._naechster_feiertag["name"],
             "Datum des nächsten Feiertags": self._naechster_feiertag["datum"],
         }
 
     async def async_update(self, session=None):
-        """Aktualisiere den Sensor mit den neuesten Daten von der API."""
         heute = datetime.now().date()
         if self._last_update_date == heute:
             _LOGGER.debug("Die API für Feiertage wurde heute bereits abgefragt.")
@@ -56,8 +48,8 @@ class FeiertagSensor(Entity):
 
         try:
             api_parameter = {
-                "countryIsoCode": self._land,
-                "subdivisionCode": self._region,
+                "countryIsoCode": self._location["land"],
+                "subdivisionCode": self._location["region"],
                 "validFrom": heute.strftime("%Y-%m-%d"),
                 "validTo": (heute + timedelta(days=365)).strftime("%Y-%m-%d"),
             }

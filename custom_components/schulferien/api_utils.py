@@ -1,12 +1,12 @@
-"""Hilfsfunktionen für die API-Abfragen in der Schulferien-Integration."""
-
 import logging
+from datetime import datetime, timedelta
 import aiohttp
-from datetime import datetime
 
 _LOGGER = logging.getLogger(__name__)
 
-async def hole_daten(api_url: str, api_parameter: dict, session: aiohttp.ClientSession = None) -> dict:
+async def hole_daten(
+    api_url: str, api_parameter: dict, session: aiohttp.ClientSession = None
+) -> dict:
     """Allgemeine Funktion, um Daten von der API abzurufen."""
     _LOGGER.debug("Sende Anfrage an API: %s mit Parametern %s", api_url, api_parameter)
     close_session = False

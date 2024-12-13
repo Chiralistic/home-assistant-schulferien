@@ -1,13 +1,7 @@
-"""SchulferienSensor-Modul für die Schulferien-Integration."""
-
-import logging
 from datetime import datetime, timedelta
-import aiohttp
 from homeassistant.helpers.entity import Entity
 from .api_utils import hole_daten, parse_daten
 from .const import API_URL_FERIEN
-
-_LOGGER = logging.getLogger(__name__)
 
 class SchulferienSensor(Entity):
     """Sensor für Schulferien und Brückentage."""
@@ -81,12 +75,12 @@ class SchulferienSensor(Entity):
             if zukunftsferien:
                 naechste_ferien = min(zukunftsferien, key=lambda f: f["start_datum"])
                 self._ferien_info["naechste_ferien_name"] = naechste_ferien["name"]
-                self._ferien_info["naechste_ferien_beginn"] = naechste_ferien["start_datum"].strftime(
-                    "%d.%m.%Y"
-                )
-                self._ferien_info["naechste_ferien_ende"] = naechste_ferien["end_datum"].strftime(
-                    "%d.%m.%Y"
-                )
+                self._ferien_info["naechste_ferien_beginn"] = naechste_ferien[
+                    "start_datum"
+                ].strftime("%d.%m.%Y")
+                self._ferien_info["naechste_ferien_ende"] = naechste_ferien[
+                    "end_datum"
+                ].strftime("%d.%m.%Y")
             else:
                 self._ferien_info["naechste_ferien_name"] = None
                 self._ferien_info["naechste_ferien_beginn"] = None

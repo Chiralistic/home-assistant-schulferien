@@ -1,48 +1,52 @@
-"""Hauptmodul für die Schulferien- und Feiertags-Integration."""
-
-import logging
-from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
-from homeassistant.helpers.entity_platform import AddEntitiesCallback
-
+from homeassistant.components.sensor import SensorEntity
 from .schulferien_sensor import SchulferienSensor
 from .feiertag_sensor import FeiertagSensor
 from .kombinierter_sensor import SchulferienFeiertagSensor
-from .const import DOMAIN
+import aiohttp
 
-_LOGGER = logging.getLogger(__name__)
+async def async_setup_platform(hass, config, async_add_entities, discovery_info=None):
+    """Setup der Sensoren für Schulferien, Feiertage und die Kombination."""
 
-async def async_setup_entry(
-    hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
-):
-    """Richte die Sensoren aus einem Konfigurationseintrag ein."""
+    name = config.get("name", "Schulferien/Feiertag")
+    land = config.get("country_code", "DE")
+    region = config.get("region", "DE-NI")
+    brueckentage = config.get("bridge_days", [])
 
-    name = f"Schulferien {entry.data['country']} {entry.data['region']}"
-    country = entry.data["country"]
-    region = entry.data["region"]
-    brueckentage = entry.data.get("bridge_days", [])
+    # Konfiguration für Schulferien-Sensor
+    config_schulferien = {
+        "name": f"{name}_schulferien",
+        "land": land,
+        "region": region,
+        "brueckentage": brueckentage,
+    }
 
-    # Erstellen des Schulferien-Sensors
-    schulferien_sensor = SchulferienSensor(
-        hass, {"name": f"{name}_schulferien", "land": country, "region": region, "brueckentage": brueckentage}
-    )
+    # Konfiguration für Feiertag-Sensor
+    config_feiertag = {
+        "name": f"{name}_feiertag",
+        "land": land,
+        "region": region,
+    }
 
-    # Erstellen des Feiertag-Sensors
-    feiertag_sensor = FeiertagSensor(
-        hass, {"name": f"{name}_feiertag", "land": country, "region": region}
-    )
+    # Konfiguration für kombinierten Sensor
+    config_kombi = {
+        "name": f"{name}_kombiniert",
+        "schulferien_entity_id": "sensor.schulferien",
+        "feiertag_entity_id": "sensor.feiertag",
+    }
 
-    # Erstellen des kombinierten Schulferien- und Feiertag-Sensors
-    kombi_sensor = SchulferienFeiertagSensor(
-        hass,
-        {
-            "name": f"{name}_kombiniert",
-            "schulferien_entity_id": schulferien_sensor.unique_id,
-            "feiertag_entity_id": feiertag_sensor.unique_id,
-        },
-    )
+    async with aiohttp.ClientSession() as session:
+        # Erstellen des Schulferien-Sensors
+        schulferien_sensor = SchulferienSensor(hass, config_schulferien)
 
-    # Füge die Sensoren zu Home Assistant hinzu
-    async_add_entities([schulferien_sensor, feiertag_sensor, kombi_sensor])
+        # Erstellen des Feiertag-Sensors
+        feiertag_sensor = FeiertagSensor(hass, config_feiertag)
 
-    _LOGGER.debug("Sensoren erfolgreich eingerichtet.")
+        # Erstellen des kombinierten Schulferien- und Feiertag-Sensors
+        kombi_sensor = SchulferienFeiertagSensor(hass, config_kombi)
+
+        # Sensoren zu Home Assistant hinzufügen
+        async_add_entities([schulferien_sensor, feiertag_sensor, kombi_sensor])
+
+        # Initialisiere die Daten für beide Sensoren mit der gemeinsamen Session
+        await schulferien_sensor.async_update(session)
+        await feiertag_sensor.async_update(session)

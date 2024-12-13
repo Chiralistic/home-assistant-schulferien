@@ -1,7 +1,13 @@
+"""Modul für die Verwaltung und den Abruf von Schulferien in Deutschland."""
+
+import logging
+import aiohttp
 from datetime import datetime, timedelta
 from homeassistant.helpers.entity import Entity
 from .api_utils import hole_daten, parse_daten
 from .const import API_URL_FERIEN
+
+_LOGGER = logging.getLogger(__name__)
 
 class SchulferienSensor(Entity):
     """Sensor für Schulferien und Brückentage."""

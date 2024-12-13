@@ -1,7 +1,13 @@
+"""Modul für die Verwaltung und den Abruf von Feiertagen in Deutschland."""
+
+import logging
+import aiohttp
 from datetime import datetime
 from homeassistant.helpers.entity import Entity
 from .api_utils import hole_daten, parse_daten
 from .const import API_URL_FEIERTAGE
+
+_LOGGER = logging.getLogger(__name__)
 
 class FeiertagSensor(Entity):
     """Sensor für Feiertage."""
@@ -36,6 +42,7 @@ class FeiertagSensor(Entity):
         }
 
     async def async_update(self, session=None):
+        """Aktualisiert die Feiertagsdaten."""
         heute = datetime.now().date()
         if self._last_update_date == heute:
             _LOGGER.debug("Die API für Feiertage wurde heute bereits abgefragt.")

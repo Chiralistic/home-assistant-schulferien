@@ -1,6 +1,10 @@
+"""Modul zur Handhabung der API-Interaktionen für Schulferien und Feiertage."""
+
 import logging
-from datetime import datetime, timedelta
 import aiohttp
+from datetime import datetime
+
+from .const import API_URL_FERIEN, API_URL_FEIERTAGE
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -29,10 +33,10 @@ async def hole_daten(
             return daten
     except aiohttp.ClientTimeout as fehler:
         _LOGGER.error("Die Anfrage zur API hat das Timeout überschritten: %s", fehler)
-        raise RuntimeError("API-Anfrage überschritt das Timeout-Limit.") from fehler
+        raise aiohttp.ClientTimeout("API-Anfrage überschritt das Timeout-Limit.") from fehler
     except aiohttp.ClientError as fehler:
         _LOGGER.error("API-Anfrage fehlgeschlagen: %s", fehler)
-        raise RuntimeError(f"API-Anfrage fehlgeschlagen: {fehler}") from fehler
+        raise aiohttp.ClientError(f"API-Anfrage fehlgeschlagen: {fehler}") from fehler
     finally:
         if close_session:
             _LOGGER.debug("Die API-Session wird geschlossen.")

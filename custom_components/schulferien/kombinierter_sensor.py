@@ -1,4 +1,9 @@
+"""Modul für den kombinierten Sensor, der sowohl Schulferien- als auch Feiertagsinformationen bereitstellt."""
+
+import logging
 from homeassistant.helpers.entity import Entity
+
+_LOGGER = logging.getLogger(__name__)
 
 class SchulferienFeiertagSensor(Entity):
     """Kombinierter Sensor für Schulferien und Feiertage."""

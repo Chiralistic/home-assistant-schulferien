@@ -1,10 +1,10 @@
 {
   "domain": "schulferien",
   "name": "Schulferien",
-  "version": "0.1.2",
+  "codeowners": ["@Chiralistic"],
   "documentation": "https://github.com/Chiralistic/home-assistant-schulferien",
+  "iot_class": "cloud_polling",
   "issue_tracker": "https://github.com/Chiralistic/home-assistant-schulferien/issues",
   "requirements": ["aiohttp", "aiofiles"],
-  "codeowners": ["@Chiralistic"],
-  "iot_class": "cloud_polling"
+  "version": "0.1.3"
 }

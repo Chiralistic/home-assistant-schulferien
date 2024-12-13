@@ -16,7 +16,6 @@ sensor:
     name: "Schulferien Deutschland Niedersachsen"
     country_code: "DE"
     region: "DE-NI"
-    language: "DE"
 ```
 
 ## Konfiguration
@@ -54,7 +53,6 @@ sensor:
       - "10.05.2024"
       - "04.10.2024"
       - "01.11.2024"
-    language: "DE"
 ```
 
 Erstelle eine einfache Entitätskarte, die alle Attribute anzeigt in deinem Dashboard mit dem folgenden Code. Bei Bedarf kann der Stack verkleinert werden um nur die Informationen anzuzeigen, die gewünscht sind.
@@ -142,7 +140,6 @@ cards:
             - "10.05.2024"
             - "04.10.2024"
             - "01.11.2024"
-          language: "DE"
       ```
 
       Jede Zeile in der Liste `bridge_days` muss ein Datum im Format `TT.MM.JJJJ` enthalten.
@@ -179,7 +176,6 @@ sensor:
     name: "Schulferien Deutschland Niedersachsen"
     country_code: "DE"
     region: "DE-NI"
-    language: "EN"
 ```
 
 ## Configuration
@@ -219,7 +215,6 @@ sensor:
       - "10.05.2024"
       - "04.10.2024"
       - "01.11.2024"
-    language: "DE"
 ```
 
 Create a simple entity card that displays all attributes on your dashboard with the following code. If necessary, the stack can be reduced to show only the desired information.
@@ -306,7 +301,6 @@ cards:
             - "10.05.2024"
             - "04.10.2024"
             - "01.11.2024"
-          language: "EN"
       ```
 
       Each line in the `bridge_days` list must contain a date in the format `DD.MM.YYYY`.

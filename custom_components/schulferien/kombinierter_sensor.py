@@ -1,4 +1,5 @@
-"""Modul für den kombinierten Sensor, der sowohl Schulferien- als auch Feiertagsinformationen bereitstellt."""
+"""Modul für den kombinierten Sensor,
+    der sowohl Schulferien- als auch Feiertagsinformationen bereitstellt."""
 
 import logging
 from homeassistant.helpers.entity import Entity

@@ -2,7 +2,6 @@
 
 import logging
 import aiohttp
-from homeassistant.helpers.entity import Entity
 from schulferien.schulferien_sensor import SchulferienSensor
 from schulferien.feiertag_sensor import FeiertagSensor
 from schulferien.kombinierter_sensor import SchulferienFeiertagSensor
@@ -11,7 +10,7 @@ _LOGGER = logging.getLogger(__name__)
 
 async def async_setup_platform(hass, config, async_add_entities, _discovery_info=None):
     """Setup der Sensoren für Schulferien, Feiertage und die Kombination."""
-    
+
     name = config.get("name", "Schulferien/Feiertag")
     land = config.get("country_code", "DE")
     region = config.get("region", "DE-NI")
@@ -55,4 +54,3 @@ async def async_setup_platform(hass, config, async_add_entities, _discovery_info
         # Initialisiere die Daten für beide Sensoren mit der gemeinsamen Session
         await schulferien_sensor.async_update(session)
         await feiertag_sensor.async_update(session)
-

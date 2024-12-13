@@ -1,12 +1,24 @@
 """Modul zur Handhabung der API-Interaktionen für Schulferien und Feiertage."""
 
 import logging
-import aiohttp
-from datetime import datetime
-
-from .const import API_URL_FERIEN, API_URL_FEIERTAGE
+from datetime import datetime  # Standardimport zuerst
+import aiohttp  # Drittanbieterimport danach
 
 _LOGGER = logging.getLogger(__name__)
+
+async def manage_session(session):
+    """Erstellt eine neue Session, falls keine übergeben wurde, und gibt sie zurück."""
+    close_session = False
+    if session is None:
+        session = aiohttp.ClientSession()
+        close_session = True
+    return session, close_session
+
+async def close_session_if_needed(session, close_session):
+    """Schließt die Session, falls sie neu erstellt wurde."""
+    if close_session:
+        await session.close()
+        _LOGGER.debug("Session wurde geschlossen.")
 
 async def hole_daten(
     api_url: str, api_parameter: dict, session: aiohttp.ClientSession = None
@@ -31,12 +43,9 @@ async def hole_daten(
             daten = await antwort.json()
             _LOGGER.debug("API-Antwort erhalten: %s", antwort.status)
             return daten
-    except aiohttp.ClientTimeout as fehler:
-        _LOGGER.error("Die Anfrage zur API hat das Timeout überschritten: %s", fehler)
-        raise aiohttp.ClientTimeout("API-Anfrage überschritt das Timeout-Limit.") from fehler
     except aiohttp.ClientError as fehler:
         _LOGGER.error("API-Anfrage fehlgeschlagen: %s", fehler)
-        raise aiohttp.ClientError(f"API-Anfrage fehlgeschlagen: {fehler}") from fehler
+        raise aiohttp.ClientError("API-Anfrage fehlgeschlagen.") from fehler
     finally:
         if close_session:
             _LOGGER.debug("Die API-Session wird geschlossen.")

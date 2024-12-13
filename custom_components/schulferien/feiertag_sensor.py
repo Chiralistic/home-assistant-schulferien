@@ -1,11 +1,12 @@
 """Modul für die Verwaltung und den Abruf von Feiertagen in Deutschland."""
 
+from datetime import datetime, timedelta  # Standardimporte zuerst
+import aiohttp  # Drittanbieterimporte danach
 import logging
-import aiohttp
-from datetime import datetime
 from homeassistant.helpers.entity import Entity
-from .api_utils import hole_daten, parse_daten
+from .api_utils import hole_daten, parse_daten, manage_session, close_session_if_needed
 from .const import API_URL_FEIERTAGE
+
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -41,54 +42,45 @@ class FeiertagSensor(Entity):
             "Datum des nächsten Feiertags": self._naechster_feiertag["datum"],
         }
 
-    async def async_update(self, session=None):
-        """Aktualisiert die Feiertagsdaten."""
-        heute = datetime.now().date()
-        if self._last_update_date == heute:
-            _LOGGER.debug("Die API für Feiertage wurde heute bereits abgefragt.")
-            return
+async def async_update(self, session=None):
+    """Aktualisiert die Feiertagsdaten."""
+    heute = datetime.now().date()
+    if self._last_update_date == heute:
+        _LOGGER.debug("Die API für Feiertage wurde heute bereits abgefragt.")
+        return
 
-        close_session = False
-        if session is None:
-            session = aiohttp.ClientSession()
-            close_session = True
+    session, close_session = await manage_session(session)
 
-        try:
-            api_parameter = {
-                "countryIsoCode": self._location["land"],
-                "subdivisionCode": self._location["region"],
-                "validFrom": heute.strftime("%Y-%m-%d"),
-                "validTo": (heute + timedelta(days=365)).strftime("%Y-%m-%d"),
-            }
+    try:
+        api_parameter = {
+            "countryIsoCode": self._location["land"],
+            "subdivisionCode": self._location["region"],
+            "validFrom": heute.strftime("%Y-%m-%d"),
+            "validTo": (heute + timedelta(days=365)).strftime("%Y-%m-%d"),
+        }
 
-            feiertage_daten = await hole_daten(API_URL_FEIERTAGE, api_parameter, session)
-            feiertage_liste = parse_daten(feiertage_daten, typ="feiertage")
+        feiertage_daten = await hole_daten(API_URL_FEIERTAGE, api_parameter, session)
+        feiertage_liste = parse_daten(feiertage_daten, typ="feiertage")
 
-            self._heute_feiertag = any(
-                feiertag["start_datum"] == heute for feiertag in feiertage_liste
-            )
+        self._heute_feiertag = any(
+            feiertag["start_datum"] == heute for feiertag in feiertage_liste
+        )
 
-            zukunft_feiertage = [
-                feiertag for feiertag in feiertage_liste if feiertag["start_datum"] > heute
-            ]
-            if zukunft_feiertage:
-                naechster_feiertag = min(
-                    zukunft_feiertage, key=lambda f: f["start_datum"]
-                )
-                self._naechster_feiertag["name"] = naechster_feiertag["name"]
-                self._naechster_feiertag["datum"] = naechster_feiertag["start_datum"].strftime(
-                    "%d.%m.%Y"
-                )
-            else:
-                self._naechster_feiertag["name"] = None
-                self._naechster_feiertag["datum"] = None
+        zukunft_feiertage = [
+            feiertag for feiertag in feiertage_liste if feiertag["start_datum"] > heute
+        ]
+        if zukunft_feiertage:
+            naechster_feiertag = min(zukunft_feiertage, key=lambda f: f["start_datum"])
+            self._naechster_feiertag["name"] = naechster_feiertag["name"]
+            self._naechster_feiertag["datum"] = naechster_feiertag["start_datum"].strftime("%d.%m.%Y")
+        else:
+            self._naechster_feiertag["name"] = None
+            self._naechster_feiertag["datum"] = None
 
-            self._last_update_date = heute
+        self._last_update_date = heute
 
-        except RuntimeError as error:
-            _LOGGER.warning("API konnte nicht erreicht werden: %s", error)
+    except RuntimeError as error:
+        _LOGGER.warning("API konnte nicht erreicht werden: %s", error)
 
-        finally:
-            if close_session:
-                await session.close()
-                _LOGGER.debug("Session wurde geschlossen.")
+    finally:
+        await close_session_if_needed(session, close_session)

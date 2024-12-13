@@ -1,11 +1,15 @@
+"""Konfigurations-Flow für die Schulferien-Integration."""
+
 from __future__ import annotations
 
+import logging
 import voluptuous as vol
 from homeassistant import config_entries, data_entry_flow
 from homeassistant.helpers import selector
-from homeassistant.const import CONF_NAME
 
 from .const import DOMAIN, LOGGER
+
+LOGGER = logging.getLogger(__name__)
 
 COUNTRIES = {
     "DE": "Deutschland",
@@ -96,3 +100,7 @@ class SchulferienFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
     async def async_step_import(self, user_input: dict) -> data_entry_flow.FlowResult:
         """Import a config entry from configuration.yaml."""
         return await self.async_step_user(user_input)
+
+    async def is_matching(self):
+        """Prüft, ob die Konfiguration passt."""
+        return True  # Beispielimplementierung

@@ -2,9 +2,9 @@
 
 import logging
 import aiohttp
-from schulferien.schulferien_sensor import SchulferienSensor
-from schulferien.feiertag_sensor import FeiertagSensor
-from schulferien.kombinierter_sensor import SchulferienFeiertagSensor
+from .schulferien_sensor import SchulferienSensor
+from .feiertag_sensor import FeiertagSensor
+from .kombinierter_sensor import SchulferienFeiertagSensor
 
 _LOGGER = logging.getLogger(__name__)
 

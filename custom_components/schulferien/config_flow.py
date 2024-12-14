@@ -7,14 +7,12 @@ import voluptuous as vol
 from homeassistant import config_entries, data_entry_flow
 from homeassistant.helpers import selector
 
-from .const import DOMAIN, LOGGER
+from .const import DOMAIN
 
 LOGGER = logging.getLogger(__name__)
 
 COUNTRIES = {
     "DE": "Deutschland",
-    "AT": "Österreich",
-    "CH": "Schweiz",
 }
 
 REGIONS = {
@@ -35,24 +33,6 @@ REGIONS = {
         "DE-ST": "Sachsen-Anhalt",
         "DE-SH": "Schleswig-Holstein",
         "DE-TH": "Thüringen",
-    },
-    "AT": {
-        "AT-1": "Burgenland",
-        "AT-2": "Kärnten",
-        "AT-3": "Niederösterreich",
-        "AT-4": "Oberösterreich",
-        "AT-5": "Salzburg",
-        "AT-6": "Steiermark",
-        "AT-7": "Tirol",
-        "AT-8": "Vorarlberg",
-        "AT-9": "Wien",
-    },
-    "CH": {
-        "CH-ZH": "Zürich",
-        "CH-BE": "Bern",
-        "CH-LU": "Luzern",
-        "CH-UR": "Uri",
-        "CH-SZ": "Schwyz",
     },
 }
 
@@ -101,6 +81,6 @@ class SchulferienFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         """Import a config entry from configuration.yaml."""
         return await self.async_step_user(user_input)
 
-    async def is_matching(self):
+    def is_matching(self):
         """Prüft, ob die Konfiguration passt."""
         return True  # Beispielimplementierung

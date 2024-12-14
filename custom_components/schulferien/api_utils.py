@@ -9,21 +9,23 @@ _LOGGER = logging.getLogger(__name__)
 # Konstante für den Timeout
 DEFAULT_TIMEOUT = aiohttp.ClientTimeout(total=10, connect=5, sock_read=5)
 
-async def fetch_data(api_url: str, api_parameter: dict, session: aiohttp.ClientSession = None) -> dict:
+async def fetch_data(
+    api_url: str, api_parameter: dict, session: aiohttp.ClientSession = None
+) -> dict:
     """
     Allgemeine Funktion, um Daten von der API abzurufen.
 
     Args:
         api_url (str): Die URL der API.
         api_parameter (dict): Die Parameter für die API-Anfrage.
-        session (aiohttp.ClientSession, optional): Eine bestehende Session. Erstellt eine neue, wenn nicht vorhanden.
+        session (aiohttp.ClientSession, optional):
+            Eine bestehende Session. Erstellt eine neue, wenn nicht vorhanden.
 
     Returns:
         dict: Die JSON-Daten von der API.
 
     Raises:
-        aiohttp.ClientTimeout: Wenn die Anfrage das Timeout überschreitet.
-        aiohttp.ClientError: Bei anderen Client-Fehlern.
+        aiohttp.ClientError: Bei Client-Fehlern wie Timeouts oder Verbindungsfehlern.
     """
     _LOGGER.debug("Sende Anfrage an API: %s mit Parametern %s", api_url, api_parameter)
 
@@ -42,16 +44,14 @@ async def fetch_data(api_url: str, api_parameter: dict, session: aiohttp.ClientS
             data = await response.json()
             _LOGGER.debug("API-Antwort erhalten: %s", response.status)
             return data
-    except aiohttp.ClientTimeout as error:
-        _LOGGER.error("Die Anfrage zur API hat das Timeout überschritten: %s", error)
-        raise
     except aiohttp.ClientError as error:
-        _LOGGER.error("API-Anfrage fehlgeschlagen: %s", error)
+        _LOGGER.error("Die Anfrage zur API ist fehlgeschlagen: %s", error)
         raise
     finally:
         if close_session:
             await session.close()
             _LOGGER.debug("Die API-Session wurde geschlossen.")
+
 
 def parse_daten(json_daten, brueckentage=None, typ="ferien"):
     """

@@ -35,6 +35,16 @@ class FeiertagSensor(Entity):
         """Gibt den aktuellen Zustand des Sensors zurück."""
         return "Feiertag" if self._heute_feiertag else "Kein Feiertag"
 
+    @property
+    def extra_state_attributes(self):
+        """Gibt zusätzliche Statusattribute des Sensors zurück."""
+        return {
+            "Land": self._land,
+            "Region": self._region,
+            "Nächster Feiertag": self._naechster_feiertag["name"],
+            "Datum des nächsten Feiertags": self._naechster_feiertag["datum"],
+        }
+
     async def async_update(self, session=None):
         """Aktualisiert die Feiertagsdaten."""
         heute = datetime.now().date()

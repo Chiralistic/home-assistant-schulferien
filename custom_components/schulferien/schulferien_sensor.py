@@ -33,7 +33,10 @@ class SchulferienSensor(Entity):
     @property
     def unique_id(self):
         """Gibt die eindeutige ID des Sensors zurück."""
-        return f"sensor.schulferien_{self._location['land']}_{self._location['region']}_{self._name}"
+        return (
+            f"sensor.schulferien_{self._location['land']}_"
+            f"{self._location['region']}_{self._name}"
+        )
 
     @property
     def state(self):

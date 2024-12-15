@@ -27,7 +27,7 @@ class SchulferienFeiertagSensor(Entity):
     @property
     def unique_id(self):
         """Gibt die eindeutige ID des Sensors zurück."""
-        return "sensor.schulferien_feiertag"
+        return "sensor.schulferien_feiertage"
 
     @property
     def state(self):

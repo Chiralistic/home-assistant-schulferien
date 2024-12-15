@@ -18,7 +18,7 @@ async def async_setup_platform(hass, config, async_add_entities, _discovery_info
 
     # Konfiguration für Schulferien-Sensor
     config_schulferien = {
-        "name": f"{name}_schulferien",
+        "name": "Schulferien",
         "land": land,
         "region": region,
         "brueckentage": brueckentage,
@@ -26,14 +26,14 @@ async def async_setup_platform(hass, config, async_add_entities, _discovery_info
 
     # Konfiguration für Feiertag-Sensor
     config_feiertag = {
-        "name": f"{name}_feiertag",
+        "name": "Feiertag",
         "land": land,
         "region": region,
     }
 
     # Konfiguration für kombinierten Sensor
     config_kombi = {
-        "name": f"{name}_kombiniert",
+        "name": "Schulferien/Feiertage kombiniert",
         "schulferien_entity_id": "sensor.schulferien",
         "feiertag_entity_id": "sensor.feiertag",
     }

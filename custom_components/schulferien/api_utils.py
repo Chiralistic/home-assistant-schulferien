@@ -42,11 +42,11 @@ async def fetch_data(
         ) as response:
             response.raise_for_status()
             data = await response.json()
-            _LOGGER.debug("API-Antwort erhalten: %s", response.status)
+            _LOGGER.debug("API-Antwort erhalten: %s", data)  # Logge die vollständige Antwort
             return data
     except aiohttp.ClientError as error:
         _LOGGER.error("Die Anfrage zur API ist fehlgeschlagen: %s", error)
-        raise
+        return {}
     finally:
         if close_session:
             await session.close()

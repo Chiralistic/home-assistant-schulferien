@@ -14,6 +14,7 @@ class FeiertagSensor(Entity):
     def __init__(self, hass, config):
         self._hass = hass
         self._name = config["name"]
+        self._unique_id = config.get("unique_id", "sensor.feiertag")  # Hier wird _unique_id gesetzt
         self._land = config["land"]
         self._region = config["region"]
         self._last_update_date = None
@@ -28,7 +29,7 @@ class FeiertagSensor(Entity):
     @property
     def unique_id(self):
         """Gibt die eindeutige ID des Sensors zurück."""
-        return "sensor.feiertag"
+        return self._unique_id
 
     @property
     def state(self):

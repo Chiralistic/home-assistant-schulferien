@@ -15,6 +15,7 @@ class SchulferienSensor(Entity):
         """Initialisiert den Schulferien-Sensor mit Konfigurationsdaten."""
         self._hass = hass
         self._name = config["name"]
+        self._unique_id = config.get("unique_id", "sensor.schulferien")  # Hier wird _unique_id gesetzt
         self._location = {"land": config["land"], "region": config["region"]}
         self._brueckentage = config.get("brueckentage", [])
         self._last_update_date = None
@@ -33,7 +34,7 @@ class SchulferienSensor(Entity):
     @property
     def unique_id(self):
         """Gibt die eindeutige ID des Sensors zurück."""
-        return "sensor.schulferien"
+        return self._unique_id
 
     @property
     def state(self):

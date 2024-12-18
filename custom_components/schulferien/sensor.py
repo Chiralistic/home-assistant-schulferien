@@ -27,7 +27,6 @@ async def load_bridge_days(bridge_days_path):
         _LOGGER.error("Fehler beim Laden der Brückentage: %s", error)
         return []
 
-
 async def async_setup_entry(hass, config_entry, async_add_entities):
     """Setup der Sensoren für Schulferien, Feiertage und die Kombination über Config Flow."""
 
@@ -62,7 +61,7 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
         "schulferien_entity_id": "sensor.schulferien",
         "feiertag_entity_id": "sensor.feiertag",
     }
-    
+
     async with aiohttp.ClientSession() as session:
         # Erstellen des Schulferien-Sensors
         schulferien_sensor = SchulferienSensor(hass, config_schulferien)

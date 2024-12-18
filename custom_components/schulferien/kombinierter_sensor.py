@@ -35,14 +35,6 @@ class SchulferienFeiertagSensor(Entity):
         """Gibt den aktuellen Zustand des Sensors zurück."""
         return "Ferientag/Feiertag" if self._state else "Kein Ferientag/Feiertag"
 
-    @property
-    def extra_state_attributes(self):
-        """Gibt zusätzliche Statusattribute des Sensors zurück."""
-        return {
-            "Schulferien Sensor": self._entity_ids["schulferien"],
-            "Feiertag Sensor": self._entity_ids["feiertag"],
-        }
-
     async def async_update(self):
         """Kombiniert die Zustände der Schulferien- und Feiertag-Sensoren."""
         schulferien_state = self._hass.states.get(self._entity_ids["schulferien"])

@@ -1,4 +1,4 @@
-"""Initialisierung der Schulferien-Integration."""
+"""Initialisierung der Schulferien und Feiertags-Integration."""
 
 import logging
 from .const import DOMAIN

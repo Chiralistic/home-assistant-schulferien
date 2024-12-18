@@ -15,8 +15,6 @@ def get_country_name(code):
 
 def get_region_name(country_code, region_code):
     """Gibt den ausgeschriebenen Regionsnamen für einen Regionscode zurück."""
-    _LOGGER.debug("Region code fts: %s", region_code)
-    _LOGGER.debug("Regions dictionary fts: %s", REGIONS)
     return REGIONS.get(country_code, {}).get(region_code, region_code)
 
 class FeiertagSensor(Entity):
@@ -36,7 +34,8 @@ class FeiertagSensor(Entity):
         """Wird aufgerufen, wenn die Entität zu Home Assistant hinzugefügt wird."""
         # Initiale Abfrage beim Hinzufügen der Entität
         await self.async_update()
-    
+        _LOGGER.debug("Initiale Abfrage beim Hinzufügen der Entität durchgeführt.")
+
         # Zeitplan für die tägliche Abfrage um 3 Uhr morgens
         async_track_time_change(self._hass, self.async_update, hour=3, minute=0, second=0)
         _LOGGER.debug("Tägliche Abfrage um 3 Uhr morgens eingerichtet.")
@@ -70,11 +69,11 @@ class FeiertagSensor(Entity):
             "Land": get_country_name(self._land),
             "Region": get_region_name(self._land, self._region),
         }
-        _LOGGER.debug("Aktualisierte Feiertag-Attribute: %s", self.extra_state_attributes)
+        #_LOGGER.debug("Aktualisierte Feiertag-Attribute: %s", self.extra_state_attributes)
 
     async def async_update(self, session=None):
         """Aktualisiert die Feiertagsdaten durch Abfrage der API."""
-        _LOGGER.debug("Starte tägliche API-Abfrage für Feiertage.")
+        #_LOGGER.debug("Starte tägliche API-Abfrage für Feiertage.")
 
         api_parameter = {
             "countryIsoCode": self._land,
@@ -92,7 +91,7 @@ class FeiertagSensor(Entity):
                 return
 
             feiertage_liste = parse_daten(feiertage_daten, typ="feiertage")
-            _LOGGER.debug("Verarbeitete Feiertagsdaten: %s", feiertage_liste)
+            #_LOGGER.debug("Verarbeitete Feiertagsdaten: %s", feiertage_liste)
 
             heute = datetime.now().date()
             self._heute_feiertag = any(

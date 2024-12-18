@@ -5,7 +5,6 @@
   "config_flow": true,
   "documentation": "https://github.com/Chiralistic/home-assistant-schulferien",
   "iot_class": "cloud_polling",
-  "icon": "custom_components/schulferien/icons/icon.png",
   "issue_tracker": "https://github.com/Chiralistic/home-assistant-schulferien/issues",
   "requirements": ["aiohttp", "aiofiles"],
   "version": "0.1.6"

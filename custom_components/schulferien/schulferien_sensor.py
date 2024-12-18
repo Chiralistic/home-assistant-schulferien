@@ -15,8 +15,6 @@ def get_country_name(code):
 
 def get_region_name(country_code, region_code):
     """Gibt den ausgeschriebenen Regionsnamen für einen Regionscode zurück."""
-    _LOGGER.debug("Region code sfs: %s", region_code)
-    _LOGGER.debug("Regions dictionary sfs: %s", REGIONS)  
     return REGIONS.get(country_code, {}).get(region_code, region_code)
 
 class SchulferienSensor(Entity):
@@ -41,7 +39,8 @@ class SchulferienSensor(Entity):
         """Wird aufgerufen, wenn die Entität zu Home Assistant hinzugefügt wird."""
         # Initiale Abfrage beim Hinzufügen der Entität
         await self.async_update()
-    
+        _LOGGER.debug("Initiale Abfrage beim Hinzufügen der Entität durchgeführt.")
+
         # Zeitplan für die tägliche Abfrage um 3 Uhr morgens
         async_track_time_change(self._hass, self.async_update, hour=3, minute=0, second=0)
         _LOGGER.debug("Tägliche Abfrage um 3 Uhr morgens eingerichtet.")
@@ -97,11 +96,11 @@ class SchulferienSensor(Entity):
             "Region": get_region_name(self._location["land"], self._location["region"]),
             "Brückentage": self._brueckentage,
         }
-        _LOGGER.debug("Aktualisierte Schulferien-Attribute: %s", self.extra_state_attributes)
+        #_LOGGER.debug("Aktualisierte Schulferien-Attribute: %s", self.extra_state_attributes)
 
     async def async_update(self, session=None):
         """Aktualisiert die Schulferiendaten durch Abfrage der API."""
-        _LOGGER.debug("Starte tägliche API-Abfrage für Schulferien.")
+        #_LOGGER.debug("Starte tägliche API-Abfrage für Schulferien.")
 
         api_parameter = {
             "countryIsoCode": self._location["land"],
@@ -117,7 +116,7 @@ class SchulferienSensor(Entity):
                 return
 
             ferien_liste = parse_daten(ferien_daten, self._brueckentage)
-            _LOGGER.debug("Verarbeitete Schulferiendaten: %s", ferien_liste)
+            #_LOGGER.debug("Verarbeitete Schulferiendaten: %s", ferien_liste)
 
             self._ferien_info["heute_ferientag"] = any(
                 ferien["start_datum"] <= datetime.now().date() <= ferien["end_datum"]

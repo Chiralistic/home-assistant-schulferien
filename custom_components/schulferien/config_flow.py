@@ -29,7 +29,9 @@ class SchulferienFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
 
             if region_code:
                 # Eintrag erstellen und zum nächsten Schritt gehen
-                return await self.async_step_finish(user_input={"country": country_code, "region": region_code})
+                return await self.async_step_finish(
+                    user_input={"country": country_code, "region": region_code}
+                )
             else:
                 errors["region"] = "Ungültige Region ausgewählt."
 

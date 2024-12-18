@@ -8,8 +8,10 @@ API_URL_FEIERTAGE = "https://openholidaysapi.org/PublicHolidays"
 DEFAULT_UPDATE_HOUR = 3
 DEFAULT_UPDATE_MINUTE = 0
 
-# Konstante für den Cache-Pfad
-CACHE_FILE = "/config/custom_components/schulferien/cache.json"
+# Cache-Dateipfade für Schulferien und Feiertage
+CACHE_FILE_SCHULFERIEN = "/config/custom_components/schulferien/cache_schulferien.json"
+CACHE_FILE_FEIERTAGE = "/config/custom_components/schulferien/cache_feiertage.json"
+
 # Cache-Gültigkeitsdauer in Stunden (z.B. 24 Stunden)
 CACHE_VALIDITY_DURATION = 48
 

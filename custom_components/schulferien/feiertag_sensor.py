@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from homeassistant.helpers.entity import Entity
 from homeassistant.helpers.event import async_track_time_change
 from .api_utils import fetch_data, parse_daten
-from .const import API_URL_FEIERTAGE, COUNTRIES, REGIONS
+from .const import API_URL_FEIERTAGE, COUNTRIES, REGIONS, CACHE_FILE_FEIERTAGE
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -83,7 +83,7 @@ class FeiertagSensor(Entity):
         }
 
         try:
-            feiertage_daten = await fetch_data(API_URL_FEIERTAGE, api_parameter, session)
+            feiertage_daten = await fetch_data(API_URL_FEIERTAGE, api_parameter, CACHE_FILE_FEIERTAGE, session)
             if not feiertage_daten:
                 _LOGGER.warning("Keine Feiertagsdaten von der API erhalten.")
                 self._heute_feiertag = None

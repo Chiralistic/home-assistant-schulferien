@@ -5,7 +5,7 @@ import logging
 from homeassistant.helpers.entity import Entity
 from homeassistant.helpers.event import async_track_time_change
 from .api_utils import fetch_data, parse_daten
-from .const import API_URL_FERIEN, COUNTRIES, REGIONS
+from .const import API_URL_FERIEN, COUNTRIES, REGIONS, CACHE_FILE_SCHULFERIEN
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -110,7 +110,7 @@ class SchulferienSensor(Entity):
         }
 
         try:
-            ferien_daten = await fetch_data(API_URL_FERIEN, api_parameter, session)
+            ferien_daten = await fetch_data(API_URL_FERIEN, api_parameter, CACHE_FILE_SCHULFERIEN, session)
             if not ferien_daten:
                 _LOGGER.warning("Keine Schulferiendaten von der API erhalten.")
                 return

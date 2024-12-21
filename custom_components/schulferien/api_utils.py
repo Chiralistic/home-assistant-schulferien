@@ -1,69 +1,34 @@
 """Modul zur Handhabung der API-Interaktionen für Schulferien und Feiertage."""
 
-import json
 import logging
-import os
-from datetime import datetime, timedelta
-
+from datetime import datetime
 import aiohttp
-import aiofiles
-from .const import CACHE_VALIDITY_DURATION, CACHE_FILE_SCHULFERIEN, CACHE_FILE_FEIERTAGE
 
 _LOGGER = logging.getLogger(__name__)
 
-# Timeout für die API-Anfrage
+# Konstante für den Timeout
 DEFAULT_TIMEOUT = aiohttp.ClientTimeout(total=10, connect=5, sock_read=5)
 
-async def load_cache(cache_file):
-    """Lädt die Cache-Daten aus der angegebenen Datei, falls vorhanden und gültig."""
-    if not os.path.exists(cache_file):
-        return None
-
-    async with aiofiles.open(cache_file, "r", encoding="utf-8") as file:
-        try:
-            cache_data = json.loads(await file.read())
-            timestamp = datetime.fromisoformat(cache_data["timestamp"])
-            if datetime.now() - timestamp < timedelta(hours=CACHE_VALIDITY_DURATION):
-                _LOGGER.debug(f"Gültige Cache-Daten in {cache_file} gefunden.")
-                return cache_data.get("data")
-            _LOGGER.debug(f"Cache-Daten in {cache_file} sind abgelaufen.")
-        except (json.JSONDecodeError, ValueError) as e:
-            _LOGGER.error(f"Fehler beim Laden des Caches {cache_file}: {e}")
-    return None
-
-async def save_cache(data, cache_file):
-    """Speichert die Daten zusammen mit einem Zeitstempel in der angegebenen Cache-Datei."""
-    cache_content = {
-        "timestamp": datetime.now().isoformat(),
-        "data": data
-    }
-    async with aiofiles.open(cache_file, "w", encoding="utf-8") as file:
-        await file.write(json.dumps(cache_content))
-        _LOGGER.debug(f"Daten wurden in {cache_file} gespeichert.")
-
 async def fetch_data(
-    api_url: str, api_parameter: dict, cache_file: str, session: aiohttp.ClientSession = None
+    api_url: str, api_parameter: dict, session: aiohttp.ClientSession = None
 ) -> dict:
     """
-    Allgemeine Funktion, um Daten von der API abzurufen, mit Cache-Unterstützung.
+    Allgemeine Funktion, um Daten von der API abzurufen.
 
     Args:
         api_url (str): Die URL der API.
         api_parameter (dict): Die Parameter für die API-Anfrage.
-        cache_file (str): Der Pfad zur Cache-Datei.
+        session (aiohttp.ClientSession, optional):
+            Eine bestehende Session. Erstellt eine neue, wenn nicht vorhanden.
 
     Returns:
-        dict: Die JSON-Daten von der API oder aus dem Cache.
+        dict: Die JSON-Daten von der API.
+
+    Raises:
+        aiohttp.ClientError: Bei Client-Fehlern wie Timeouts oder Verbindungsfehlern.
     """
     _LOGGER.debug("Sende Anfrage an API: %s mit Parametern %s", api_url, api_parameter)
 
-    # Versuche, den Cache zu laden
-    cached_data = await load_cache(cache_file)
-    if cached_data:
-        _LOGGER.info(f"Verwende Daten aus dem Cache: {cache_file}")
-        return cached_data
-
-    # Wenn kein gültiger Cache vorhanden ist, rufe die API ab
     close_session = False
     if session is None:
         session = aiohttp.ClientSession(timeout=DEFAULT_TIMEOUT)
@@ -77,24 +42,16 @@ async def fetch_data(
         ) as response:
             response.raise_for_status()
             data = await response.json()
-            _LOGGER.debug("API-Antwort erhalten: %s", data)
-
-            # Speichere die Daten im Cache
-            await save_cache(data, cache_file)
+            _LOGGER.debug("API-Antwort erhalten: %s", data)  # Logge die vollständige Antwort
             return data
     except aiohttp.ClientError as error:
         _LOGGER.error("Die Anfrage zur API ist fehlgeschlagen: %s", error)
-
-        # Versuche Cache-Daten als Fallback
-        cached_data = await load_cache(cache_file)
-        if cached_data:
-            _LOGGER.info("Verwende Cache-Daten als Fallback wegen API-Fehler.")
-            return cached_data
         return {}
     finally:
         if close_session:
             await session.close()
             _LOGGER.debug("Die API-Session wurde geschlossen.")
+
 
 def parse_daten(json_daten, brueckentage=None, typ="ferien"):
     """
@@ -130,7 +87,7 @@ def parse_daten(json_daten, brueckentage=None, typ="ferien"):
                     "end_datum": datum,
                 })
 
-        #_LOGGER.debug("JSON-Daten erfolgreich verarbeitet: %d Einträge", len(liste))
+        _LOGGER.debug("JSON-Daten erfolgreich verarbeitet: %d Einträge", len(liste))
         return liste
     except (KeyError, ValueError, IndexError, TypeError) as error:
         _LOGGER.error("Fehler beim Verarbeiten der JSON-Daten: %s", error)

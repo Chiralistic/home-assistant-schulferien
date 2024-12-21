@@ -5,7 +5,7 @@ import logging
 from homeassistant.helpers.entity import Entity
 from homeassistant.helpers.event import async_track_time_change
 from .api_utils import fetch_data, parse_daten
-from .const import API_URL_FERIEN, COUNTRIES, REGIONS, CACHE_FILE_SCHULFERIEN
+from .const import API_URL_FERIEN, COUNTRIES, REGIONS
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -15,6 +15,8 @@ def get_country_name(code):
 
 def get_region_name(country_code, region_code):
     """Gibt den ausgeschriebenen Regionsnamen für einen Regionscode zurück."""
+    _LOGGER.debug("Region code sfs: %s", region_code)
+    _LOGGER.debug("Regions dictionary sfs: %s", REGIONS)  
     return REGIONS.get(country_code, {}).get(region_code, region_code)
 
 class SchulferienSensor(Entity):
@@ -37,7 +39,10 @@ class SchulferienSensor(Entity):
 
     async def async_added_to_hass(self):
         """Wird aufgerufen, wenn die Entität zu Home Assistant hinzugefügt wird."""
-        # Nur die tägliche Abfrage um 3 Uhr morgens einplanen
+        # Initiale Abfrage beim Hinzufügen der Entität
+        await self.async_update()
+    
+        # Zeitplan für die tägliche Abfrage um 3 Uhr morgens
         async_track_time_change(self._hass, self.async_update, hour=3, minute=0, second=0)
         _LOGGER.debug("Tägliche Abfrage um 3 Uhr morgens eingerichtet.")
 
@@ -92,28 +97,27 @@ class SchulferienSensor(Entity):
             "Region": get_region_name(self._location["land"], self._location["region"]),
             "Brückentage": self._brueckentage,
         }
-        #_LOGGER.debug("Aktualisierte Schulferien-Attribute: %s", self.extra_state_attributes)
+        _LOGGER.debug("Aktualisierte Schulferien-Attribute: %s", self.extra_state_attributes)
 
     async def async_update(self, session=None):
         """Aktualisiert die Schulferiendaten durch Abfrage der API."""
-        #_LOGGER.debug("Starte tägliche API-Abfrage für Schulferien.")
+        _LOGGER.debug("Starte tägliche API-Abfrage für Schulferien.")
 
         api_parameter = {
             "countryIsoCode": self._location["land"],
             "subdivisionCode": self._location["region"],
-            "languageIsoCode": "DE",
             "validFrom": datetime.now().strftime("%Y-%m-%d"),
             "validTo": (datetime.now() + timedelta(days=365)).strftime("%Y-%m-%d"),
         }
 
         try:
-            ferien_daten = await fetch_data(API_URL_FERIEN, api_parameter, CACHE_FILE_SCHULFERIEN, session)
+            ferien_daten = await fetch_data(API_URL_FERIEN, api_parameter, session)
             if not ferien_daten:
                 _LOGGER.warning("Keine Schulferiendaten von der API erhalten.")
                 return
 
             ferien_liste = parse_daten(ferien_daten, self._brueckentage)
-            #_LOGGER.debug("Verarbeitete Schulferiendaten: %s", ferien_liste)
+            _LOGGER.debug("Verarbeitete Schulferiendaten: %s", ferien_liste)
 
             self._ferien_info["heute_ferientag"] = any(
                 ferien["start_datum"] <= datetime.now().date() <= ferien["end_datum"]

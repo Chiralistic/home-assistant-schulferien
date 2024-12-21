@@ -3,9 +3,10 @@
 import json
 import logging
 import os
+from datetime import datetime, timedelta
+
 import aiohttp
 import aiofiles
-from datetime import datetime, timedelta
 from .const import CACHE_VALIDITY_DURATION, CACHE_FILE_SCHULFERIEN, CACHE_FILE_FEIERTAGE
 
 _LOGGER = logging.getLogger(__name__)
@@ -21,12 +22,11 @@ async def load_cache(cache_file):
     async with aiofiles.open(cache_file, "r", encoding="utf-8") as file:
         try:
             cache_data = json.loads(await file.read())
-            timestamp = datetime.fromisoformat(cache_data.get("timestamp", ""))
+            timestamp = datetime.fromisoformat(cache_data["timestamp"])
             if datetime.now() - timestamp < timedelta(hours=CACHE_VALIDITY_DURATION):
                 _LOGGER.debug(f"Gültige Cache-Daten in {cache_file} gefunden.")
                 return cache_data.get("data")
-            else:
-                _LOGGER.debug(f"Cache-Daten in {cache_file} sind abgelaufen.")
+            _LOGGER.debug(f"Cache-Daten in {cache_file} sind abgelaufen.")
         except (json.JSONDecodeError, ValueError) as e:
             _LOGGER.error(f"Fehler beim Laden des Caches {cache_file}: {e}")
     return None
@@ -84,6 +84,12 @@ async def fetch_data(
             return data
     except aiohttp.ClientError as error:
         _LOGGER.error("Die Anfrage zur API ist fehlgeschlagen: %s", error)
+
+        # Versuche Cache-Daten als Fallback
+        cached_data = await load_cache(cache_file)
+        if cached_data:
+            _LOGGER.info("Verwende Cache-Daten als Fallback wegen API-Fehler.")
+            return cached_data
         return {}
     finally:
         if close_session:
@@ -127,5 +133,5 @@ def parse_daten(json_daten, brueckentage=None, typ="ferien"):
         #_LOGGER.debug("JSON-Daten erfolgreich verarbeitet: %d Einträge", len(liste))
         return liste
     except (KeyError, ValueError, IndexError, TypeError) as error:
-        #_LOGGER.error("Fehler beim Verarbeiten der JSON-Daten: %s", error)
+        _LOGGER.error("Fehler beim Verarbeiten der JSON-Daten: %s", error)
         raise RuntimeError("Ungültige JSON-Daten erhalten.") from error

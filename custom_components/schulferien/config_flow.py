@@ -9,7 +9,7 @@ from homeassistant.components import persistent_notification
 
 from .const import DOMAIN, COUNTRIES, REGIONS
 
-LOGGER = logging.getLogger(__name__)
+_LOGGER = logging.getLogger(__name__)
 
 class SchulferienFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
     """Config flow for Schulferien integration."""

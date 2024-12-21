@@ -32,11 +32,7 @@ class FeiertagSensor(Entity):
 
     async def async_added_to_hass(self):
         """Wird aufgerufen, wenn die Entität zu Home Assistant hinzugefügt wird."""
-        # Initiale Abfrage beim Hinzufügen der Entität
-        await self.async_update()
-        _LOGGER.debug("Initiale Abfrage beim Hinzufügen der Entität durchgeführt.")
-
-        # Zeitplan für die tägliche Abfrage um 3 Uhr morgens
+        # Nur die tägliche Abfrage um 3 Uhr morgens einplanen
         async_track_time_change(self._hass, self.async_update, hour=3, minute=0, second=0)
         _LOGGER.debug("Tägliche Abfrage um 3 Uhr morgens eingerichtet.")
 
@@ -78,6 +74,7 @@ class FeiertagSensor(Entity):
         api_parameter = {
             "countryIsoCode": self._land,
             "subdivisionCode": self._region,
+            "languageIsoCode": "DE",
             "validFrom": datetime.now().strftime("%Y-%m-%d"),
             "validTo": (datetime.now() + timedelta(days=365)).strftime("%Y-%m-%d"),
         }

@@ -66,7 +66,10 @@ class SchulferienFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
                     "Fügen Sie dort Ihre Brückentage im Format `DD.MM.YYYY` hinzu."
                 ),
             )
+        except Exception as e:
+            _LOGGER.error("Fehler beim Erstellen des Eintrags: %s", e)
+            return self.async_abort(reason="erstellungsfehler")
 
-        except Exception as err:
-            _LOGGER.error("Fehler beim Erstellen des Eintrags: %s", err)
-            return self.async_abort(reason="eintrag_erstellung_fehlgeschlagen")
+    def is_matching(self, domain: str) -> bool:
+        """Überprüft, ob die Domain übereinstimmt."""
+        return domain == DOMAIN

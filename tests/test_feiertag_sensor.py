@@ -1,11 +1,9 @@
 """Unit Test um die Ausgabe des Feiertagsensors zu testen."""
 
-import pytest
 from unittest.mock import patch, AsyncMock
 from datetime import datetime, timedelta
+import pytest
 from custom_components.schulferien.feiertag_sensor import FeiertagSensor
-from custom_components.schulferien.const import API_URL_FEIERTAGE
-
 
 @pytest.fixture
 def mock_config():
@@ -17,19 +15,16 @@ def mock_config():
         "region": "DE-BY",
     }
 
-
 @pytest.fixture
 def mock_sensor(hass, mock_config):
     """Erstellt eine Instanz des Feiertag-Sensors."""
     return FeiertagSensor(hass, mock_config)
-
 
 async def test_initial_attributes(mock_sensor):
     """Testet die anfänglichen Attribute des Sensors."""
     assert mock_sensor.name == "Feiertag Sensor"
     assert mock_sensor.unique_id == "sensor.feiertag"
     assert mock_sensor.state == "Kein Feiertag"
-
 
 async def test_update_today_holiday(mock_sensor):
     """Testet die Aktualisierung mit einem Feiertag heute."""
@@ -52,7 +47,6 @@ async def test_update_today_holiday(mock_sensor):
         assert mock_sensor.state == "Feiertag"
         assert mock_sensor.extra_state_attributes["Nächster Feiertag"] == "Zukunft-Feiertag"
 
-
 async def test_update_no_holiday(mock_sensor):
     """Testet die Aktualisierung ohne Feiertage heute."""
     today = datetime.now().date()
@@ -71,7 +65,6 @@ async def test_update_no_holiday(mock_sensor):
 
         assert mock_sensor.state == "Kein Feiertag"
         assert mock_sensor.extra_state_attributes["Nächster Feiertag"] == "Zukunft-Feiertag"
-
 
 async def test_update_error_handling(mock_sensor):
     """Testet das Verhalten bei einem API-Fehler."""

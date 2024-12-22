@@ -1,9 +1,11 @@
-import asyncio
+"""Unit tests for API utility functions."""
+
 import json
 import os
 import unittest
 from unittest import mock
 from datetime import datetime, timedelta
+import aiofiles
 from api_utils import load_cache, save_cache, fetch_data, parse_daten
 
 # Constants for testing
@@ -11,6 +13,7 @@ TEST_CACHE_FILE = "test_cache.json"
 CACHE_VALIDITY_DURATION = 24  # in hours
 
 class TestApiUtils(unittest.IsolatedAsyncioTestCase):
+    """Test case for API utility functions."""
 
     async def asyncSetUp(self):
         """Set up test environment before each test."""

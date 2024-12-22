@@ -3,9 +3,9 @@
 from datetime import datetime, timedelta
 import logging
 from homeassistant.helpers.entity import Entity
+import aiohttp  # Hinzugefügt für spezifische Ausnahmebehandlung
 from .api_utils import fetch_data, parse_daten
 from .const import API_URL_FERIEN, COUNTRIES, REGIONS
-import aiohttp  # Hinzugefügt für spezifische Ausnahmebehandlung
 
 _LOGGER = logging.getLogger(__name__)
 

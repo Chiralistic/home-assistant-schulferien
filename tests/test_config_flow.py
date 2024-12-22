@@ -1,21 +1,19 @@
 """Unit Test um den config flow zu testen."""
 
-import pytest
 from unittest.mock import patch
-from homeassistant import config_entries
+import pytest
 from custom_components.schulferien.config_flow import SchulferienFlowHandler
 from custom_components.schulferien.const import DOMAIN, COUNTRIES, REGIONS
 
 
 @pytest.fixture
-def mock_config_flow(hass):
+def mock_config_flow():
     """Fixture für die Erstellung eines ConfigFlow-Handlers."""
     flow = SchulferienFlowHandler()
-    flow.hass = hass
     return flow
 
 
-async def test_user_step_valid_input(hass, mock_config_flow):
+async def test_user_step_valid_input(mock_config_flow):
     """Testet die Benutzereingabe mit gültigen Werten."""
     with patch("homeassistant.config_entries.ConfigEntries.async_create_entry") as mock_create_entry:
         result = await mock_config_flow.async_step_user(
@@ -34,7 +32,7 @@ async def test_user_step_valid_input(hass, mock_config_flow):
         mock_create_entry.assert_called_once()
 
 
-async def test_user_step_invalid_region(hass, mock_config_flow):
+async def test_user_step_invalid_region(mock_config_flow):
     """Testet die Benutzereingabe mit ungültiger Region."""
     result = await mock_config_flow.async_step_user(
         {"country": "DE", "region": "Ungültig"}
@@ -44,7 +42,7 @@ async def test_user_step_invalid_region(hass, mock_config_flow):
     assert result["errors"] == {"region": "ungültige_region"}
 
 
-async def test_finish_step_missing_input(hass, mock_config_flow):
+async def test_finish_step_missing_input(mock_config_flow):
     """Testet das Verhalten bei fehlenden Eingabewerten."""
     result = await mock_config_flow.async_step_finish({})
     assert result["type"] == "abort"

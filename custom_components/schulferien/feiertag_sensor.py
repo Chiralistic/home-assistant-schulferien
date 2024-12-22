@@ -89,8 +89,8 @@ class FeiertagSensor(Entity):
         if zukunft_feiertage:
             naechster_feiertag = min(zukunft_feiertage, key=lambda f: f["start_datum"])
             self._feiertags_info["naechster_feiertag_name"] = naechster_feiertag["name"]
-            self._feiertags_info["naechster_feiertag_datum"] = naechster_feiertag["start_datum"].strftime(
-                "%d.%m.%Y"
+            self._feiertags_info["naechster_feiertag_datum"] = (
+                naechster_feiertag["start_datum"].strftime("%d.%m.%Y")
             )
         else:
             self._feiertags_info["naechster_feiertag_name"] = None

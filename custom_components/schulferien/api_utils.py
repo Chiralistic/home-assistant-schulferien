@@ -5,13 +5,9 @@ from datetime import datetime
 import aiohttp
 
 _LOGGER = logging.getLogger(__name__)
-
-# Konstante für den Timeout
 DEFAULT_TIMEOUT = aiohttp.ClientTimeout(total=10, connect=5, sock_read=5)
 
-async def fetch_data(
-    api_url: str, api_parameter: dict, session: aiohttp.ClientSession = None
-) -> dict:
+async def fetch_data(api_url: str, api_parameter: dict, session: aiohttp.ClientSession = None) -> dict:
     """
     Allgemeine Funktion, um Daten von der API abzurufen.
 
@@ -35,14 +31,10 @@ async def fetch_data(
         close_session = True
 
     try:
-        async with session.get(
-            api_url,
-            params=api_parameter,
-            headers={"Accept": "application/json"}
-        ) as response:
+        async with session.get(api_url, params=api_parameter, headers={"Accept": "application/json"}) as response:
             response.raise_for_status()
             data = await response.json()
-            _LOGGER.debug("API-Antwort erhalten: %s", data)  # Logge die vollständige Antwort
+            _LOGGER.debug("API-Antwort erhalten: %s", data)
             return data
     except aiohttp.ClientError as error:
         _LOGGER.error("Die Anfrage zur API ist fehlgeschlagen: %s", error)
@@ -51,7 +43,6 @@ async def fetch_data(
         if close_session:
             await session.close()
             _LOGGER.debug("Die API-Session wurde geschlossen.")
-
 
 def parse_daten(json_daten, brueckentage=None, typ="ferien"):
     """
@@ -71,7 +62,7 @@ def parse_daten(json_daten, brueckentage=None, typ="ferien"):
     try:
         liste = []
         for eintrag in json_daten:
-            name = eintrag.get("name", [{"text": "Unbekannt"}])[0]["text"]
+            name = eintrag.get("name", [{}])[0].get("text", "Unbekannt")
             liste.append({
                 "name": name,
                 "start_datum": datetime.fromisoformat(eintrag["startDate"]).date(),

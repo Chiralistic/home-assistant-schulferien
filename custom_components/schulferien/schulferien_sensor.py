@@ -38,10 +38,6 @@ class SchulferienSensor(Entity):
         }
 
     async def async_added_to_hass(self):
-        """Wird aufgerufen, wenn die Entität zu Home Assistant hinzugefügt wird."""
-        # Initiale Abfrage beim Hinzufügen der Entität
-        await self.async_update()
-    
         # Zeitplan für die tägliche Abfrage um 3 Uhr morgens
         async_track_time_change(self._hass, self.async_update, hour=3, minute=0, second=0)
         _LOGGER.debug("Tägliche Abfrage um 3 Uhr morgens eingerichtet.")
@@ -97,7 +93,6 @@ class SchulferienSensor(Entity):
             "Region": get_region_name(self._location["land"], self._location["region"]),
             "Brückentage": self._brueckentage,
         }
-        _LOGGER.debug("Aktualisierte Schulferien-Attribute: %s", self.extra_state_attributes)
 
     async def async_update(self, session=None):
         """Aktualisiert die Schulferiendaten durch Abfrage der API."""
@@ -108,6 +103,7 @@ class SchulferienSensor(Entity):
             "subdivisionCode": self._location["region"],
             "validFrom": datetime.now().strftime("%Y-%m-%d"),
             "validTo": (datetime.now() + timedelta(days=365)).strftime("%Y-%m-%d"),
+            "languageIsoCode": "DE",
         }
 
         try:

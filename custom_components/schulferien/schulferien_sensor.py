@@ -5,6 +5,7 @@ import logging
 from homeassistant.helpers.entity import Entity
 from .api_utils import fetch_data, parse_daten
 from .const import API_URL_FERIEN, COUNTRIES, REGIONS
+import aiohttp  # Hinzugefügt für spezifische Ausnahmebehandlung
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -14,8 +15,8 @@ def get_country_name(code):
 
 def get_region_name(country_code, region_code):
     """Gibt den ausgeschriebenen Regionsnamen für einen Regionscode zurück."""
-    _LOGGER.debug("Region code sfs: %s", region_code)
-    _LOGGER.debug("Regions dictionary sfs: %s", REGIONS)  
+    _LOGGER.debug("Region code: %s", region_code)
+    _LOGGER.debug("Regions dictionary: %s", REGIONS)
     return REGIONS.get(country_code, {}).get(region_code, region_code)
 
 class SchulferienSensor(Entity):
@@ -79,7 +80,9 @@ class SchulferienSensor(Entity):
             "Beginn": self._ferien_info["naechste_ferien_beginn"],
             "Ende": self._ferien_info["naechste_ferien_ende"],
             "Land": get_country_name(self._location["land"]),
-            "Region": get_region_name(self._location["land"], self._location["region"]),
+            "Region": get_region_name(
+                self._location["land"], self._location["region"]
+            ),
             "Brückentage": self._brueckentage,
         }
 
@@ -93,8 +96,8 @@ class SchulferienSensor(Entity):
         api_parameter = {
             "countryIsoCode": self._location["land"],
             "subdivisionCode": self._location["region"],
-            "validFrom": datetime.now().strftime("%Y-%m-%d"),
-            "validTo": (datetime.now() + timedelta(days=365)).strftime("%Y-%m-%d"),
+            "validFrom": heute.strftime("%Y-%m-%d"),
+            "validTo": (heute + timedelta(days=365)).strftime("%Y-%m-%d"),
             "languageIsoCode": "DE",
         }
 
@@ -110,28 +113,28 @@ class SchulferienSensor(Entity):
             _LOGGER.debug("Verarbeitete Schulferiendaten: %s", ferien_liste)
 
             self._ferien_info["heute_ferientag"] = any(
-                ferien["start_datum"] <= heute <= ferien["end_datum"] for ferien in ferien_liste
+                ferien["start_datum"] <= heute <= ferien["end_datum"]
+                for ferien in ferien_liste
             )
-            _LOGGER.debug("Heute Ferientag: %s", self._ferien_info["heute_ferientag"])
 
-            zukunftsferien = [ferien for ferien in ferien_liste if ferien["start_datum"] > heute]
+            zukunftsferien = [
+                ferien for ferien in ferien_liste if ferien["start_datum"] > heute
+            ]
+
             if zukunftsferien:
                 naechste_ferien = min(zukunftsferien, key=lambda f: f["start_datum"])
-                self._ferien_info["naechste_ferien_name"] = naechste_ferien["name"]
-                self._ferien_info["naechste_ferien_beginn"] = naechste_ferien["start_datum"].strftime("%d.%m.%Y")
-                self._ferien_info["naechste_ferien_ende"] = naechste_ferien["end_datum"].strftime("%d.%m.%Y")
-                _LOGGER.debug(
-                    "Nächste Ferien: %s, Beginn: %s, Ende: %s",
-                    self._ferien_info["naechste_ferien_name"],
-                    self._ferien_info["naechste_ferien_beginn"],
-                    self._ferien_info["naechste_ferien_ende"],
-                )
+                self._ferien_info.update({
+                    "naechste_ferien_name": naechste_ferien["name"],
+                    "naechste_ferien_beginn": naechste_ferien["start_datum"].strftime("%d.%m.%Y"),
+                    "naechste_ferien_ende": naechste_ferien["end_datum"].strftime("%d.%m.%Y"),
+                })
             else:
-                self._ferien_info["naechste_ferien_name"] = None
-                self._ferien_info["naechste_ferien_beginn"] = None
-                self._ferien_info["naechste_ferien_ende"] = None
-                _LOGGER.debug("Keine zukünftigen Ferien gefunden.")
+                self._ferien_info.update({
+                    "naechste_ferien_name": None,
+                    "naechste_ferien_beginn": None,
+                    "naechste_ferien_ende": None,
+                })
 
             self._last_update_date = heute
-        except Exception as e:
+        except (aiohttp.ClientError, ValueError) as e:
             _LOGGER.error("Fehler beim Aktualisieren der Schulferiendaten: %s", e)

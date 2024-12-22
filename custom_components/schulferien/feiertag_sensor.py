@@ -3,7 +3,6 @@
 import logging  # Standardimport zuerst
 from datetime import datetime, timedelta
 from homeassistant.helpers.entity import Entity
-from homeassistant.helpers.event import async_track_time_change
 from .api_utils import fetch_data, parse_daten
 from .const import API_URL_FEIERTAGE, COUNTRIES, REGIONS
 
@@ -32,11 +31,6 @@ class FeiertagSensor(Entity):
         self._heute_feiertag = None
         self._naechster_feiertag = {"name": None, "datum": None}
 
-    async def async_added_to_hass(self):
-        # Zeitplan für die tägliche Abfrage um 3 Uhr morgens
-        async_track_time_change(self._hass, self.async_update, hour=3, minute=0, second=0)
-        _LOGGER.debug("Tägliche Abfrage um 3 Uhr morgens eingerichtet.")
-
     @property
     def name(self):
         """Gibt den Namen des Sensors zurück."""
@@ -53,11 +47,6 @@ class FeiertagSensor(Entity):
         return "Feiertag" if self._heute_feiertag else "Kein Feiertag"
 
     @property
-    def should_poll(self):
-        """Deaktiviert automatische Abfragen durch Home Assistant."""
-        return False
-
-    @property
     def extra_state_attributes(self):
         """Gibt zusätzliche Statusattribute des Sensors zurück."""
         return {
@@ -66,11 +55,13 @@ class FeiertagSensor(Entity):
             "Land": get_country_name(self._land),
             "Region": get_region_name(self._land, self._region),
         }
-        _LOGGER.debug("Aktualisierte Feiertag-Attribute: %s", self.extra_state_attributes)
 
     async def async_update(self, session=None):
-        """Aktualisiert die Feiertagsdaten durch Abfrage der API."""
-        _LOGGER.debug("Starte tägliche API-Abfrage für Feiertage.")
+        """Aktualisiert die Feiertagsdaten."""
+        heute = datetime.now().date()
+        if self._last_update_date == heute:
+            _LOGGER.debug("Die API für Feiertage wurde heute bereits abgefragt.")
+            return
 
         api_parameter = {
             "countryIsoCode": self._land,
@@ -80,36 +71,24 @@ class FeiertagSensor(Entity):
             "languageIsoCode": "DE",
         }
 
-        try:
-            feiertage_daten = await fetch_data(API_URL_FEIERTAGE, api_parameter, session)
-            if not feiertage_daten:
-                _LOGGER.warning("Keine Feiertagsdaten von der API erhalten.")
-                self._heute_feiertag = None
-                self._naechster_feiertag = {"name": None, "datum": None}
-                return
+        feiertage_daten = await fetch_data(API_URL_FEIERTAGE, api_parameter, session)
+        feiertage_liste = parse_daten(feiertage_daten, typ="feiertage")
 
-            feiertage_liste = parse_daten(feiertage_daten, typ="feiertage")
-            _LOGGER.debug("Verarbeitete Feiertagsdaten: %s", feiertage_liste)
+        self._heute_feiertag = any(
+            feiertag["start_datum"] == heute for feiertag in feiertage_liste
+        )
 
-            heute = datetime.now().date()
-            self._heute_feiertag = any(
-                feiertag["start_datum"] == heute for feiertag in feiertage_liste
+        zukunft_feiertage = [
+            feiertag for feiertag in feiertage_liste if feiertag["start_datum"] > heute
+        ]
+        if zukunft_feiertage:
+            naechster_feiertag = min(zukunft_feiertage, key=lambda f: f["start_datum"])
+            self._naechster_feiertag["name"] = naechster_feiertag["name"]
+            self._naechster_feiertag["datum"] = naechster_feiertag["start_datum"].strftime(
+                "%d.%m.%Y"
             )
+        else:
+            self._naechster_feiertag["name"] = None
+            self._naechster_feiertag["datum"] = None
 
-            zukunft_feiertage = [feiertag for feiertag in feiertage_liste if feiertag["start_datum"] > heute]
-            if zukunft_feiertage:
-                naechster_feiertag = min(zukunft_feiertage, key=lambda f: f["start_datum"])
-                self._naechster_feiertag["name"] = naechster_feiertag["name"]
-                self._naechster_feiertag["datum"] = naechster_feiertag["start_datum"].strftime(
-                    "%d.%m.%Y"
-                )
-            else:
-                self._naechster_feiertag["name"] = None
-                self._naechster_feiertag["datum"] = None
-
-            # Aktualisierungsdatum speichern
-            self._last_update_date = heute
-            _LOGGER.info("Feiertagsdaten erfolgreich aktualisiert.")
-
-        except Exception as e:
-            _LOGGER.error("Fehler beim Aktualisieren der Feiertagsdaten: %s", e)
+        self._last_update_date = heute

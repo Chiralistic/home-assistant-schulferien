@@ -61,7 +61,7 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
         "schulferien_entity_id": "sensor.schulferien",
         "feiertag_entity_id": "sensor.feiertag",
     }
-
+    
     async with aiohttp.ClientSession() as session:
         # Erstellen des Schulferien-Sensors
         schulferien_sensor = SchulferienSensor(hass, config_schulferien)
@@ -81,3 +81,4 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
         # Initialisiere die Daten für beide Sensoren mit der gemeinsamen Session
         await schulferien_sensor.async_update(session)
         await feiertag_sensor.async_update(session)
+        

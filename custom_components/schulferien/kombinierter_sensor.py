@@ -40,15 +40,7 @@ class SchulferienFeiertagSensor(Entity):
         schulferien_state = self._hass.states.get(self._entity_ids["schulferien"])
         feiertag_state = self._hass.states.get(self._entity_ids["feiertag"])
 
-        schulferien_zustand = schulferien_state.state if schulferien_state else "None"
-        _LOGGER.debug("Schulferien-Sensorzustand: %s", schulferien_zustand)
-
-        feiertag_zustand = feiertag_state.state if feiertag_state else "None"
-        _LOGGER.debug("Feiertag-Sensorzustand: %s", feiertag_zustand)
-
         self._state = (
             (schulferien_state and schulferien_state.state == "Ferientag") or
             (feiertag_state and feiertag_state.state == "Feiertag")
         )
-
-        _LOGGER.debug("Kombinierter Sensorzustand: %s", self.state)

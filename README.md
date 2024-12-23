@@ -79,9 +79,9 @@ cards:
 
 ```
 
-## IDeinstallation
+## Deinstallation
 
-1. Entferne "Schulferien unter Einstellungen -> Geräte & Dienste
+1. Entferne "Schulferien" unter Einstellungen -> Geräte & Dienste
 
 2. Lösche den Ordner Schulferien unter custom_components
 
@@ -164,3 +164,9 @@ cards:
       - entity: sensor.schulferien_feiertag_kombiniert
         name: Current Status
 ```
+
+## Uninstall
+
+1. Remove "Schulferien" under Settings -> Devices & Services
+
+2. Delete the folder Schulferien under custom_components

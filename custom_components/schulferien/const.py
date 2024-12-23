@@ -1,17 +1,8 @@
 """Konstanten für die Schulferien- und Feiertags-Integration."""
 
 DOMAIN = "schulferien"
-API_URL_FERIEN = "https://openholidaysapi.org/SchoolHolidays"
-API_URL_FEIERTAGE = "https://openholidaysapi.org/PublicHolidays"
-
-# Standard-Abfragezeit: 3 Uhr morgens
-DEFAULT_UPDATE_HOUR = 3
-DEFAULT_UPDATE_MINUTE = 0
-
-# Konstante für den Cache-Pfad
-CACHE_FILE = "/config/custom_components/schulferien/cache.json"
-# Cache-Gültigkeitsdauer in Stunden (z.B. 24 Stunden)
-CACHE_VALIDITY_DURATION = 48
+API_URL_FERIEN = "https://openholidaysapi.org/Holidays/SchoolHolidays"
+API_URL_FEIERTAGE = "https://openholidaysapi.org/Holidays/PublicHolidays"
 
 # Länder mit ausgeschriebenen Namen und Codes
 COUNTRIES = {

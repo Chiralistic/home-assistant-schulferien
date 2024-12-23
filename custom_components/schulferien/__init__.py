@@ -14,4 +14,4 @@ async def async_setup_entry(hass, entry):
 async def async_unload_entry(hass, entry):
     """Unload a config entry."""
     _LOGGER.debug("Unloading Schulferien entry: %s", entry.title)
-    return await hass.config_entries.async_forward_entry_unloads(entry, ["sensor"])
+    return await hass.config_entries.async_forward_entry_unload(entry, "sensor")

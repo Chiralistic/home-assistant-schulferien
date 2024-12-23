@@ -5,6 +5,7 @@ from unittest.mock import mock_open, patch
 from custom_components.schulferien.sensor import load_bridge_days
 
 class TestLoadBridgeDays(unittest.TestCase):
+    """Test für den Sensor für Schulferien und Brückentage."""
     def test_load_bridge_days_success(self):
         mock_yaml = """
         bridge_days:

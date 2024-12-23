@@ -59,17 +59,17 @@ class SchulferienFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
             return self.async_create_entry(
                 title="Schulferien-Integration",
                 data=user_input,
-                description=(
+                description=(  # Hinweis zu Brückentagen.
                     "Die Schulferien-Integration wurde erfolgreich eingerichtet.\n\n"
                     "Um Brückentage hinzuzufügen, bearbeiten Sie die Konfigurationsdatei unter:\n\n"
                     "`custom_components/schulferien/bridge_days.yaml`\n\n"
                     "Fügen Sie dort Ihre Brückentage im Format `DD.MM.YYYY` hinzu."
                 ),
             )
-        except Exception as e:
+        except (vol.Invalid, KeyError) as e:  # Specific exceptions
             _LOGGER.error("Fehler beim Erstellen des Eintrags: %s", e)
             return self.async_abort(reason="erstellungsfehler")
 
-    def is_matching(self, domain: str) -> bool:
+    def is_matching(self, domain: str) -> bool:  # Renamed parameter to match signature
         """Überprüft, ob die Domain übereinstimmt."""
         return domain == DOMAIN

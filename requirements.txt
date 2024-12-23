@@ -2,3 +2,10 @@ homeassistant  # Stelle sicher, dass du die passende Version verwendest
 aiohttp  # Für asynchrone HTTP-Anfragen
 aiofiles  # Für asynchrone Dateioperationen
 pylint  # Für den Pylint-Check
+flake8
+flake8-bugbear          # Prüft auf potenzielle Fehler und Best Practices
+flake8-import-order     # Stellt sicher, dass Importe standardisiert sortiert sind
+flake8-docstrings        # Überprüft, ob docstrings PEP257-konform sind
+flake8-builtins          # Warnt vor Variablennamen, die Built-ins überschreiben
+flake8-annotations       # Prüft auf fehlende Typannotationen
+flake8-comprehensions   # Prüft auf effizientere List-/Dict-Komprehensionen

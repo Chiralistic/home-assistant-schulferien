@@ -5,7 +5,6 @@ from datetime import datetime, timedelta
 import pytest
 from custom_components.schulferien.feiertag_sensor import FeiertagSensor
 
-
 @pytest.fixture
 def mock_config():
     """Mock-Konfiguration für den Feiertag-Sensor."""
@@ -15,7 +14,6 @@ def mock_config():
         "land": "DE",
         "region": "DE-BY",
     }
-
 
 @pytest.fixture
 def mock_sensor(mock_config):
@@ -30,6 +28,7 @@ async def test_initial_attributes(mock_sensor):
     assert mock_sensor.name == "Feiertag Sensor"
     assert mock_sensor.unique_id == "sensor.feiertag"
     assert mock_sensor.state == "Kein Feiertag"
+    assert "Nächster Feiertag" in mock_sensor.extra_state_attributes
 
 
 @pytest.mark.asyncio
@@ -39,8 +38,8 @@ async def test_initial_attributes(mock_sensor):
         # Feiertag heute
         (
             [
-                {"name": "Test-Feiertag", "start_datum": datetime.now().date()},
-                {"name": "Zukunft-Feiertag", "start_datum": datetime.now().date() + timedelta(days=10)},
+                {"name": "Test-Feiertag", "start_datum": datetime(2024, 6, 1).date()},
+                {"name": "Zukunft-Feiertag", "start_datum": datetime(2024, 6, 10).date()},
             ],
             "Feiertag",
             "Zukunft-Feiertag",
@@ -48,7 +47,7 @@ async def test_initial_attributes(mock_sensor):
         # Kein Feiertag heute
         (
             [
-                {"name": "Zukunft-Feiertag", "start_datum": datetime.now().date() + timedelta(days=10)},
+                {"name": "Zukunft-Feiertag", "start_datum": datetime(2024, 6, 10).date()},
             ],
             "Kein Feiertag",
             "Zukunft-Feiertag",
@@ -76,12 +75,22 @@ async def test_update(mock_sensor, mock_data, expected_state, expected_next_holi
 @pytest.mark.asyncio
 async def test_update_error_handling(mock_sensor):
     """Testet das Verhalten bei einem API-Fehler."""
+    # Netzwerkfehler
     with patch(
         "custom_components.schulferien.api_utils.fetch_data",
         new=AsyncMock(side_effect=Exception("API-Fehler")),
     ):
         await mock_sensor.async_update()
 
-        # Der Zustand sollte unverändert bleiben
+        assert mock_sensor.state == "Kein Feiertag"
+        assert mock_sensor.extra_state_attributes["Nächster Feiertag"] is None
+
+    # Leere Antwort
+    with patch(
+        "custom_components.schulferien.api_utils.fetch_data",
+        new=AsyncMock(return_value=None),
+    ):
+        await mock_sensor.async_update()
+
         assert mock_sensor.state == "Kein Feiertag"
         assert mock_sensor.extra_state_attributes["Nächster Feiertag"] is None

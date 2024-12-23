@@ -9,34 +9,34 @@ from custom_components.schulferien.api_utils import fetch_data, parse_daten
 class TestApiUtils(unittest.IsolatedAsyncioTestCase):
     """Test case for API utility functions."""
 
-    async def test_fetch_data_success(self):
-        """Test successful API data fetch."""
-        # Mock API response
-        mock_response = mock.Mock()
-        mock_response.status = 200
-        mock_response.json = mock.AsyncMock(return_value={"key": "value"})
+    @mock.patch("aiohttp.ClientSession.get", new_callable=mock.AsyncMock)
+    async def test_fetch_data_success(self, mock_get):
+        """Test API fetch with HTTP error."""
+        mock_get.return_value.__aenter__.return_value = mock.AsyncMock(
+            status=200, json=mock.AsyncMock(return_value={"key": "value"})        )
 
-        # Mock aiohttp session
-        with mock.patch("aiohttp.ClientSession.get", return_value=mock_response):
-            result = await fetch_data("https://example.com/api", {"param": "value"})
-            self.assertEqual(result, {"key": "value"})
+        result = await fetch_data("https://example.com/api", {"param": "value"})
+        self.assertEqual(result, {"key": "value"})
 
     async def test_fetch_data_timeout(self):
         """Test API fetch with timeout error."""
+        mock_response = mock.AsyncMock()
+        mock_response.status = 504  # Simuliere Timeout-Fehler
+        mock_response.json = mock.AsyncMock(return_value={})
+
         with mock.patch(
-            "aiohttp.ClientSession.get", side_effect=aiohttp.ClientTimeout
+            "aiohttp.ClientSession.get",
+            side_effect=aiohttp.ClientTimeout,
         ):
             result = await fetch_data("https://example.com/api", {"param": "value"})
-            self.assertEqual(result, {})  # Expect empty dict on error
+            assert result == {}  # Erwarte leere Daten bei Timeout
 
-    async def test_fetch_data_http_error(self):
+    @mock.patch("aiohttp.ClientSession.get", new_callable=mock.AsyncMock)
+    async def test_fetch_data_http_error(self, mock_get):
         """Test API fetch with HTTP error."""
-        mock_response = mock.Mock()
-        mock_response.raise_for_status.side_effect = aiohttp.ClientError
-
-        with mock.patch("aiohttp.ClientSession.get", return_value=mock_response):
-            result = await fetch_data("https://example.com/api", {"param": "value"})
-            self.assertEqual(result, {})  # Expect empty dict on error
+        mock_get.return_value.__aenter__.return_value.raise_for_status.side_effect = aiohttp.ClientError
+        result = await fetch_data("https://example.com/api", {"param": "value"})
+        self.assertEqual(result, {})
 
     def test_parse_daten_valid(self):
         """Test parsing valid JSON data."""

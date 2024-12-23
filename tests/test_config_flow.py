@@ -16,7 +16,7 @@ async def test_user_step_valid_input(mock_config_flow):
     """Testet die Benutzereingabe mit gültigen Werten."""
     # Patch die Methode async_create_entry
     with patch(
-        "homeassistant.config_entries.ConfigEntries.async_create_entry"
+        "homeassistant.config_entries.ConfigFlow.async_create_entry"
     ) as mock_create_entry:
         # Schritt 1: Benutzerformular
         result = await mock_config_flow.async_step_user(

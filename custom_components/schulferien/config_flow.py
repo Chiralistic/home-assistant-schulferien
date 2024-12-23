@@ -22,8 +22,11 @@ class SchulferienFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         if user_input is not None:
             country_code = user_input["country"]
             region_name = user_input["region"]
+
+            # Ermittelt den Regionscode basierend auf dem Namen
             region_code = next(
-                (code for code, name in REGIONS[country_code].items() if name == region_name), None
+                (code for code, name in REGIONS[country_code].items() if name == region_name),
+                None
             )
 
             if region_code:
@@ -31,6 +34,7 @@ class SchulferienFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
                 return await self.async_step_finish(
                     user_input={"country": country_code, "region": region_code}
                 )
+            
             errors["region"] = "ungültige_region"
 
         # Formular zur Eingabe anzeigen
@@ -39,7 +43,7 @@ class SchulferienFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
             data_schema=vol.Schema(
                 {
                     vol.Required("country"): vol.In(dict(COUNTRIES)),
-                    vol.Required("region"): vol.In(dict(REGIONS["DE"].values())),
+                    vol.Required("region"): vol.In(dict(REGIONS.get("DE", {}).values())),
                 }
             ),
             errors=errors,
@@ -59,17 +63,17 @@ class SchulferienFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
             return self.async_create_entry(
                 title="Schulferien-Integration",
                 data=user_input,
-                description=(  # Hinweis zu Brückentagen.
+                description=(
                     "Die Schulferien-Integration wurde erfolgreich eingerichtet.\n\n"
                     "Um Brückentage hinzuzufügen, bearbeiten Sie die Konfigurationsdatei unter:\n\n"
                     "`custom_components/schulferien/bridge_days.yaml`\n\n"
                     "Fügen Sie dort Ihre Brückentage im Format `DD.MM.YYYY` hinzu."
                 ),
             )
-        except (vol.Invalid, KeyError) as e:  # Specific exceptions
+        except (vol.Invalid, KeyError) as e:
             _LOGGER.error("Fehler beim Erstellen des Eintrags: %s", e)
             return self.async_abort(reason="erstellungsfehler")
 
-    def is_matching(self, domain: str) -> bool:  # Renamed parameter to match signature
+    def is_matching(self, domain: str) -> bool:
         """Überprüft, ob die Domain übereinstimmt."""
         return domain == DOMAIN

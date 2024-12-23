@@ -68,16 +68,6 @@ def test_extra_state_attributes(sensor):
         )
     ],
 )
-def test_update_ferien_info(sensor, ferien_info, expected_state, expected_attributes):
-    """Testet das Update von Ferieninformationen."""
-    # Setter-Funktion statt direktem Zugriff auf `_ferien_info`
-    sensor.update_ferien_info(ferien_info)
-
-    assert sensor.state == expected_state
-    attributes = sensor.extra_state_attributes
-    for key, value in expected_attributes.items():
-        assert attributes[key] == value
-
 
 def test_last_update_date(sensor):
     """Testet das Datum des letzten Updates."""

@@ -45,12 +45,20 @@ async def fetch_data(
             _LOGGER.debug("API-Antwort erhalten: %s", data)  # Logge die vollständige Antwort
             return data
     except aiohttp.ClientError as error:
-        _LOGGER.error("Die Anfrage zur API ist fehlgeschlagen: %s", error)
+        _LOGGER.error(
+            "API Fehler: Status %s, Nachricht: %s, URL: %s",
+            response.status,
+            await response.text(),
+            response.url,
+        )
         return {}
     finally:
         if close_session:
             await session.close()
             _LOGGER.debug("Die API-Session wurde geschlossen.")
+    
+    url = session._build_url(api_url, params=api_parameter)
+    _LOGGER.debug("Final URL: %s", url)
 
 def parse_daten(json_daten, brueckentage=None, typ="ferien"):
     """

@@ -34,7 +34,7 @@ class SchulferienFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
                 return await self.async_step_finish(
                     user_input={"country": country_code, "region": region_code}
                 )
-            
+
             errors["region"] = "ungültige_region"
 
         # Formular zur Eingabe anzeigen
@@ -43,7 +43,7 @@ class SchulferienFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
             data_schema=vol.Schema(
                 {
                     vol.Required("country"): vol.In(dict(COUNTRIES)),
-                    vol.Required("region"): vol.In(dict(REGIONS.get("DE", {}).values())),
+                    vol.Required("region"): vol.In(list(REGIONS.get("DE", {}).values())),
                 }
             ),
             errors=errors,

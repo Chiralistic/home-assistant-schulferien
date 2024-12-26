@@ -2,6 +2,7 @@
 
 import logging
 from datetime import datetime, timedelta
+from homeassistant.helpers.event import async_track_time_change
 from homeassistant.helpers.entity import Entity
 from .api_utils import fetch_data, parse_daten
 from .const import API_URL_FEIERTAGE, COUNTRIES, REGIONS
@@ -34,6 +35,22 @@ class FeiertagSensor(Entity):
             "naechster_feiertag_datum": None,
             "feiertage_liste": [],  # <-- Initialisiert als leere Liste
         }
+
+    async def async_added_to_hass(self):
+        """Wird aufgerufen, wenn die Entität zu Home Assistant hinzugefügt wird."""
+        # Initiale Abfrage beim Hinzufügen der Entität
+        await self.async_update()
+        _LOGGER.debug("Initiale Abfrage beim Hinzufügen der Entität durchgeführt.")
+
+        """Frage die API täglich um drei Uhr morgens ab. """
+        # Zeitplan für die tägliche Abfrage um 3 Uhr morgens
+        async_track_time_change(self._hass, self.async_update, hour=3, minute=0, second=0)
+        _LOGGER.debug("Tägliche Abfrage um 3 Uhr morgens eingerichtet.")
+
+    @property
+    def should_poll(self):
+        """Deaktiviert automatische Abfragen durch Home Assistant."""
+        return False
 
     @property
     def name(self):

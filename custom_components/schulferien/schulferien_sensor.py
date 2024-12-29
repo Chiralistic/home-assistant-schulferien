@@ -6,7 +6,7 @@ from homeassistant.helpers.event import async_track_time_change
 from homeassistant.helpers.entity import Entity
 import aiohttp
 from .api_utils import fetch_data, parse_daten
-from .const import API_URL_FERIEN, COUNTRIES, REGIONS
+from .const import API_URL_FERIEN, API_FALLBACK_FERIEN, COUNTRIES, REGIONS
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -69,8 +69,6 @@ class SchulferienSensor(Entity):
     def state(self):
         """Gibt den aktuellen Zustand des Sensors zurück."""
         return "Ferientag" if self._ferien_info.get("heute_ferientag", False) else "Kein Ferientag"
-
-
 
     @property
     def last_update_date(self):
@@ -140,9 +138,16 @@ class SchulferienSensor(Entity):
             "languageIsoCode": "DE",
         }
 
+        # Neue URL-Liste im Sensor
+        urls = [API_URL_FERIEN, API_FALLBACK_FERIEN]  # Haupt- und Fallback-URL
+
         try:
             # API-Daten abrufen
-            ferien_daten = await fetch_data(API_URL_FERIEN, api_parameter, session)
+            ferien_daten = {}
+            for url in urls:
+                ferien_daten = await fetch_data(url, api_parameter, session)  # API-Call mit der aktuellen URL
+                if ferien_daten:  # Bei Erfolg abbrechen
+                    break
             if not ferien_daten:
                 _LOGGER.warning("Keine Schulferiendaten von der API erhalten.")
                 return

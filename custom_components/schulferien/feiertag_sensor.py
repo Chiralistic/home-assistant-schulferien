@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from homeassistant.helpers.event import async_track_time_change
 from homeassistant.helpers.entity import Entity
 from .api_utils import fetch_data, parse_daten
-from .const import API_URL_FEIERTAGE, COUNTRIES, REGIONS
+from .const import API_URL_FEIERTAGE, API_FALLBACK_FEIERTAGE, COUNTRIES, REGIONS
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -111,8 +111,14 @@ class FeiertagSensor(Entity):
             "languageIsoCode": "DE",
         }
 
+        urls = [API_URL_FEIERTAGE, API_FALLBACK_FEIERTAGE]  # Haupt- und Fallback-URL
+
         # Daten von der API abrufen
-        feiertage_daten = await fetch_data(API_URL_FEIERTAGE, api_parameter, session)
+        feiertage_daten = {}
+        for url in urls:
+            feiertage_daten = await fetch_data(url, api_parameter, session)
+            if feiertage_daten:  # Bei Erfolg abbrechen
+                break
         feiertage_liste = parse_daten(feiertage_daten, typ="feiertage")
         self._feiertags_info["feiertage_liste"] = feiertage_liste  # Alle speichern
 

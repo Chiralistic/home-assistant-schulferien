@@ -2,7 +2,9 @@
 
 DOMAIN = "schulferien"
 API_URL_FERIEN = "https://openholidaysapi.org/SchoolHolidays"
+API_FALLBACK_FERIEN = "https://openholidaysapi.org/Holidays/SchoolHolidays"
 API_URL_FEIERTAGE = "https://openholidaysapi.org/PublicHolidays"
+API_FALLBACK_FEIERTAGE = "https://openholidaysapi.org/Holidays/PublicHolidays"
 
 # Länder mit ausgeschriebenen Namen und Codes
 COUNTRIES = {

@@ -4,7 +4,8 @@ import logging
 from datetime import datetime, timedelta
 from homeassistant.helpers.event import async_track_time_change
 from homeassistant.helpers.entity import Entity
-from .api_utils import fetch_data, parse_daten
+import aiohttp
+from .api_utils import fetch_data, parse_daten, DEFAULT_TIMEOUT
 from .const import API_URL_FEIERTAGE, API_FALLBACK_FEIERTAGE, COUNTRIES, REGIONS
 
 _LOGGER = logging.getLogger(__name__)
@@ -40,17 +41,25 @@ class FeiertagSensor(Entity):
         """Wird aufgerufen, wenn die Entität zu Home Assistant hinzugefügt wird."""
         # Initiale Abfrage beim Hinzufügen der Entität
         await self.async_update()
+        self.async_write_ha_state()  # Zustand direkt nach Update speichern
         _LOGGER.debug("Initiale Abfrage beim Hinzufügen der Entität durchgeführt.")
 
-        """Frage die API täglich um drei Uhr morgens ab. """
+        """Frage die API täglich um drei Uhr morgens ab."""
         # Zeitplan für die tägliche Abfrage um 3 Uhr morgens
-        async_track_time_change(self._hass, self.async_update, hour=3, minute=0, second=0)
+        async def async_daily_update(_):
+            await self.async_update()
+            self.async_write_ha_state()  # Zustand nach Update speichern
+
+        # Korrekte async-Zeitplanung verwenden
+        async_track_time_change(
+            self._hass,
+            async_daily_update,  # Direkt awaitable Funktion verwenden
+            hour=3,
+            minute=0,
+            second=0,
+        )
         _LOGGER.debug("Tägliche Abfrage um 3 Uhr morgens eingerichtet.")
 
-    @property
-    def should_poll(self):
-        """Deaktiviert automatische Abfragen durch Home Assistant."""
-        return False
 
     @property
     def name(self):
@@ -66,7 +75,6 @@ class FeiertagSensor(Entity):
     def state(self):
         """Gibt den aktuellen Zustand des Sensors zurück."""
         return "Feiertag" if self._feiertags_info.get("heute_feiertag", False) else "Kein Feiertag"
-
 
     @property
     def extra_state_attributes(self):
@@ -99,57 +107,102 @@ class FeiertagSensor(Entity):
         """Aktualisiert die Feiertagsdaten."""
         heute = datetime.now().date()
 
-        # Zeitraum erweitern, um laufende Feiertage zu erfassen
-        startdatum = (heute - timedelta(days=30)).strftime("%Y-%m-%d")
-        enddatum = (heute + timedelta(days=365)).strftime("%Y-%m-%d")
+        # Session sicherstellen
+        close_session = False
+        if session is None:  # Lokale Session erstellen, wenn keine übergeben wurde
+            session = aiohttp.ClientSession(timeout=DEFAULT_TIMEOUT)
+            close_session = True  # Merken, dass diese geschlossen werden muss
 
-        api_parameter = {
-            "countryIsoCode": self._location["land"],
-            "subdivisionCode": self._location["region"],
-            "validFrom": startdatum,
-            "validTo": enddatum,
-            "languageIsoCode": "DE",
-        }
+        try:
+            # Zeitraum erweitern, um laufende Feiertage zu erfassen
+            startdatum = (heute - timedelta(days=30)).strftime("%Y-%m-%d")
+            enddatum = (heute + timedelta(days=365)).strftime("%Y-%m-%d")
 
-        urls = [API_URL_FEIERTAGE, API_FALLBACK_FEIERTAGE]  # Haupt- und Fallback-URL
+            api_parameter = {
+                "countryIsoCode": self._location["land"],
+                "subdivisionCode": self._location["region"],
+                "validFrom": startdatum,
+                "validTo": enddatum,
+                "languageIsoCode": "DE",
+            }
 
-        # Daten von der API abrufen
-        feiertage_daten = {}
-        for url in urls:
-            feiertage_daten = await fetch_data(url, api_parameter, session)
-            if feiertage_daten:  # Bei Erfolg abbrechen
-                break
-        feiertage_liste = parse_daten(feiertage_daten, typ="feiertage")
-        self._feiertags_info["feiertage_liste"] = feiertage_liste  # Alle speichern
+            # URLs für die Abfrage
+            urls = [API_URL_FEIERTAGE, API_FALLBACK_FEIERTAGE]
+            feiertage_daten = None
 
-        # Prüfe auf aktuellen Feiertag (Zeitraum!)
-        aktueller_feiertag = next(
-            (
-                feiertag for feiertag in feiertage_liste
-                if feiertag["start_datum"] <= heute <= feiertag["end_datum"]  # Zeitraum prüfen!
-            ),
-            None,
-        )
+            # API-Daten abrufen
+            for url in urls:
+                _LOGGER.debug("Prüfe URL: %s", url)  # Log-Ausgabe zur Fehlerdiagnose
+                if not isinstance(url, str):  # Typ prüfen
+                    _LOGGER.error("Ungültige URL im Feiertags-Sensor: %s", url)
+                    continue  # Überspringe ungültige URLs
 
-        # Setze den Zustand für "heute_feiertag"
-        if aktueller_feiertag:
-            self._feiertags_info.update({
-                "heute_feiertag": True,  # Feiertag ist heute!
-                "naechster_feiertag_name": aktueller_feiertag["name"],
-                "naechster_feiertag_datum": aktueller_feiertag["start_datum"].strftime("%d.%m.%Y"),
-            })
-        else:
-            # Kein heutiger Feiertag, also prüfe den nächsten
-            self._feiertags_info["heute_feiertag"] = False
+                try:
+                    # API-Call
+                    feiertage_daten = await fetch_data(url, api_parameter, session)
+                    if feiertage_daten:  # Bei Erfolg abbrechen
+                        break
+                except Exception as e:
+                    _LOGGER.error("Fehler beim Abrufen der Daten von %s: %s", url, e)
 
-            zukunft_feiertage = [
-                feiertag for feiertag in feiertage_liste if feiertag["start_datum"] > heute
-            ]
-            if zukunft_feiertage:
-                naechster_feiertag = min(zukunft_feiertage, key=lambda f: f["start_datum"])
+            if not feiertage_daten:
+                _LOGGER.warning("Keine Feiertagsdaten von der API erhalten.")
+                # Leere Attribute setzen
                 self._feiertags_info.update({
-                    "naechster_feiertag_name": naechster_feiertag["name"],
-                    "naechster_feiertag_datum": naechster_feiertag["start_datum"].strftime("%d.%m.%Y"),
+                    "heute_feiertag": False,
+                    "naechster_feiertag_name": None,
+                    "naechster_feiertag_datum": None,
                 })
+                self.async_write_ha_state()  # Zustand speichern
+                return
 
-        self._last_update_date = heute
+            # Verarbeite die Daten
+            try:
+                feiertage_liste = parse_daten(feiertage_daten, typ="feiertage")
+                self._feiertags_info["feiertage_liste"] = feiertage_liste
+            except Exception as e:
+                _LOGGER.error("Fehler beim Verarbeiten der Feiertagsdaten: %s", e)
+                return
+
+            # Prüfen, ob heute ein Feiertag ist
+            aktueller_feiertag = next(
+                (
+                    feiertag for feiertag in feiertage_liste
+                    if feiertag["start_datum"] <= heute <= feiertag["end_datum"]
+                ),
+                None,
+            )
+
+            # Zustand und Attribute aktualisieren
+            if aktueller_feiertag:
+                # Aktueller Feiertag vorhanden
+                self._feiertags_info.update({
+                    "heute_feiertag": True,
+                    "naechster_feiertag_name": aktueller_feiertag["name"],
+                    "naechster_feiertag_datum": aktueller_feiertag["start_datum"].strftime("%d.%m.%Y"),
+                })
+            else:
+                # Kein aktueller Feiertag, also prüfe den nächsten
+                self._feiertags_info["heute_feiertag"] = False
+                zukunft_feiertage = [
+                    feiertag for feiertag in feiertage_liste if feiertag["start_datum"] > heute
+                ]
+                if zukunft_feiertage:
+                    naechster_feiertag = min(zukunft_feiertage, key=lambda f: f["start_datum"])
+                    self._feiertags_info.update({
+                        "naechster_feiertag_name": naechster_feiertag["name"],
+                        "naechster_feiertag_datum": naechster_feiertag["start_datum"].strftime("%d.%m.%Y"),
+                    })
+
+            # Zustand speichern
+            self._last_update_date = heute
+            self.async_write_ha_state()
+
+        except Exception as e:
+            _LOGGER.error("Unerwarteter Fehler beim Aktualisieren der Feiertagsdaten: %s", e)
+
+        finally:
+            # Lokale Session schließen, wenn sie erstellt wurde
+            if close_session:
+                await session.close()
+                _LOGGER.debug("API-Session geschlossen.")

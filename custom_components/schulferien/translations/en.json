@@ -1,0 +1,22 @@
+{
+  "state": {
+    "feiertag_status": {
+      "holiday": "Holiday",
+      "no_holiday": "No Holiday"
+    },
+    "ferien_status": {
+      "holiday": "Holiday",
+      "no_holiday": "No Holiday"
+    },
+    "combined_status": {
+      "holiday": "Holiday",
+      "no_holiday": "No Holiday"
+    }
+  },
+  "attributes": {
+    "name_feiertag": "Holiday Name",
+    "datum": "Date",
+    "land": "Country",
+    "region": "Region"
+  }
+}

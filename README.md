@@ -14,6 +14,8 @@ Home Assistant-Integration, um Schulferien mithilfe der OpenHolidays-API als Ent
 
 4. Füge die Integration unter Einstellungen -> Geräte & Dienste -> + Integration hinzufügen -> "Schulferien" hinzu.
 
+5. Warten: Nach der Einrichtung bzw. nach einem Home Assistant Neustart kann es bis zu 30s dauern bis alle Attribute und States aktualisiert sind.
+
 Erstelle eine einfache Entitätskarte, die alle Attribute anzeigt in deinem Dashboard mit dem folgenden Code. Bei Bedarf kann der Stack verkleinert werden um nur die Informationen anzuzeigen, die gewünscht sind.
 
 ```yaml
@@ -97,6 +99,8 @@ Home Assistant integration to make school holidays available as entities for aut
 3. Restart Home Assisttant.
 
 4. Add the integration under Settings -> Devices & Services -> + Add Integration -> "Schulferien".
+
+5. "Wait: After the setup or after a Home Assistant restart, it may take up to 30 seconds for all attributes and states to be updated.
 
 Create a simple entity card that displays all attributes on your dashboard with the following code. If necessary, the stack can be reduced to show only the desired information.
 

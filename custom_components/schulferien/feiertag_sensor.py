@@ -3,7 +3,7 @@
 import logging
 from datetime import datetime, timedelta
 from homeassistant.helpers.event import async_track_time_change
-from homeassistant.helpers.entity import Entity
+from homeassistant.components.sensor import SensorEntity, SensorEntityDescription
 import aiohttp
 from .api_utils import fetch_data, parse_daten, DEFAULT_TIMEOUT
 from .const import API_URL_FEIERTAGE, API_FALLBACK_FEIERTAGE, COUNTRIES, REGIONS
@@ -16,15 +16,23 @@ def get_country_name(code):
 
 def get_region_name(country_code, region_code):
     """Gibt den ausgeschriebenen Regionsnamen für einen Regionscode zurück."""
-    _LOGGER.debug("Region code fts: %s", region_code)
-    _LOGGER.debug("Regions dictionary fts: %s", REGIONS)
+    #_LOGGER.debug("Region code fts: %s", region_code)
+    #_LOGGER.debug("Regions dictionary fts: %s", REGIONS)
     return REGIONS.get(country_code, {}).get(region_code, region_code)
 
-class FeiertagSensor(Entity):
+# Definition der EntityDescription mit Übersetzungsschlüssel
+FEIERTAG_SENSOR = SensorEntityDescription(
+    key="feiertag",
+    name="Feiertag",
+    translation_key="feiertag",  # Bezug zur Übersetzung
+)
+
+class FeiertagSensor(SensorEntity):
     """Sensor für Feiertage."""
 
     def __init__(self, hass, config):
         """Initialisiert den Feiertag-Sensor mit Konfigurationsdaten."""
+        self.entity_description = FEIERTAG_SENSOR
         self._hass = hass
         self._name = config["name"]
         self._unique_id = config.get("unique_id", "sensor.feiertag")
@@ -34,7 +42,7 @@ class FeiertagSensor(Entity):
             "heute_feiertag": None,
             "naechster_feiertag_name": None,
             "naechster_feiertag_datum": None,
-            "feiertage_liste": [],  # <-- Initialisiert als leere Liste
+            "feiertage_liste": [],
         }
 
     async def async_added_to_hass(self):

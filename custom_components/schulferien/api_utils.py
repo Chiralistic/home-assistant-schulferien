@@ -23,7 +23,7 @@ async def fetch_data(
     Returns:
         dict: Die empfangenen JSON-Daten oder leeres Dict bei Fehlern.
     """
-    _LOGGER.debug("Sende Anfrage an API: %s mit Parametern %s", api_url, api_parameter)
+    # _LOGGER.debug("Sende Anfrage an API: %s mit Parametern %s", api_url, api_parameter)
 
     if not isinstance(api_url, str):  # Typprüfung für URL
         raise ValueError(f"Ungültige URL: {api_url}")
@@ -41,7 +41,7 @@ async def fetch_data(
         ) as response:
             response.raise_for_status()
             data = await response.json()
-            _LOGGER.debug("API-Antwort erhalten: %s", data)
+            # _LOGGER.debug("API-Antwort erhalten: %s", data)
             return data
     except aiohttp.ClientResponseError as error:
         _LOGGER.error(

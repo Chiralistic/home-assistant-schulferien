@@ -1,29 +1,32 @@
-"""Modul für den kombinierten Sensor,
-     der sowohl Schulferien- als auch Feiertagsinformationen bereitstellt."""
+"""Modul für den kombinierten Sensor, 
+    der sowohl Schulferien- als auch Feiertagsinformationen bereitstellt."""
 
 import logging
-from homeassistant.helpers.entity import Entity
+from homeassistant.components.sensor import SensorEntity, SensorEntityDescription
+from homeassistant.helpers.entity import EntityDescription
 
 _LOGGER = logging.getLogger(__name__)
 
-class SchulferienFeiertagSensor(Entity):
+# Definition der EntityDescription mit Übersetzungsschlüssel
+SCHULFERIEN_FEIERTAG_SENSOR = SensorEntityDescription(
+    key="schulferien_feiertag",
+    name="Schulferien und Feiertage",
+    translation_key="schulferien_feiertag",  # Bezug zur Übersetzung
+)
+
+class SchulferienFeiertagSensor(SensorEntity):
     """Kombinierter Sensor für Schulferien und Feiertage."""
 
     def __init__(self, hass, config):
         """Initialisiert den kombinierten Sensor mit Konfigurationsdaten."""
+        self.entity_description = SCHULFERIEN_FEIERTAG_SENSOR
         self._hass = hass
-        self._name = config["name"]
         self._unique_id = config.get("unique_id", "sensor.schulferien_feiertage")
         self._entity_ids = {
             "schulferien": config["schulferien_entity_id"],
             "feiertag": config["feiertag_entity_id"],
         }
         self._state = None
-
-    @property
-    def name(self):
-        """Gibt den Namen des Sensors zurück."""
-        return self._name
 
     @property
     def unique_id(self):

@@ -3,7 +3,7 @@
 import logging
 from datetime import datetime, timedelta
 from homeassistant.helpers.event import async_track_time_change
-from homeassistant.helpers.entity import Entity
+from homeassistant.components.sensor import SensorEntity, SensorEntityDescription
 import aiohttp
 from .api_utils import fetch_data, parse_daten, DEFAULT_TIMEOUT
 from .const import API_URL_FERIEN, API_FALLBACK_FERIEN, COUNTRIES, REGIONS
@@ -20,11 +20,19 @@ def get_region_name(country_code, region_code):
     _LOGGER.debug("Regions dictionary: %s", REGIONS)
     return REGIONS.get(country_code, {}).get(region_code, region_code)
 
-class SchulferienSensor(Entity):
+# Definition der EntityDescription mit Übersetzungsschlüssel
+SCHULFERIEN_SENSOR = SensorEntityDescription(
+    key="schulferien",
+    name="Schulferien",
+    translation_key="schulferien",  # Bezug zur Übersetzung
+)
+
+class SchulferienSensor(SensorEntity):
     """Sensor für Schulferien und Brückentage."""
 
     def __init__(self, hass, config):
         """Initialisiert den Schulferien-Sensor mit Konfigurationsdaten."""
+        self.entity_description = SCHULFERIEN_SENSOR
         self._hass = hass
         self._name = config["name"]
         self._unique_id = config.get("unique_id", "sensor.schulferien")
@@ -36,7 +44,7 @@ class SchulferienSensor(Entity):
             "naechste_ferien_name": None,
             "naechste_ferien_beginn": None,
             "naechste_ferien_ende": None,
-            "ferien_liste": [],  # <-- Initialisiert als leere Liste
+            "ferien_liste": [],
         }
 
     async def async_added_to_hass(self):

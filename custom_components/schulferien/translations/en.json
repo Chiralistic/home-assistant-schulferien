@@ -1,22 +1,27 @@
 {
-  "state": {
-    "feiertag_status": {
-      "holiday": "Holiday",
-      "no_holiday": "No Holiday"
-    },
-    "ferien_status": {
-      "holiday": "Holiday",
-      "no_holiday": "No Holiday"
-    },
-    "combined_status": {
-      "holiday": "Holiday",
-      "no_holiday": "No Holiday"
+  "entity": {
+    "sensor": {
+      "schulferien_feiertag": {
+        "name": "School Holidays and Public Holidays",
+        "state": {
+          "Ferientag/Feiertag": "Holiday or Public Holiday",
+          "Kein Ferientag/Feiertag": "No Holiday or Public Holiday"
+        }
+      },
+      "feiertag": {
+        "name": "Public Holiday",
+        "state": {
+          "Feiertag": "Today is a Public Holiday",
+          "Kein Feiertag": "Today is not a Public Holiday"
+        }
+      },
+      "schulferien": {
+        "name": "School Holidays",
+        "state": {
+          "Ferientag": "Today is a Holiday",
+          "Kein Ferientag": "Today is not a Holiday"
+        }
+      }
     }
-  },
-  "attributes": {
-    "name_feiertag": "Holiday Name",
-    "datum": "Date",
-    "land": "Country",
-    "region": "Region"
   }
 }

@@ -82,7 +82,7 @@ class FeiertagSensor(SensorEntity):
     @property
     def state(self):
         """Gibt den aktuellen Zustand des Sensors zurück."""
-        return "Feiertag" if self._feiertags_info.get("heute_feiertag", False) else "Kein Feiertag"
+        return "feiertag" if self._feiertags_info.get("heute_feiertag", False) else "kein feiertag"
 
     @property
     def extra_state_attributes(self):

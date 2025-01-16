@@ -83,7 +83,7 @@ class SchulferienSensor(SensorEntity):
     @property
     def state(self):
         """Gibt den aktuellen Zustand des Sensors zurück."""
-        return "Ferientag" if self._ferien_info.get("heute_ferientag", False) else "Kein Ferientag"
+        return "ferientag" if self._ferien_info.get("heute_ferientag", False) else "kein ferientag"
 
     @property
     def last_update_date(self):

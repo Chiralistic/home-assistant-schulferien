@@ -5,6 +5,5 @@ exclude =
     __pycache__,
     build,
     dist,
-ignore =
-    D203, D213  # Ignoriere spezifische Docstring-Regeln
+    test,
 max-complexity = 10  # Warnung bei hoher Codekomplexität

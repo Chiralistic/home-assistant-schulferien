@@ -4,22 +4,22 @@
       "schulferien_feiertag": {
         "name": "School Holidays and Public Holidays",
         "state": {
-          "Ferientag/Feiertag": "Holiday or Public Holiday",
-          "Kein Ferientag/Feiertag": "No Holiday or Public Holiday"
+          "ferientag_feiertag": "Holiday or Public Holiday",
+          "kein ferientag_feiertag": "No Holiday or Public Holiday"
         }
       },
       "feiertag": {
         "name": "Public Holiday",
         "state": {
-          "Feiertag": "Today is a Public Holiday",
-          "Kein Feiertag": "Today is not a Public Holiday"
+          "feiertag": "Today is a Public Holiday",
+          "kein feiertag": "Today is not a Public Holiday"
         }
       },
       "schulferien": {
         "name": "School Holidays",
         "state": {
-          "Ferientag": "Today is a Holiday",
-          "Kein Ferientag": "Today is not a Holiday"
+          "ferientag": "Today is a Holiday",
+          "fein ferientag": "Today is not a Holiday"
         }
       }
     }

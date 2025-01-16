@@ -76,7 +76,7 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
         async_add_entities([schulferien_sensor, feiertag_sensor, kombi_sensor])
         _LOGGER.debug("Füge Schulferien-Sensor hinzu.")
         _LOGGER.debug("Füge Feiertag-Sensor hinzu.")
-        _LOGGER.debug("Füge kombinierten Sensor hinzu.")
+        _LOGGER.debug("Füge kombinierten Schulferien-Feiertag-Sensor hinzu.")
 
         # Initialisiere die Daten für beide Sensoren mit der gemeinsamen Session
         await schulferien_sensor.async_update(session)

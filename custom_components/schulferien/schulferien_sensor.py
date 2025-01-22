@@ -6,7 +6,15 @@ from homeassistant.helpers.event import async_track_time_change
 from homeassistant.components.sensor import SensorEntity, SensorEntityDescription
 import aiohttp
 from .api_utils import fetch_data, parse_daten, DEFAULT_TIMEOUT
-from .const import API_URL_FERIEN, API_FALLBACK_FERIEN, COUNTRIES, REGIONS
+from .const import (
+    API_URL_FERIEN,
+    API_FALLBACK_FERIEN,
+    COUNTRIES,
+    REGIONS,
+    DAILY_UPDATE_HOUR,
+    DAILY_UPDATE_MINUTE,
+    UPDATE_INTERVAL,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -48,8 +56,8 @@ class SchulferienSensor(SensorEntity):
         }
 
     async def async_added_to_hass(self):
-        """Wird aufgerufen, wenn die Entität zu Home Assistant hinzugefügt wird."""
-        # Initiale Abfrage beim Hinzufügen der Entität
+        """Initialisierung des Sensors."""
+        _LOGGER.debug("Schulferien-Sensor hinzugefügt, erstes Update wird ausgeführt.")
         await self.async_update()
         self.async_write_ha_state()  # Zustand direkt nach Update speichern
         _LOGGER.debug("Initiale Abfrage beim Hinzufügen der Entität durchgeführt.")
@@ -57,16 +65,16 @@ class SchulferienSensor(SensorEntity):
         """Frage die API täglich um drei Uhr morgens ab."""
         # Zeitplan für die tägliche Abfrage um 3 Uhr morgens
         async def async_daily_update(_):
+            """Tägliche Aktualisierung."""
+            _LOGGER.debug("Tägliches Update ausgelöst.")
             await self.async_update()
-            self.async_write_ha_state()  # Zustand nach Update speichern
+            self.async_write_ha_state()
 
-        # Korrekte async-Zeitplanung verwenden
         async_track_time_change(
             self._hass,
-            async_daily_update,  # Direkt awaitable Funktion verwenden
-            hour=3,
-            minute=0,
-            second=0,
+            async_daily_update,
+            hour=DAILY_UPDATE_HOUR,
+            minute=DAILY_UPDATE_MINUTE,
         )
         _LOGGER.debug("Tägliche Abfrage um 3 Uhr morgens eingerichtet.")
 
@@ -84,16 +92,6 @@ class SchulferienSensor(SensorEntity):
     def state(self):
         """Gibt den aktuellen Zustand des Sensors zurück."""
         return "ferientag" if self._ferien_info.get("heute_ferientag", False) else "kein ferientag"
-
-    @property
-    def last_update_date(self):
-        """Gibt das Datum des letzten Updates zurück."""
-        return self._last_update_date
-
-    @last_update_date.setter
-    def last_update_date(self, value):
-        """Setzt das Datum des letzten Updates."""
-        self._last_update_date = value
 
     @property
     def ferien_info(self):
@@ -140,12 +138,22 @@ class SchulferienSensor(SensorEntity):
     async def async_update(self, session=None):
         """Aktualisiert die Schulferiendaten durch Abfrage der API."""
         heute = datetime.now().date()
+        jetzt = datetime.now()
 
-        # Session sicherstellen
+        # Prüfen, ob ein Update notwendig ist
+        if self._last_update_date and (jetzt - self._last_update_date) < timedelta(hours=24):
+            _LOGGER.debug(
+                "Update übersprungen. Letztes Update war vor %s Stunden.",
+                (jetzt - self._last_update_date).total_seconds() // 3600,
+            )
+            return  # Update nicht erforderlich
+
+        _LOGGER.debug("Starte Update der Schulferiendaten.")
         close_session = False
+
         if session is None:
             session = aiohttp.ClientSession(timeout=DEFAULT_TIMEOUT)  # Lokale Session erstellen
-            close_session = True  # Merken, dass diese geschlossen werden muss
+            close_session = True
 
         try:
             # Zeitraum erweitern, um laufende Ferien zu erfassen
@@ -155,42 +163,40 @@ class SchulferienSensor(SensorEntity):
             api_parameter = {
                 "countryIsoCode": self._location["land"],
                 "subdivisionCode": self._location["region"],
-                "validFrom": startdatum,  # 30 Tage zurück
+                "validFrom": startdatum,
                 "validTo": enddatum,
                 "languageIsoCode": "DE",
             }
 
-            # Neue URL-Liste im Sensor
-            urls = [API_URL_FERIEN, API_FALLBACK_FERIEN]  # Haupt- und Fallback-URL
-
             # API-Daten abrufen
             ferien_daten = None
+            urls = [API_URL_FERIEN, API_FALLBACK_FERIEN]  # Haupt- und Fallback-URL
             for url in urls:
-                _LOGGER.debug("Prüfe URL: %s", url)  # Log-Ausgabe hinzufügen
-                if not isinstance(url, str):  # Typ prüfen
-                    _LOGGER.error("Ungültige URL im Schulferien-Sensor: %s", url)
-                    continue  # Überspringe ungültige URLs
+                _LOGGER.debug("Prüfe URL: %s", url)
+                if not isinstance(url, str):
+                    _LOGGER.error("Ungültige URL: %s", url)
+                    continue
 
                 try:
-                    ferien_daten = await fetch_data(url, api_parameter, session)  # API-Call
-                    if ferien_daten:  # Bei Erfolg abbrechen
-                        break
+                    ferien_daten = await fetch_data(url, api_parameter, session)
+                    if ferien_daten:
+                        break  # Erfolgreiches Abrufen, abbrechen
                 except Exception as e:
                     _LOGGER.error("Fehler beim Abrufen der Daten von %s: %s", url, e)
 
             if not ferien_daten:
-                _LOGGER.warning("Keine Schulferiendaten von der API erhalten.")
+                _LOGGER.warning("Keine Daten von der API erhalten.")
                 return
 
             # Verarbeite die Daten
             try:
                 ferien_liste = parse_daten(ferien_daten, self._brueckentage)
-                self._ferien_info["ferien_liste"] = ferien_liste  # Alle Einträge speichern
+                self._ferien_info["ferien_liste"] = ferien_liste
             except Exception as e:
-                _LOGGER.error("Fehler beim Verarbeiten der Schulferiendaten: %s", e)
+                _LOGGER.error("Fehler beim Verarbeiten der Daten: %s", e)
                 return
 
-            # Aktuelle Ferien prüfen
+            # Prüfen, ob heute ein Ferientag ist
             aktuelles_ereignis = next(
                 (
                     ferien for ferien in ferien_liste
@@ -199,9 +205,8 @@ class SchulferienSensor(SensorEntity):
                 None,
             )
 
-            # Setze den Zustand und die Attribute
+            # Zustand und Attribute setzen
             if aktuelles_ereignis:
-                # Wenn aktuell Ferien, setze den Zustand
                 self._ferien_info.update({
                     "heute_ferientag": True,
                     "naechste_ferien_name": aktuelles_ereignis["name"],
@@ -209,7 +214,6 @@ class SchulferienSensor(SensorEntity):
                     "naechste_ferien_ende": aktuelles_ereignis["end_datum"].strftime("%d.%m.%Y"),
                 })
             else:
-                # Kein aktueller Ferientag
                 self._ferien_info["heute_ferientag"] = False
 
                 # Nächste Ferien ermitteln
@@ -224,13 +228,14 @@ class SchulferienSensor(SensorEntity):
                         "naechste_ferien_ende": naechste_ferien["end_datum"].strftime("%d.%m.%Y"),
                     })
 
-            self._last_update_date = heute
+            # Letztes Update-Zeitpunkt speichern
+            self._last_update_date = jetzt
+            _LOGGER.debug("Update abgeschlossen. Letztes Update um: %s", self._last_update_date)
 
         except Exception as e:
-            _LOGGER.error("Unerwarteter Fehler beim Aktualisieren der Schulferiendaten: %s", e)
+            _LOGGER.error("Unerwarteter Fehler beim Aktualisieren der Daten: %s", e)
 
         finally:
-            # Lokale Session schließen
             if close_session:
                 await session.close()
                 _LOGGER.debug("API-Session geschlossen.")

@@ -4,12 +4,10 @@ from unittest.mock import patch
 import pytest
 from custom_components.schulferien.config_flow import SchulferienFlowHandler
 
-
 @pytest.fixture
 def mock_config_flow():
     """Fixture für die Erstellung eines ConfigFlow-Handlers."""
     return SchulferienFlowHandler()
-
 
 @pytest.mark.asyncio
 async def test_user_step_valid_input(mock_config_flow):
@@ -33,7 +31,6 @@ async def test_user_step_valid_input(mock_config_flow):
         assert result["title"] == "Schulferien-Integration"
         mock_create_entry.assert_called_once()
 
-
 @pytest.mark.asyncio
 async def test_user_step_invalid_region(mock_config_flow):
     """Testet die Benutzereingabe mit ungültiger Region."""
@@ -42,7 +39,6 @@ async def test_user_step_invalid_region(mock_config_flow):
     )
     assert result["type"] == "form"
     assert result["errors"] == {"region": "ungültige_region"}
-
 
 @pytest.mark.asyncio
 async def test_finish_step_missing_input(mock_config_flow):

@@ -74,7 +74,7 @@ cards:
   - type: entities
     title: Schulferien/Feiertage kombiniert
     entities:
-      - entity: sensor.schulferien_feiertage_kombiniert
+      - entity: sensor.schulferien_und_feiertage
         name: Aktueller Status
 ```
 
@@ -160,7 +160,7 @@ cards:
   - type: entities
     title: Schulferien/Feiertage kombiniert
     entities:
-      - entity: sensor.schulferien_feiertage_kombiniert
+      - entity: ssensor.schulferien_und_feiertage
         name: Aktueller Status
 ```
 

@@ -6,7 +6,7 @@ from homeassistant.helpers.event import async_track_time_change
 from homeassistant.components.sensor import SensorEntity, SensorEntityDescription
 import aiohttp
 from .api_utils import fetch_data, parse_daten, DEFAULT_TIMEOUT
-from .const import API_URL_FEIERTAGE, API_FALLBACK_FEIERTAGE, COUNTRIES, REGIONS
+from .const import API_URL_FEIERTAGE, API_FALLBACK_FEIERTAGE, COUNTRIES, REGIONS, DAILY_UPDATE_HOUR, DAILY_UPDATE_MINUTE, UPDATE_INTERVAL
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -16,8 +16,6 @@ def get_country_name(code):
 
 def get_region_name(country_code, region_code):
     """Gibt den ausgeschriebenen Regionsnamen für einen Regionscode zurück."""
-    #_LOGGER.debug("Region code fts: %s", region_code)
-    #_LOGGER.debug("Regions dictionary fts: %s", REGIONS)
     return REGIONS.get(country_code, {}).get(region_code, region_code)
 
 # Definition der EntityDescription mit Übersetzungsschlüssel
@@ -47,27 +45,23 @@ class FeiertagSensor(SensorEntity):
 
     async def async_added_to_hass(self):
         """Wird aufgerufen, wenn die Entität zu Home Assistant hinzugefügt wird."""
-        # Initiale Abfrage beim Hinzufügen der Entität
+        _LOGGER.debug("Feiertag-Sensor hinzugefügt. Starte Initial-Update.")
         await self.async_update()
-        self.async_write_ha_state()  # Zustand direkt nach Update speichern
-        _LOGGER.debug("Initiale Abfrage beim Hinzufügen der Entität durchgeführt.")
+        self.async_write_ha_state()
 
-        """Frage die API täglich um drei Uhr morgens ab."""
-        # Zeitplan für die tägliche Abfrage um 3 Uhr morgens
         async def async_daily_update(_):
+            """Tägliche Aktualisierung."""
+            _LOGGER.debug("Tägliches Update ausgelöst.")
             await self.async_update()
-            self.async_write_ha_state()  # Zustand nach Update speichern
+            self.async_write_ha_state()
 
-        # Korrekte async-Zeitplanung verwenden
         async_track_time_change(
             self._hass,
-            async_daily_update,  # Direkt awaitable Funktion verwenden
-            hour=3,
-            minute=0,
-            second=0,
+            async_daily_update,
+            hour=DAILY_UPDATE_HOUR,
+            minute=DAILY_UPDATE_MINUTE,
         )
-        _LOGGER.debug("Tägliche Abfrage um 3 Uhr morgens eingerichtet.")
-
+        _LOGGER.debug("Tägliche Abfrage um %02d:%02d eingerichtet.", DAILY_UPDATE_HOUR, DAILY_UPDATE_MINUTE)
 
     @property
     def name(self):
@@ -93,7 +87,6 @@ class FeiertagSensor(SensorEntity):
 
         # Nutze eine leere Liste, falls 'feiertage_liste' fehlt
         feiertage_liste = self._feiertags_info.get("feiertage_liste", [])
-
         for feiertag in feiertage_liste:
             if feiertag["start_datum"] == heute:
                 aktueller_feiertag = feiertag["name"]
@@ -112,17 +105,27 @@ class FeiertagSensor(SensorEntity):
         }
 
     async def async_update(self, session=None):
-        """Aktualisiert die Feiertagsdaten."""
-        heute = datetime.now().date()
+        """Aktualisiert die Feiertagsdaten nur, wenn das Intervall überschritten wurde."""
+        jetzt = datetime.now()
+        heute = jetzt.date()
 
-        # Session sicherstellen
+        # Prüfen, ob ein Update notwendig ist
+        if self._last_update_date and (jetzt - self._last_update_date) < UPDATE_INTERVAL:
+            _LOGGER.debug(
+                "Update übersprungen. Letztes Update war vor %s Stunden.",
+                (jetzt - self._last_update_date).total_seconds() // 3600,
+            )
+            return
+
+        _LOGGER.debug("Starte Update der Feiertagsdaten.")
         close_session = False
-        if session is None:  # Lokale Session erstellen, wenn keine übergeben wurde
+
+        if session is None:
             session = aiohttp.ClientSession(timeout=DEFAULT_TIMEOUT)
-            close_session = True  # Merken, dass diese geschlossen werden muss
+            close_session = True
 
         try:
-            # Zeitraum erweitern, um laufende Feiertage zu erfassen
+            # Zeitraum für die Abfrage
             startdatum = (heute - timedelta(days=30)).strftime("%Y-%m-%d")
             enddatum = (heute + timedelta(days=365)).strftime("%Y-%m-%d")
 
@@ -134,34 +137,24 @@ class FeiertagSensor(SensorEntity):
                 "languageIsoCode": "DE",
             }
 
-            # URLs für die Abfrage
-            urls = [API_URL_FEIERTAGE, API_FALLBACK_FEIERTAGE]
-            feiertage_daten = None
-
             # API-Daten abrufen
+            feiertage_daten = None
+            urls = [API_URL_FEIERTAGE, API_FALLBACK_FEIERTAGE]
             for url in urls:
-                _LOGGER.debug("Prüfe URL: %s", url)  # Log-Ausgabe zur Fehlerdiagnose
-                if not isinstance(url, str):  # Typ prüfen
-                    _LOGGER.error("Ungültige URL im Feiertags-Sensor: %s", url)
-                    continue  # Überspringe ungültige URLs
+                _LOGGER.debug("Prüfe URL: %s", url)
+                if not isinstance(url, str):
+                    _LOGGER.error("Ungültige URL: %s", url)
+                    continue
 
                 try:
-                    # API-Call
                     feiertage_daten = await fetch_data(url, api_parameter, session)
-                    if feiertage_daten:  # Bei Erfolg abbrechen
+                    if feiertage_daten:
                         break
                 except Exception as e:
                     _LOGGER.error("Fehler beim Abrufen der Daten von %s: %s", url, e)
 
             if not feiertage_daten:
-                _LOGGER.warning("Keine Feiertagsdaten von der API erhalten.")
-                # Leere Attribute setzen
-                self._feiertags_info.update({
-                    "heute_feiertag": False,
-                    "naechster_feiertag_name": None,
-                    "naechster_feiertag_datum": None,
-                })
-                self.async_write_ha_state()  # Zustand speichern
+                _LOGGER.warning("Keine Daten von der API erhalten.")
                 return
 
             # Verarbeite die Daten
@@ -169,7 +162,7 @@ class FeiertagSensor(SensorEntity):
                 feiertage_liste = parse_daten(feiertage_daten, typ="feiertage")
                 self._feiertags_info["feiertage_liste"] = feiertage_liste
             except Exception as e:
-                _LOGGER.error("Fehler beim Verarbeiten der Feiertagsdaten: %s", e)
+                _LOGGER.error("Fehler beim Verarbeiten der Daten: %s", e)
                 return
 
             # Prüfen, ob heute ein Feiertag ist
@@ -183,14 +176,12 @@ class FeiertagSensor(SensorEntity):
 
             # Zustand und Attribute aktualisieren
             if aktueller_feiertag:
-                # Aktueller Feiertag vorhanden
                 self._feiertags_info.update({
                     "heute_feiertag": True,
                     "naechster_feiertag_name": aktueller_feiertag["name"],
                     "naechster_feiertag_datum": aktueller_feiertag["start_datum"].strftime("%d.%m.%Y"),
                 })
             else:
-                # Kein aktueller Feiertag, also prüfe den nächsten
                 self._feiertags_info["heute_feiertag"] = False
                 zukunft_feiertage = [
                     feiertag for feiertag in feiertage_liste if feiertag["start_datum"] > heute
@@ -202,15 +193,13 @@ class FeiertagSensor(SensorEntity):
                         "naechster_feiertag_datum": naechster_feiertag["start_datum"].strftime("%d.%m.%Y"),
                     })
 
-            # Zustand speichern
-            self._last_update_date = heute
-            self.async_write_ha_state()
+            self._last_update_date = jetzt
+            _LOGGER.debug("Update abgeschlossen. Letztes Update um: %s", self._last_update_date)
 
         except Exception as e:
             _LOGGER.error("Unerwarteter Fehler beim Aktualisieren der Feiertagsdaten: %s", e)
 
         finally:
-            # Lokale Session schließen, wenn sie erstellt wurde
             if close_session:
                 await session.close()
                 _LOGGER.debug("API-Session geschlossen.")

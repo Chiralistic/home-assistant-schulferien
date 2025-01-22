@@ -27,7 +27,7 @@ async def test_initial_attributes(mock_sensor):
     """Testet die anfänglichen Attribute des Sensors."""
     assert mock_sensor.name == "Feiertag Sensor"
     assert mock_sensor.unique_id == "sensor.feiertag"
-    assert mock_sensor.state == "Kein Feiertag"
+    assert mock_sensor.state == "kein feiertag"
     assert "Nächster Feiertag" in mock_sensor.extra_state_attributes
 
 
@@ -41,7 +41,7 @@ async def test_initial_attributes(mock_sensor):
                 {"name": "Test-Feiertag", "start_datum": datetime(2024, 6, 1).date()},
                 {"name": "Zukunft-Feiertag", "start_datum": datetime(2024, 6, 10).date()},
             ],
-            "Feiertag",
+            "feiertag",
             "Zukunft-Feiertag",
         ),
         # Kein Feiertag heute
@@ -49,7 +49,7 @@ async def test_initial_attributes(mock_sensor):
             [
                 {"name": "Zukunft-Feiertag", "start_datum": datetime(2024, 6, 10).date()},
             ],
-            "Kein Feiertag",
+            "kein feiertag",
             "Zukunft-Feiertag",
         ),
     ],
@@ -82,7 +82,7 @@ async def test_update_error_handling(mock_sensor):
     ):
         await mock_sensor.async_update()
 
-        assert mock_sensor.state == "Kein Feiertag"
+        assert mock_sensor.state == "kein feiertag"
         assert mock_sensor.extra_state_attributes["Nächster Feiertag"] is None
 
     # Leere Antwort
@@ -92,5 +92,5 @@ async def test_update_error_handling(mock_sensor):
     ):
         await mock_sensor.async_update()
 
-        assert mock_sensor.state == "Kein Feiertag"
+        assert mock_sensor.state == "kein feiertag"
         assert mock_sensor.extra_state_attributes["Nächster Feiertag"] is None

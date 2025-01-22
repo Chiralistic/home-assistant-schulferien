@@ -19,7 +19,7 @@
         "name": "School Holidays",
         "state": {
           "ferientag": "Today is a Holiday",
-          "fein ferientag": "Today is not a Holiday"
+          "kein feiertag": "Today is not a Holiday"
         }
       }
     }

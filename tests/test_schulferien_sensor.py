@@ -31,7 +31,7 @@ def sensor(mock_hass, mock_config):
 @pytest.mark.parametrize(
     "sensor_name, expected_state",
     [
-        ("Schulferien Sensor", "Kein Ferientag"),
+        ("Schulferien Sensor", "kein ferientag"),
     ],
 )
 def test_sensor_initialization(sensor, sensor_name, expected_state):
@@ -49,27 +49,8 @@ def test_extra_state_attributes(sensor):
     assert attributes["Brückentage"] == ["2024-05-01"]
 
 
-@pytest.mark.parametrize(
-    "ferien_info, expected_state, expected_attributes",
-    [
-        (
-            {
-                "heute_ferientag": True,
-                "naechste_ferien_name": "Sommerferien",
-                "naechste_ferien_beginn": "01.08.2024",
-                "naechste_ferien_ende": "31.08.2024",
-            },
-            "Ferientag",
-            {
-                "Nächste Ferien": "Sommerferien",
-                "Beginn": "01.08.2024",
-                "Ende": "31.08.2024",
-            },
-        )
-    ],
-)
-
-def test_last_update_date(sensor):
+@pytest.mark.asyncio
+async def test_last_update_date(sensor):
     """Testet das Datum des letzten Updates."""
     today = datetime.now().date()
     sensor.last_update_date = today

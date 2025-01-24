@@ -6,7 +6,7 @@ from homeassistant.helpers.event import async_track_time_change
 from homeassistant.components.sensor import SensorEntity, SensorEntityDescription
 import aiohttp
 from .api_utils import fetch_data, parse_daten, DEFAULT_TIMEOUT
-from .const import API_URL_FEIERTAGE, API_FALLBACK_FEIERTAGE, COUNTRIES, REGIONS, DAILY_UPDATE_HOUR, DAILY_UPDATE_MINUTE, UPDATE_INTERVAL
+from .const import API_URL_FEIERTAGE, API_FALLBACK_FEIERTAGE, COUNTRIES, REGIONS, DAILY_UPDATE_HOUR, DAILY_UPDATE_MINUTE
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -35,12 +35,12 @@ class FeiertagSensor(SensorEntity):
         self._name = config["name"]
         self._unique_id = config.get("unique_id", "sensor.feiertag")
         self._location = {"land": config["land"], "region": config["region"]}
-        self._last_update_date = None
         self._feiertags_info = {
             "heute_feiertag": None,
             "naechster_feiertag_name": None,
             "naechster_feiertag_datum": None,
             "feiertage_liste": [],
+            "letztes_update": None,  # Neuer Schlüssel
         }
 
     async def async_added_to_hass(self):
@@ -76,7 +76,7 @@ class FeiertagSensor(SensorEntity):
     @property
     def state(self):
         """Gibt den aktuellen Zustand des Sensors zurück."""
-        return "feiertag" if self._feiertags_info.get("heute_feiertag", False) else "kein feiertag"
+        return "feiertag" if self._feiertags_info.get("heute_feiertag", False) else "kein_feiertag"
 
     @property
     def extra_state_attributes(self):
@@ -110,12 +110,14 @@ class FeiertagSensor(SensorEntity):
         heute = jetzt.date()
 
         # Prüfen, ob ein Update notwendig ist
-        if self._last_update_date and (jetzt - self._last_update_date) < UPDATE_INTERVAL:
+        if self._feiertags_info.get("letztes_update") and (
+            jetzt - self._feiertags_info["letztes_update"]
+        ) < timedelta(hours=24):
             _LOGGER.debug(
                 "Update übersprungen. Letztes Update war vor %s Stunden.",
-                (jetzt - self._last_update_date).total_seconds() // 3600,
+                (jetzt - self._feiertags_info["letztes_update"]).total_seconds() // 3600,
             )
-            return
+            return  # Update nicht erforderlich
 
         _LOGGER.debug("Starte Update der Feiertagsdaten.")
         close_session = False
@@ -193,8 +195,12 @@ class FeiertagSensor(SensorEntity):
                         "naechster_feiertag_datum": naechster_feiertag["start_datum"].strftime("%d.%m.%Y"),
                     })
 
-            self._last_update_date = jetzt
-            _LOGGER.debug("Update abgeschlossen. Letztes Update um: %s", self._last_update_date)
+            # Aktualisiere den Zeitstempel für das letzte Update
+            self._feiertags_info["letztes_update"] = jetzt
+            _LOGGER.debug(
+                "Update abgeschlossen. Letztes Update um: %s",
+                self._feiertags_info["letztes_update"],
+            )
 
         except Exception as e:
             _LOGGER.error("Unerwarteter Fehler beim Aktualisieren der Feiertagsdaten: %s", e)

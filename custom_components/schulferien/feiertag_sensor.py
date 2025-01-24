@@ -1,6 +1,7 @@
 """Modul für die Verwaltung und den Abruf von Feiertagen in Deutschland."""
 
 import logging
+from homeassistant.core import HomeAssistant
 from datetime import datetime, timedelta
 from homeassistant.helpers.event import async_track_time_change
 from homeassistant.components.sensor import SensorEntity, SensorEntityDescription
@@ -131,12 +132,18 @@ class FeiertagSensor(SensorEntity):
             startdatum = (heute - timedelta(days=30)).strftime("%Y-%m-%d")
             enddatum = (heute + timedelta(days=365)).strftime("%Y-%m-%d")
 
+            # Holen der aktuellen Sprache aus der Home Assistant-Konfiguration
+            language_iso_code = self.hass.config.language[:2].upper()  # Z.B. "de" -> "DE"
+
+            # Debug-Ausgabe des Sprachcodes im Log
+            self._logger.debug(f"Verwendeter Sprachcode: {language_iso_code}")
+
             api_parameter = {
                 "countryIsoCode": self._location["land"],
                 "subdivisionCode": self._location["region"],
                 "validFrom": startdatum,
                 "validTo": enddatum,
-                "languageIsoCode": "DE",
+                "languageIsoCode": language_iso_code,
             }
 
             # API-Daten abrufen

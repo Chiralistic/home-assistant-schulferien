@@ -1,33 +1,32 @@
-"""Modul zur Handhabung der API-Interaktionen für Schulferien und Feiertage."""
-
 import logging
 from datetime import datetime
 import aiohttp
 
 _LOGGER = logging.getLogger(__name__)
 
-# Konstante für den Timeout
+# Timeout-Konfiguration
 DEFAULT_TIMEOUT = aiohttp.ClientTimeout(total=10, connect=5, sock_read=5)
 
 async def fetch_data(
     api_url: str, api_parameter: dict, session: aiohttp.ClientSession = None
 ) -> dict:
+    if not isinstance(session, aiohttp.ClientSession):
+        raise ValueError("Session ist ungültig oder fehlt!")
     """
-    Allgemeine Funktion, um Daten von der API abzurufen.
+    Ruft Daten von der API ab.
 
     Args:
-        api_url (str): Die URL der API.
-        api_parameter (dict): Die Parameter für die API-Anfrage.
-        session (aiohttp.ClientSession, optional):
-            Eine bestehende Session. Erstellt eine neue, wenn nicht vorhanden.
+        api_url (str): API-URL.
+        api_parameter (dict): Anfrageparameter.
+        session (aiohttp.ClientSession, optional): Bestehende Session.
 
     Returns:
-        dict: Die JSON-Daten von der API.
-
-    Raises:
-        aiohttp.ClientError: Bei Client-Fehlern wie Timeouts oder Verbindungsfehlern.
+        dict: Die empfangenen JSON-Daten oder leeres Dict bei Fehlern.
     """
-    _LOGGER.debug("Sende Anfrage an API: %s mit Parametern %s", api_url, api_parameter)
+    # _LOGGER.debug("Sende Anfrage an API: %s mit Parametern %s", api_url, api_parameter)
+
+    if not isinstance(api_url, str):  # Typprüfung für URL
+        raise ValueError(f"Ungültige URL: {api_url}")
 
     close_session = False
     if session is None:
@@ -42,31 +41,39 @@ async def fetch_data(
         ) as response:
             response.raise_for_status()
             data = await response.json()
-            _LOGGER.debug("API-Antwort erhalten: %s", data)  # Logge die vollständige Antwort
+            # _LOGGER.debug("API-Antwort erhalten: %s", data)
             return data
-    except aiohttp.ClientError as error:
-        _LOGGER.error("Die Anfrage zur API ist fehlgeschlagen: %s", error)
-        return {}
+    except aiohttp.ClientResponseError as error:
+        _LOGGER.error(
+            "API Fehler: Status %s, Nachricht: %s, URL: %s",
+            error.status,
+            error.message,
+            error.request_info.url,
+        )
+    except Exception as error:
+        _LOGGER.error("Unbekannter Fehler beim API-Aufruf: %s", error)
     finally:
         if close_session:
             await session.close()
             _LOGGER.debug("Die API-Session wurde geschlossen.")
+
+    return {}
 
 def parse_daten(json_daten, brueckentage=None, typ="ferien"):
     """
     Verarbeitet die JSON-Daten und fügt Brückentage oder Feiertage hinzu.
 
     Args:
-        json_daten (dict): Die JSON-Daten von der API.
-        brueckentage (list, optional): Eine Liste von Brückentagen.
-        typ (str): Der Typ der Daten ("ferien" oder "feiertage").
+        json_daten (dict): JSON-Daten von der API.
+        brueckentage (list, optional): Brückentage.
+        typ (str): Datentyp ("ferien" oder "feiertage").
 
     Returns:
-        list: Eine Liste von Ferien- oder Feiertagselementen.
-
-    Raises:
-        RuntimeError: Wenn die JSON-Daten ungültig sind.
+        list: Verarbeitete Daten.
     """
+    if not isinstance(json_daten, list):  # Typprüfung für Datenstruktur
+        raise ValueError("Ungültige JSON-Datenstruktur erhalten.")
+
     try:
         liste = []
         for eintrag in json_daten:
@@ -86,7 +93,7 @@ def parse_daten(json_daten, brueckentage=None, typ="ferien"):
                     "end_datum": datum,
                 })
 
-        _LOGGER.debug("JSON-Daten erfolgreich verarbeitet: %d Einträge", len(liste))
+        _LOGGER.debug("JSON-Daten verarbeitet: %d Einträge", len(liste))
         return liste
     except (KeyError, ValueError, IndexError, TypeError) as error:
         _LOGGER.error("Fehler beim Verarbeiten der JSON-Daten: %s", error)

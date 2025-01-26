@@ -2,4 +2,6 @@ homeassistant  # Stelle sicher, dass du die passende Version verwendest
 aiohttp  # Für asynchrone HTTP-Anfragen
 aiofiles  # Für asynchrone Dateioperationen
 pytest  # zum testen
+pytest-asyncio # zum testen
+pytest-cov # zur Messung der Testabdeckung
 pytest-homeassistant-custom-component   # zum testen

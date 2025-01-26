@@ -14,6 +14,8 @@ Home Assistant-Integration, um Schulferien mithilfe der OpenHolidays-API als Ent
 
 4. Füge die Integration unter Einstellungen -> Geräte & Dienste -> + Integration hinzufügen -> "Schulferien" hinzu.
 
+5. Warten: Nach der Einrichtung bzw. nach einem Home Assistant Neustart kann es bis zu 30s dauern bis alle Attribute und States aktualisiert sind.
+
 Erstelle eine einfache Entitätskarte, die alle Attribute anzeigt in deinem Dashboard mit dem folgenden Code. Bei Bedarf kann der Stack verkleinert werden um nur die Informationen anzuzeigen, die gewünscht sind.
 
 ```yaml
@@ -26,7 +28,7 @@ cards:
         name: Aktueller Status
       - type: attribute
         entity: sensor.schulferien
-        attribute: Nächste Ferien
+        attribute: Name der Ferien
         name: Name der Ferien
       - type: attribute
         entity: sensor.schulferien
@@ -48,7 +50,6 @@ cards:
         entity: sensor.schulferien
         attribute: Brückentage
         name: Brückentage
-
   - type: entities
     title: Feiertage
     entities:
@@ -56,11 +57,11 @@ cards:
         name: Aktueller Status
       - type: attribute
         entity: sensor.feiertag
-        attribute: Nächster Feiertag
+        attribute: Name Feiertag
         name: Name des Feiertags
       - type: attribute
         entity: sensor.feiertag
-        attribute: Datum des nächsten Feiertags
+        attribute: Datum
         name: Datum des Feiertags
       - type: attribute
         entity: sensor.feiertag
@@ -70,13 +71,11 @@ cards:
         entity: sensor.feiertag
         attribute: Region
         name: Region
-
   - type: entities
     title: Schulferien/Feiertage kombiniert
     entities:
-      - entity: sensor.schulferien_feiertag_kombiniert
+      - entity: sensor.schulferien_und_feiertage
         name: Aktueller Status
-
 ```
 
 ## Deinstallation
@@ -101,68 +100,68 @@ Home Assistant integration to make school holidays available as entities for aut
 
 4. Add the integration under Settings -> Devices & Services -> + Add Integration -> "Schulferien".
 
+5. "Wait: After the setup or after a Home Assistant restart, it may take up to 30 seconds for all attributes and states to be updated.
+
 Create a simple entity card that displays all attributes on your dashboard with the following code. If necessary, the stack can be reduced to show only the desired information.
 
 ```yaml
 type: vertical-stack
 cards:
   - type: entities
-    title: School Holidays
+    title: Schulferien
     entities:
       - entity: sensor.schulferien
-        name: Current Status
+        name: Aktueller Status
       - type: attribute
         entity: sensor.schulferien
-        attribute: Next Holidays
-        name: Name of the Holidays
+        attribute: Name der Ferien
+        name: Name der Ferien
       - type: attribute
         entity: sensor.schulferien
-        attribute: Start
-        name: Start of the Holidays
+        attribute: Beginn
+        name: Beginn der Ferien
       - type: attribute
         entity: sensor.schulferien
-        attribute: End
-        name: End of the Holidays
+        attribute: Ende
+        name: Ende der Ferien
       - type: attribute
         entity: sensor.schulferien
-        attribute: Country
-        name: Country
+        attribute: Land
+        name: Land
       - type: attribute
         entity: sensor.schulferien
         attribute: Region
         name: Region
       - type: attribute
         entity: sensor.schulferien
-        attribute: Bridge Days
-        name: Bridge Days
-
+        attribute: Brückentage
+        name: Brückentage
   - type: entities
-    title: Public Holidays
+    title: Feiertage
     entities:
       - entity: sensor.feiertag
-        name: Current Status
+        name: Aktueller Status
       - type: attribute
         entity: sensor.feiertag
-        attribute: Next Public Holiday
-        name: Name of the Public Holiday
+        attribute: Name Feiertag
+        name: Name des Feiertags
       - type: attribute
         entity: sensor.feiertag
-        attribute: Date of the Next Public Holiday
-        name: Date of the Public Holiday
+        attribute: Datum
+        name: Datum des Feiertags
       - type: attribute
         entity: sensor.feiertag
-        attribute: Country
-        name: Country
+        attribute: Land
+        name: Land
       - type: attribute
         entity: sensor.feiertag
         attribute: Region
         name: Region
-
   - type: entities
-    title: Combined School Holidays/Public Holidays
+    title: Schulferien/Feiertage kombiniert
     entities:
-      - entity: sensor.schulferien_feiertag_kombiniert
-        name: Current Status
+      - entity: ssensor.schulferien_und_feiertage
+        name: Aktueller Status
 ```
 
 ## Uninstall

@@ -1,105 +1,102 @@
-import asyncio
-import json
-import os
-import unittest
+"""Unit tests for API utility functions."""
+
+import pytest
 from unittest import mock
-from datetime import datetime, timedelta
-from api_utils import load_cache, save_cache, fetch_data, parse_daten
+from datetime import datetime
+import aiohttp
+from custom_components.schulferien.api_utils import fetch_data, parse_daten
 
-# Constants for testing
-TEST_CACHE_FILE = "test_cache.json"
-CACHE_VALIDITY_DURATION = 24  # in hours
+@pytest.mark.asyncio
+async def test_fetch_data_success():
+    """Test API fetch with HTTP error."""
+    mock_get = mock.AsyncMock()
+    mock_get.return_value.__aenter__.return_value = mock.AsyncMock(
+        status=200, json=mock.AsyncMock(return_value={"key": "value"})
+    )
 
-class TestApiUtils(unittest.IsolatedAsyncioTestCase):
+    with mock.patch("aiohttp.ClientSession.get", mock_get):
+        result = await fetch_data("https://example.com/api", {"param": "value"})
+        assert result == {"key": "value"}
 
-    async def asyncSetUp(self):
-        """Set up test environment before each test."""
-        self.test_data = {"key": "value"}
-        self.test_cache_data = {
-            "timestamp": (datetime.now() - timedelta(hours=1)).isoformat(),
-            "data": self.test_data
+@pytest.mark.asyncio
+async def test_fetch_data_timeout():
+    """Test API fetch with timeout error."""
+    mock_response = mock.AsyncMock()
+    mock_response.status = 504  # Simuliere Timeout-Fehler
+    mock_response.json = mock.AsyncMock(return_value={})
+
+    with mock.patch(
+        "aiohttp.ClientSession.get",
+        side_effect=aiohttp.ClientTimeout,
+    ):
+        result = await fetch_data("https://example.com/api", {"param": "value"})
+        assert result == {}  # Erwarte leere Daten bei Timeout
+
+@pytest.mark.asyncio
+async def test_fetch_data_http_error():
+    """Test API fetch with HTTP error."""
+    mock_get = mock.AsyncMock()
+    mock_get.return_value.__aenter__.return_value.raise_for_status.side_effect = aiohttp.ClientError
+
+    with mock.patch("aiohttp.ClientSession.get", mock_get):
+        result = await fetch_data("https://example.com/api", {"param": "value"})
+        assert result == {}
+
+def test_parse_daten_valid():
+    """Test parsing valid JSON data."""
+    json_data = [
+        {
+            "name": [{"text": "Ferien"}],
+            "startDate": "2024-06-01",
+            "endDate": "2024-06-15"
         }
-        # Create a temporary cache file for testing
-        async with aiofiles.open(TEST_CACHE_FILE, "w", encoding="utf-8") as file:
-            await file.write(json.dumps(self.test_cache_data))
-
-    async def asyncTearDown(self):
-        """Clean up after each test."""
-        if os.path.exists(TEST_CACHE_FILE):
-            os.remove(TEST_CACHE_FILE)
-
-    async def test_load_cache_valid(self):
-        """Test loading valid cache data."""
-        result = await load_cache(TEST_CACHE_FILE)
-        self.assertEqual(result, self.test_data)
-
-    async def test_load_cache_expired(self):
-        """Test loading expired cache data."""
-        expired_cache_data = {
-            "timestamp": (datetime.now() - timedelta(hours=CACHE_VALIDITY_DURATION + 1)).isoformat(),
-            "data": self.test_data
+    ]
+    result = parse_daten(json_data)
+    expected = [
+        {
+            "name": "Ferien",
+            "start_datum": datetime(2024, 6, 1).date(),
+            "end_datum": datetime(2024, 6, 15).date()
         }
-        async with aiofiles.open(TEST_CACHE_FILE, "w", encoding="utf-8") as file:
-            await file.write(json.dumps(expired_cache_data))
+    ]
+    assert result == expected
 
-        result = await load_cache(TEST_CACHE_FILE)
-        self.assertIsNone(result)
+def test_parse_daten_with_brueckentage():
+    """Test parsing JSON data with additional brückentage."""
+    json_data = [
+        {
+            "name": [{"text": "Ferien"}],
+            "startDate": "2024-06-01",
+            "endDate": "2024-06-15"
+        }
+    ]
+    brueckentage = ["16.06.2024", "17.06.2024"]
+    result = parse_daten(json_data, brueckentage)
+    expected = [
+        {
+            "name": "Ferien",
+            "start_datum": datetime(2024, 6, 1).date(),
+            "end_datum": datetime(2024, 6, 15).date()
+        },
+        {
+            "name": "Brückentag",
+            "start_datum": datetime(2024, 6, 16).date(),
+            "end_datum": datetime(2024, 6, 16).date()
+        },
+        {
+            "name": "Brückentag",
+            "start_datum": datetime(2024, 6, 17).date(),
+            "end_datum": datetime(2024, 6, 17).date()
+        },
+    ]
+    assert result == expected
 
-    async def test_load_cache_invalid_json(self):
-        """Test loading cache with invalid JSON."""
-        async with aiofiles.open(TEST_CACHE_FILE, "w", encoding="utf-8") as file:
-            await file.write("invalid json")
+def test_parse_daten_invalid():
+    """Test parsing invalid JSON data."""
+    with pytest.raises(RuntimeError):
+        parse_daten([{"startDate": "invalid-date"}])
 
-        result = await load_cache(TEST_CACHE_FILE)
-        self.assertIsNone(result)
-
-    async def test_save_cache(self):
-        """Test saving cache data."""
-        new_data = {"new_key": "new_value"}
-        await save_cache(new_data, TEST_CACHE_FILE)
-
-        async with aiofiles.open(TEST_CACHE_FILE, "r", encoding="utf-8") as file:
-            content = await file.read()
-            saved_cache = json.loads(content)
-            self.assertEqual(saved_cache["data"], new_data)
-
-    @mock.patch("aiohttp.ClientSession.get")
-    async def test_fetch_data_from_api(self, mock_get):
-        """Test fetching data from the API when no valid cache exists."""
-        mock_response = mock.Mock()
-        mock_response.status = 200
-        mock_response.json = mock.AsyncMock(return_value=self.test_data)
-        mock_get.return_value.__aenter__.return_value = mock_response
-
-        api_url = "https://example.com/api"
-        api_params = {"param": "value"}
-        
-        result = await fetch_data(api_url, api_params, TEST_CACHE_FILE)
-        self.assertEqual(result, self.test_data)
-
-    def test_parse_daten_valid(self):
-        """Test parsing valid JSON data."""
-        json_data = [
-            {
-                "name": [{"text": "Ferien"}],
-                "startDate": "2024-06-01",
-                "endDate": "2024-06-15"
-            }
-        ]
-        result = parse_daten(json_data)
-        expected = [
-            {
-                "name": "Ferien",
-                "start_datum": datetime(2024, 6, 1).date(),
-                "end_datum": datetime(2024, 6, 15).date()
-            }
-        ]
-        self.assertEqual(result, expected)
-
-    def test_parse_daten_invalid(self):
-        """Test parsing invalid JSON data."""
-        with self.assertRaises(RuntimeError):
-            parse_daten([{"startDate": "invalid-date"}])
-
-if __name__ == "__main__":
-    unittest.main()
+def test_parse_daten_missing_fields():
+    """Test parsing JSON data with missing fields."""
+    with pytest.raises(RuntimeError):
+        parse_daten([{"endDate": "2024-06-15"}])  # Missing startDate

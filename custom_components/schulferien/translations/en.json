@@ -1,0 +1,27 @@
+{
+  "entity": {
+    "sensor": {
+      "schulferien_feiertag": {
+        "name": "School Holidays and Public Holidays",
+        "state": {
+          "ferientag_feiertag": "Holiday or Public Holiday",
+          "kein_ferientag_feiertag": "No Holiday or Public Holiday"
+        }
+      },
+      "feiertag": {
+        "name": "Public Holiday",
+        "state": {
+          "feiertag": "Today is a Public Holiday",
+          "kein_feiertag": "Today is not a Public Holiday"
+        }
+      },
+      "schulferien": {
+        "name": "School Holidays",
+        "state": {
+          "ferientag": "Today is a Holiday",
+          "kein_feiertag": "Today is not a Holiday"
+        }
+      }
+    }
+  }
+}

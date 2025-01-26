@@ -159,7 +159,7 @@ class SchulferienSensor(SensorEntity):
             language_iso_code = self.hass.config.language[:2].upper()  # Z.B. "de" -> "DE"
 
             # Debug-Ausgabe des Sprachcodes im Log
-            self._logger.debug(f"Verwendeter Sprachcode: {language_iso_code}")
+            _LOGGER.debug(f"Verwendeter Sprachcode: {language_iso_code}")
 
             api_parameter = {
                 "countryIsoCode": self._location["land"],

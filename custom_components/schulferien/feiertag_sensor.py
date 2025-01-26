@@ -1,5 +1,3 @@
-"""Modul für die Verwaltung und den Abruf von Feiertagen in Deutschland."""
-
 import logging
 from homeassistant.core import HomeAssistant
 from datetime import datetime, timedelta
@@ -7,17 +5,9 @@ from homeassistant.helpers.event import async_track_time_change
 from homeassistant.components.sensor import SensorEntity, SensorEntityDescription
 import aiohttp
 from .api_utils import fetch_data, parse_daten, DEFAULT_TIMEOUT
-from .const import API_URL_FEIERTAGE, API_FALLBACK_FEIERTAGE, COUNTRIES, REGIONS, DAILY_UPDATE_HOUR, DAILY_UPDATE_MINUTE
+from .const import API_URL_FEIERTAGE, API_FALLBACK_FEIERTAGE, DAILY_UPDATE_HOUR, DAILY_UPDATE_MINUTE
 
 _LOGGER = logging.getLogger(__name__)
-
-def get_country_name(code):
-    """Gibt den ausgeschriebenen Ländernamen für einen Ländercode zurück."""
-    return COUNTRIES.get(code, code)
-
-def get_region_name(country_code, region_code):
-    """Gibt den ausgeschriebenen Regionsnamen für einen Regionscode zurück."""
-    return REGIONS.get(country_code, {}).get(region_code, region_code)
 
 # Definition der EntityDescription mit Übersetzungsschlüssel
 FEIERTAG_SENSOR = SensorEntityDescription(
@@ -35,7 +25,11 @@ class FeiertagSensor(SensorEntity):
         self._hass = hass
         self._name = config["name"]
         self._unique_id = config.get("unique_id", "sensor.feiertag")
-        self._location = {"land": config["land"], "region": config["region"]}
+        # Hier verwenden wir die über die Konfiguration erhaltenen Länder und Regionen
+        self._location = {
+            "land": config["land"],  # Wird aus dem ConfigFlow übernommen
+            "region": config["region"]  # Wird aus dem ConfigFlow übernommen
+        }
         self._feiertags_info = {
             "heute_feiertag": None,
             "naechster_feiertag_name": None,
@@ -43,6 +37,11 @@ class FeiertagSensor(SensorEntity):
             "feiertage_liste": [],
             "letztes_update": None,  # Neuer Schlüssel
         }
+
+        # Debugging der Konfigurationswerte
+        _LOGGER.debug("FeiertagSensor initialisiert mit folgenden Konfigurationsdaten:")
+        _LOGGER.debug("Land: %s", self._location["land"])
+        _LOGGER.debug("Region: %s", self._location["region"])
 
     async def async_added_to_hass(self):
         """Wird aufgerufen, wenn die Entität zu Home Assistant hinzugefügt wird."""
@@ -101,8 +100,8 @@ class FeiertagSensor(SensorEntity):
         return {
             "Name Feiertag": aktueller_feiertag,
             "Datum": datum,
-            "Land": get_country_name(self._location["land"]),
-            "Region": get_region_name(self._location["land"], self._location["region"]),
+            "Land": self._location["land"],  # Dynamisch aus der Konfiguration übernommen
+            "Region": self._location["region"],  # Dynamisch aus der Konfiguration übernommen
         }
 
     async def async_update(self, session=None):
@@ -133,18 +132,26 @@ class FeiertagSensor(SensorEntity):
             enddatum = (heute + timedelta(days=365)).strftime("%Y-%m-%d")
 
             # Holen der aktuellen Sprache aus der Home Assistant-Konfiguration
-            language_iso_code = self.hass.config.language[:2].upper()  # Z.B. "de" -> "DE"
+            if self.hass and self.hass.config and hasattr(self.hass.config, "language"):
+                language_iso_code = self.hass.config.language[:2].upper()  # Z.B. "de" -> "DE"
+            else:
+                language_iso_code = "DE"  # Standardwert
+                _LOGGER.warning("self.hass oder self.hass.config ist nicht verfügbar. Standard 'DE' wird verwendet.")
 
             # Debug-Ausgabe des Sprachcodes im Log
-            self._logger.debug(f"Verwendeter Sprachcode: {language_iso_code}")
+            _LOGGER.debug(f"Verwendeter Sprachcode: {language_iso_code}")
 
             api_parameter = {
-                "countryIsoCode": self._location["land"],
-                "subdivisionCode": self._location["region"],
+                "countryIsoCode": self._location["land"],  # Dynamisch aus der Konfiguration übernommen
+                "subdivisionCode": self._location["region"],  # Dynamisch aus der Konfiguration übernommen
                 "validFrom": startdatum,
                 "validTo": enddatum,
                 "languageIsoCode": language_iso_code,
             }
+
+            # Debug-Ausgabe der API-Parameter im Log
+            _LOGGER.debug("Verwendete API-Parameter: %s", api_parameter)
+
 
             # API-Daten abrufen
             feiertage_daten = None

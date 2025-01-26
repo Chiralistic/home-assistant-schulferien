@@ -10,23 +10,11 @@ from .api_utils import fetch_data, parse_daten, DEFAULT_TIMEOUT
 from .const import (
     API_URL_FERIEN,
     API_FALLBACK_FERIEN,
-    COUNTRIES,
-    REGIONS,
     DAILY_UPDATE_HOUR,
     DAILY_UPDATE_MINUTE,
 )
 
 _LOGGER = logging.getLogger(__name__)
-
-def get_country_name(code):
-    """Gibt den ausgeschriebenen Ländernamen für einen Ländercode zurück."""
-    return COUNTRIES.get(code, code)
-
-def get_region_name(country_code, region_code):
-    """Gibt den ausgeschriebenen Regionsnamen für einen Regionscode zurück."""
-    _LOGGER.debug("Region code: %s", region_code)
-    _LOGGER.debug("Regions dictionary: %s", REGIONS)
-    return REGIONS.get(country_code, {}).get(region_code, region_code)
 
 # Definition der EntityDescription mit Übersetzungsschlüssel
 SCHULFERIEN_SENSOR = SensorEntityDescription(
@@ -44,7 +32,10 @@ class SchulferienSensor(SensorEntity):
         self._hass = hass
         self._name = config["name"]
         self._unique_id = config.get("unique_id", "sensor.schulferien")
-        self._location = {"land": config["land"], "region": config["region"]}
+        self._location = {
+            "land": config["land"],
+            "region": config["region"]
+        }
         self._brueckentage = config.get("brueckentage", [])
         self._ferien_info = {
             "heute_ferientag": None,
@@ -54,6 +45,8 @@ class SchulferienSensor(SensorEntity):
             "ferien_liste": [],
             "letztes_update": None,  # Neuer Schlüssel
         }
+        _LOGGER.debug("Sensor für %s mit Land: %s, Region: %s, Brückentagen: %s",
+                      self._name, self._location["land"], self._location["region"], self._brueckentage)
 
     async def async_added_to_hass(self):
         """Initialisierung des Sensors."""
@@ -125,8 +118,8 @@ class SchulferienSensor(SensorEntity):
             "Name der Ferien": aktuelles_ereignis,
             "Beginn": beginn,
             "Ende": ende,
-            "Land": get_country_name(self._location["land"]),
-            "Region": get_region_name(self._location["land"], self._location["region"]),
+            "Land": self._location["land"],
+            "Region": self._location["region"],
             "Brückentage": self._brueckentage,
         }
 
@@ -159,7 +152,7 @@ class SchulferienSensor(SensorEntity):
             language_iso_code = self.hass.config.language[:2].upper()  # Z.B. "de" -> "DE"
 
             # Debug-Ausgabe des Sprachcodes im Log
-            self._logger.debug(f"Verwendeter Sprachcode: {language_iso_code}")
+            _LOGGER.debug(f"Verwendeter Sprachcode: {language_iso_code}")
 
             api_parameter = {
                 "countryIsoCode": self._location["land"],

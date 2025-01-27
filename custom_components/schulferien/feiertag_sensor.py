@@ -5,7 +5,12 @@ from homeassistant.helpers.event import async_track_time_change
 from homeassistant.components.sensor import SensorEntity, SensorEntityDescription
 import aiohttp
 from .api_utils import fetch_data, parse_daten, DEFAULT_TIMEOUT
-from .const import API_URL_FEIERTAGE, API_FALLBACK_FEIERTAGE, DAILY_UPDATE_HOUR, DAILY_UPDATE_MINUTE
+from .const import (
+    API_URL_FEIERTAGE,
+    API_FALLBACK_FEIERTAGE,
+    DAILY_UPDATE_HOUR,
+    DAILY_UPDATE_MINUTE
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -22,13 +27,15 @@ class FeiertagSensor(SensorEntity):
     def __init__(self, hass, config):
         """Initialisiert den Feiertag-Sensor mit Konfigurationsdaten."""
         self.entity_description = FEIERTAG_SENSOR
-        self._hass = hass
         self._name = config["name"]
         self._unique_id = config.get("unique_id", "sensor.feiertag")
         # Hier verwenden wir die über die Konfiguration erhaltenen Länder und Regionen
         self._location = {
             "land": config["land"],  # Wird aus dem ConfigFlow übernommen
-            "region": config["region"]  # Wird aus dem ConfigFlow übernommen
+            "region": config["region"],  # Wird aus dem ConfigFlow übernommen
+            "land_name": config["land_name"],  # Ausgeschriebener Name des Landes
+            "region_name": config["region_name"],  # Ausgeschriebener Name der Region
+            "iso_code": "DE",  # Wird dynamisch aus der Spracheinstellung übernommen
         }
         self._feiertags_info = {
             "heute_feiertag": None,
@@ -45,7 +52,16 @@ class FeiertagSensor(SensorEntity):
 
     async def async_added_to_hass(self):
         """Wird aufgerufen, wenn die Entität zu Home Assistant hinzugefügt wird."""
-        _LOGGER.debug("Feiertag-Sensor hinzugefügt. Starte Initial-Update.")
+        _LOGGER.debug("Feiertag-Sensor hinzugefügt, erstes Update wird ausgeführt.")
+        if self.hass and self.hass.config:
+            self._location["iso_code"] = self.hass.config.language[:2].upper()
+        else:
+            self._location["iso_code"] = "DE"  # Standardwert
+            _LOGGER.warning("Feiertag-Sensor: Fallback auf Standard 'DE'.")
+
+        # Debug-Ausgabe des Sprachcodes im Log
+        _LOGGER.debug("Feiertag-Sensor: Verwendeter Sprachcode: %s", self._location["iso_code"])
+
         await self.async_update()
         self.async_write_ha_state()
 
@@ -56,12 +72,14 @@ class FeiertagSensor(SensorEntity):
             self.async_write_ha_state()
 
         async_track_time_change(
-            self._hass,
+            self.hass,
             async_daily_update,
             hour=DAILY_UPDATE_HOUR,
             minute=DAILY_UPDATE_MINUTE,
         )
-        _LOGGER.debug("Tägliche Abfrage um %02d:%02d eingerichtet.", DAILY_UPDATE_HOUR, DAILY_UPDATE_MINUTE)
+        _LOGGER.debug(
+            "Tägliche Abfrage um %02d:%02d eingerichtet.", DAILY_UPDATE_HOUR, DAILY_UPDATE_MINUTE
+        )
 
     @property
     def name(self):
@@ -74,7 +92,7 @@ class FeiertagSensor(SensorEntity):
         return self._unique_id
 
     @property
-    def state(self):
+    def native_value(self):
         """Gibt den aktuellen Zustand des Sensors zurück."""
         return "feiertag" if self._feiertags_info.get("heute_feiertag", False) else "kein_feiertag"
 
@@ -100,12 +118,21 @@ class FeiertagSensor(SensorEntity):
         return {
             "Name Feiertag": aktueller_feiertag,
             "Datum": datum,
-            "Land": self._location["land"],  # Dynamisch aus der Konfiguration übernommen
-            "Region": self._location["region"],  # Dynamisch aus der Konfiguration übernommen
+            "Land": self._location["land_name"],  # Dynamisch aus der Konfiguration übernommen
+            "Region": self._location["region_name"],  # Dynamisch aus der Konfiguration übernommen
         }
 
     async def async_update(self, session=None):
-        """Aktualisiert die Feiertagsdaten nur, wenn das Intervall überschritten wurde."""
+        """
+        Aktualisiert die Feiertagsdaten.
+        
+        Lädt die Feiertagsdaten von der API und überprüft, ob ein Feiertag ansteht.
+        Wenn bereits ein Update innerhalb der letzten 24 Stunden durchgeführt wurde,
+        wird kein neues Update durchgeführt.
+
+        :param session: Optional, eine bestehende aiohttp-Session. Wenn nicht gesetzt,
+                        wird eine neue Session erstellt.
+        """
         jetzt = datetime.now()
         heute = jetzt.date()
 
@@ -131,22 +158,12 @@ class FeiertagSensor(SensorEntity):
             startdatum = (heute - timedelta(days=30)).strftime("%Y-%m-%d")
             enddatum = (heute + timedelta(days=365)).strftime("%Y-%m-%d")
 
-            # Holen der aktuellen Sprache aus der Home Assistant-Konfiguration
-            if self.hass and self.hass.config and hasattr(self.hass.config, "language"):
-                language_iso_code = self.hass.config.language[:2].upper()  # Z.B. "de" -> "DE"
-            else:
-                language_iso_code = "DE"  # Standardwert
-                _LOGGER.warning("self.hass oder self.hass.config ist nicht verfügbar. Standard 'DE' wird verwendet.")
-
-            # Debug-Ausgabe des Sprachcodes im Log
-            _LOGGER.debug(f"Verwendeter Sprachcode: {language_iso_code}")
-
             api_parameter = {
-                "countryIsoCode": self._location["land"],  # Dynamisch aus der Konfiguration übernommen
-                "subdivisionCode": self._location["region"],  # Dynamisch aus der Konfiguration übernommen
+                "countryIsoCode": self._location["land"],  # Aus dem config-_flow übernommen
+                "subdivisionCode": self._location["region"],  # Aus dem config-_flow übernommen
                 "validFrom": startdatum,
                 "validTo": enddatum,
-                "languageIsoCode": language_iso_code,
+                "languageIsoCode": self._location["iso_code"],
             }
 
             # Debug-Ausgabe der API-Parameter im Log
@@ -195,7 +212,9 @@ class FeiertagSensor(SensorEntity):
                 self._feiertags_info.update({
                     "heute_feiertag": True,
                     "naechster_feiertag_name": aktueller_feiertag["name"],
-                    "naechster_feiertag_datum": aktueller_feiertag["start_datum"].strftime("%d.%m.%Y"),
+                    "naechster_feiertag_datum": aktueller_feiertag["start_datum"].strftime(
+                        "%d.%m.%Y"
+                    ),
                 })
             else:
                 self._feiertags_info["heute_feiertag"] = False
@@ -206,7 +225,9 @@ class FeiertagSensor(SensorEntity):
                     naechster_feiertag = min(zukunft_feiertage, key=lambda f: f["start_datum"])
                     self._feiertags_info.update({
                         "naechster_feiertag_name": naechster_feiertag["name"],
-                        "naechster_feiertag_datum": naechster_feiertag["start_datum"].strftime("%d.%m.%Y"),
+                        "naechster_feiertag_datum": naechster_feiertag["start_datum"].strftime(
+                            "%d.%m.%Y"
+                        ),
                     })
 
             # Aktualisiere den Zeitstempel für das letzte Update

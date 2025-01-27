@@ -18,6 +18,8 @@ def mock_config():
         "name": "Schulferien Sensor",
         "land": "DE",
         "region": "DE-BY",
+        "land_name": "Deutschland",
+        "region_name": "Bayern",
         "brueckentage": ["2024-05-01"],
     }
 
@@ -31,7 +33,7 @@ def sensor(mock_hass, mock_config):
 @pytest.mark.parametrize(
     "sensor_name, expected_state",
     [
-        ("Schulferien Sensor", "kein ferientag"),
+        ("Schulferien Sensor", "kein_ferientag"),
     ],
 )
 def test_sensor_initialization(sensor, sensor_name, expected_state):

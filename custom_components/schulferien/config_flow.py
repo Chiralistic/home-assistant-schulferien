@@ -19,10 +19,12 @@ class SchulferienFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
     def __init__(self):
         """Initialisierung."""
         self.language_iso_code = "DE"  # Fallback-Sprache auf "DE" setzen.
+        self.supported_countries = {}
+        self.supported_regions = {}
 
     def _get_hass_language(self, hass: HomeAssistant) -> str:
         """Holt den aktuellen Sprachcode aus der Home Assistant-Konfiguration und formatiert ihn."""
-        language = hass.config.language[:2].upper()  # Ersten zwei Buchstaben großschreiben, z. B. "DE".
+        language = hass.config.language[:2].upper()  # Ersten zwei Buchstaben groß, z.B. "DE"
         _LOGGER.debug("Ermittelte Sprache aus Home Assistant: %s", language)
         return language
 
@@ -32,17 +34,17 @@ class SchulferienFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         async with aiohttp.ClientSession() as session:
             async with session.get(url) as response:
                 if response.status == 200:
-                    # Debugging: API-Antwort prüfen
-                    _LOGGER.debug("API-Antwort für Länder: %s", await response.text())
                     try:
                         countries_data = await response.json()
-                        return {
+                        self.supported_countries = {
                             country["isoCode"]: next(
-                                (name_entry["text"] for name_entry in country["name"] if name_entry["language"] == self.language_iso_code),
-                                country["isoCode"]  # Fallback, falls die Sprache nicht gefunden wird
+                                (name_entry["text"] for name_entry in country["name"] 
+                                 if name_entry["language"] == self.language_iso_code),
+                                country["isoCode"]  # Fallback
                             )
                             for country in countries_data if "name" in country
                         }
+                        return self.supported_countries
                     except (KeyError, ValueError, TypeError) as e:
                         _LOGGER.error("Fehler beim Verarbeiten der API-Antwort für Länder: %s", e)
                 else:
@@ -59,18 +61,21 @@ class SchulferienFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
                     _LOGGER.debug("API-Antwort für Regionen: %s", await response.text())
                     try:
                         subdivisions_data = await response.json()
-                        return {
+                        self.supported_regions[country_code] = {
                             subdivision["code"]: next(
-                                (name_entry["text"] for name_entry in subdivision["name"] if name_entry["language"] == self.language_iso_code),
-                                subdivision["code"]  # Fallback, falls die Sprache nicht gefunden wird
+                                (name_entry["text"] for name_entry in subdivision["name"] 
+                                if name_entry["language"] == self.language_iso_code),
+                                subdivision["code"]
                             )
                             for subdivision in subdivisions_data if "name" in subdivision
                         }
+                        return self.supported_regions[country_code]
                     except (KeyError, ValueError, TypeError) as e:
                         _LOGGER.error("Fehler beim Verarbeiten der API-Antwort für Regionen: %s", e)
+                        return {}  # Fehlerbehandlung, falls die Antwort nicht wie erwartet ist
                 else:
                     _LOGGER.error("Fehler beim Abrufen der Regionen: HTTP %s", response.status)
-        return {}
+                    return {}  # Rückgabe einer leeren Liste, wenn der HTTP-Status nicht 200 ist
 
     async def async_step_user(self, user_input=None):
         """Erster Schritt: Auswahl des Landes."""
@@ -109,9 +114,13 @@ class SchulferienFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
 
         # Regionen abrufen
         regions = await self._fetch_supported_regions(self.selected_country)
+
         if not regions:
-            _LOGGER.error("Keine Regionen für Land %s verfügbar.", self.selected_country)
-            return self.async_abort(reason="no_regions_available")
+            # Wenn keine Regionen verfügbar sind, setze eine Standardregion (DE-NS)
+            _LOGGER.warning(
+                "Keine Regionen für Land %s verfügbar, setze Standardregion DE-NS.", self.selected_country
+            )
+            regions = {"DE-NS": "Keine Regionen"}
 
         if user_input is not None:
             # Benutzer hat eine Region ausgewählt
@@ -136,13 +145,21 @@ class SchulferienFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
 
         # Daten für den Eintrag vorbereiten
         config_data = {
-            "country": self.selected_country,
+            "land": self.selected_country,
             "region": self.selected_region,
+            "land_name": self.supported_countries.get(
+                self.selected_country, self.selected_country
+            ),
+            "region_name": self.supported_regions.get(
+                self.selected_country, {}
+            ).get(self.selected_region, self.selected_region),
         }
+
+        _LOGGER.debug("Erstelle Eintrag mit Konfigurationsdaten: %s", config_data)
 
         try:
             return self.async_create_entry(
-                title=f"Schulferien - {self.selected_country} ({self.selected_region})",
+                title=f"Schulferien - {config_data['land_name']} ({config_data['region_name']})",
                 data=config_data,
             )
         except (vol.Invalid, KeyError) as e:

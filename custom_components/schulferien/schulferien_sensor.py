@@ -29,12 +29,14 @@ class SchulferienSensor(SensorEntity):
     def __init__(self, hass, config):
         """Initialisiert den Schulferien-Sensor mit Konfigurationsdaten."""
         self.entity_description = SCHULFERIEN_SENSOR
-        self._hass = hass
         self._name = config["name"]
         self._unique_id = config.get("unique_id", "sensor.schulferien")
         self._location = {
             "land": config["land"],
-            "region": config["region"]
+            "region": config["region"],
+            "land_name": config["land_name"],  # Ausgeschriebener Name des Landes
+            "region_name": config["region_name"],  # Ausgeschriebener Name der Region
+            "iso_code": "DE",  # Wird dynamisch aus der Spracheinstellung übernommen
         }
         self._brueckentage = config.get("brueckentage", [])
         self._ferien_info = {
@@ -46,11 +48,21 @@ class SchulferienSensor(SensorEntity):
             "letztes_update": None,  # Neuer Schlüssel
         }
         _LOGGER.debug("Sensor für %s mit Land: %s, Region: %s, Brückentagen: %s",
-                      self._name, self._location["land"], self._location["region"], self._brueckentage)
+                      self._name, self._location["land"], self._location["region"], 
+                      self._brueckentage)
 
     async def async_added_to_hass(self):
         """Initialisierung des Sensors."""
         _LOGGER.debug("Schulferien-Sensor hinzugefügt, erstes Update wird ausgeführt.")
+        if self.hass and self.hass.config:
+            self._location["iso_code"] = self.hass.config.language[:2].upper()
+        else:
+            self._location["iso_code"] = "DE"  # Standardwert
+            _LOGGER.warning("Schulferien-Sensor: Fallback auf Standard 'DE'.")
+
+        # Debug-Ausgabe des Sprachcodes im Log
+        _LOGGER.debug("Schulferien-Sensor: Verwendeter Sprachcode: %s", self._location["iso_code"])
+
         await self.async_update()
         self.async_write_ha_state()
 
@@ -62,7 +74,7 @@ class SchulferienSensor(SensorEntity):
             self.async_write_ha_state()
 
         async_track_time_change(
-            self._hass,
+            self.hass,
             async_daily_update,
             hour=DAILY_UPDATE_HOUR,
             minute=DAILY_UPDATE_MINUTE,
@@ -82,7 +94,7 @@ class SchulferienSensor(SensorEntity):
         return self._unique_id
 
     @property
-    def state(self):
+    def native_value(self):
         """Gibt den aktuellen Zustand des Sensors zurück."""
         return "ferientag" if self._ferien_info.get("heute_ferientag", False) else "kein_ferientag"
 
@@ -118,8 +130,8 @@ class SchulferienSensor(SensorEntity):
             "Name der Ferien": aktuelles_ereignis,
             "Beginn": beginn,
             "Ende": ende,
-            "Land": self._location["land"],
-            "Region": self._location["region"],
+            "Land": self._location["land_name"],
+            "Region": self._location["region_name"],
             "Brückentage": self._brueckentage,
         }
 
@@ -148,18 +160,12 @@ class SchulferienSensor(SensorEntity):
             startdatum = (heute - timedelta(days=30)).strftime("%Y-%m-%d")
             enddatum = (heute + timedelta(days=365)).strftime("%Y-%m-%d")
 
-            # Holen der aktuellen Sprache aus der Home Assistant-Konfiguration
-            language_iso_code = self.hass.config.language[:2].upper()  # Z.B. "de" -> "DE"
-
-            # Debug-Ausgabe des Sprachcodes im Log
-            _LOGGER.debug(f"Verwendeter Sprachcode: {language_iso_code}")
-
             api_parameter = {
                 "countryIsoCode": self._location["land"],
                 "subdivisionCode": self._location["region"],
                 "validFrom": startdatum,
                 "validTo": enddatum,
-                "languageIsoCode": language_iso_code,
+                "languageIsoCode": self._location["iso_code"],
             }
 
             # API-Daten abrufen

@@ -34,7 +34,7 @@ class SchulferienFeiertagSensor(SensorEntity):
         return self._unique_id
 
     @property
-    def state(self):
+    def native_value(self):
         """Gibt den aktuellen Zustand des Sensors zurück."""
         return "ferientag_feiertag" if self._state else "kein_ferientag_feiertag"
 

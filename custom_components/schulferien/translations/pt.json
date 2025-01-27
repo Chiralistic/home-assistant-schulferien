@@ -1,0 +1,28 @@
+{
+    "entity": {
+      "sensor": {
+        "schulferien_feiertag": {
+          "name": "Férias escolares e feriados",
+          "state": {
+            "ferientag_feiertag": "Dia de férias ou feriado",
+            "kein_ferientag_feiertag": "Não é um dia de férias ou feriado"
+          }
+        },
+        "feiertag": {
+          "name": "Feriado",
+          "state": {
+            "feiertag": "Hoje é um feriado",
+            "kein_feiertag": "Hoje não é um feriado"
+          }
+        },
+        "schulferien": {
+          "name": "Férias escolares",
+          "state": {
+            "ferientag": "Hoje é um dia de férias",
+            "kein_ferientag": "Hoje não é um dia de férias"
+          }
+        }
+      }
+    }
+  }
+  

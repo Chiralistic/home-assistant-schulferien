@@ -1,0 +1,28 @@
+{
+    "entity": {
+      "sensor": {
+        "schulferien_feiertag": {
+          "name": "Schoolvakanties en feestdagen",
+          "state": {
+            "ferientag_feiertag": "Vakantiedag of feestdag",
+            "kein_ferientag_feiertag": "Geen vakantiedag of feestdag"
+          }
+        },
+        "feiertag": {
+          "name": "Feestdag",
+          "state": {
+            "feiertag": "Vandaag is een feestdag",
+            "kein_feiertag": "Vandaag is geen feestdag"
+          }
+        },
+        "schulferien": {
+          "name": "Schoolvakanties",
+          "state": {
+            "ferientag": "Vandaag is een vakantiedag",
+            "kein_ferientag": "Vandaag is geen vakantiedag"
+          }
+        }
+      }
+    }
+  }
+  

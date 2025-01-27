@@ -1,0 +1,28 @@
+{
+    "entity": {
+      "sensor": {
+        "schulferien_feiertag": {
+          "name": "Skoleferier og helligdage",
+          "state": {
+            "ferientag_feiertag": "Feriedag eller helligdag",
+            "kein_ferientag_feiertag": "Ikke en feriedag eller helligdag"
+          }
+        },
+        "feiertag": {
+          "name": "Helligdag",
+          "state": {
+            "feiertag": "I dag er en helligdag",
+            "kein_feiertag": "I dag er ikke en helligdag"
+          }
+        },
+        "schulferien": {
+          "name": "Skoleferier",
+          "state": {
+            "ferientag": "I dag er en feriedag",
+            "kein_ferientag": "I dag er ikke en feriedag"
+          }
+        }
+      }
+    }
+  }
+  

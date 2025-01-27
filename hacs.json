@@ -1,4 +1,5 @@
 {
     "name": "Schulferien Integration",
-    "country": ["DE"]
-  }
+    "country": ["DE"],
+    "content_in_root": false
+}

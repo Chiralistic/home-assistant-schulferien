@@ -62,11 +62,17 @@ class FeiertagSensor(SensorEntity):
         # Debug-Ausgabe des Sprachcodes im Log
         _LOGGER.debug("Feiertag-Sensor: Verwendeter Sprachcode: %s", self._location["iso_code"])
 
-        await self.async_update()
-        self.async_write_ha_state()
+        # Holen des letzten Updates
+        letztes_update = self._feiertags_info.get("letztes_update")
+        jetzt = datetime.now()
+
+        # Update nur, wenn noch kein Update vorhanden oder wenn der Tag gewechselt hat
+        if not letztes_update or letztes_update.date() != jetzt.date():
+            await self.async_update()
+            self.async_write_ha_state()
 
         async def async_daily_update(_):
-            """Tägliche Aktualisierung."""
+            """Tägliche Aktualisierung um 03:00 Uhr."""
             _LOGGER.debug("Tägliches Update ausgelöst.")
             await self.async_update()
             self.async_write_ha_state()
@@ -135,18 +141,17 @@ class FeiertagSensor(SensorEntity):
         """
         jetzt = datetime.now()
         heute = jetzt.date()
+        letztes_update = self._feiertags_info.get("letztes_update")
 
-        # Prüfen, ob ein Update notwendig ist
-        if self._feiertags_info.get("letztes_update") and (
-            jetzt - self._feiertags_info["letztes_update"]
-        ) < timedelta(hours=24):
+        # Falls das letzte Update am selben Tag war, wird es übersprungen
+        if letztes_update and letztes_update.date() == heute:
             _LOGGER.debug(
-                "Update übersprungen. Letztes Update war vor %s Stunden.",
-                (jetzt - self._feiertags_info["letztes_update"]).total_seconds() // 3600,
+                "Update übersprungen. Letztes Update war am: %s",
+                letztes_update.date(),
             )
-            return  # Update nicht erforderlich
+            return  # Kein API-Call notwendig
 
-        _LOGGER.debug("Starte Update der Feiertagsdaten.")
+        _LOGGER.debug("Starte API-Abfrage für Feiertagsdaten.")
         close_session = False
 
         if session is None:
@@ -233,7 +238,7 @@ class FeiertagSensor(SensorEntity):
             # Aktualisiere den Zeitstempel für das letzte Update
             self._feiertags_info["letztes_update"] = jetzt
             _LOGGER.debug(
-                "Update abgeschlossen. Letztes Update um: %s",
+                "Update abgeschlossen. Neues letztes Update: %s",
                 self._feiertags_info["letztes_update"],
             )
 

@@ -48,12 +48,14 @@ class SchulferienSensor(SensorEntity):
             "letztes_update": None,  # Neuer Schlüssel
         }
         _LOGGER.debug("Sensor für %s mit Land: %s, Region: %s, Brückentagen: %s",
-                      self._name, self._location["land"], self._location["region"], 
-                      self._brueckentage)
+            self._name, self._location["land"], self._location["region"], 
+            self._brueckentage
+        )
 
     async def async_added_to_hass(self):
         """Initialisierung des Sensors."""
         _LOGGER.debug("Schulferien-Sensor hinzugefügt, erstes Update wird ausgeführt.")
+        
         if self.hass and self.hass.config:
             self._location["iso_code"] = self.hass.config.language[:2].upper()
         else:
@@ -63,12 +65,17 @@ class SchulferienSensor(SensorEntity):
         # Debug-Ausgabe des Sprachcodes im Log
         _LOGGER.debug("Schulferien-Sensor: Verwendeter Sprachcode: %s", self._location["iso_code"])
 
-        await self.async_update()
-        self.async_write_ha_state()
+        # Holen des letzten Updates
+        letztes_update = self._ferien_info.get("letztes_update")
+        jetzt = datetime.now()
 
-        # Zeitplan für die tägliche Abfrage um eine konfigurierte Uhrzeit
+        # Update nur, wenn noch kein Update vorhanden oder wenn der Tag gewechselt hat
+        if not letztes_update or letztes_update.date() != jetzt.date():
+            await self.async_update()
+            self.async_write_ha_state()
+
         async def async_daily_update(_):
-            """Tägliche Aktualisierung."""
+            """Tägliche Aktualisierung um 03:00 Uhr."""
             _LOGGER.debug("Tägliches Update ausgelöst.")
             await self.async_update()
             self.async_write_ha_state()
@@ -80,7 +87,7 @@ class SchulferienSensor(SensorEntity):
             minute=DAILY_UPDATE_MINUTE,
         )
         _LOGGER.debug(
-            "Tägliche Abfrage um %d:%02d eingerichtet.", DAILY_UPDATE_HOUR, DAILY_UPDATE_MINUTE
+            "Tägliche Abfrage um %02d:%02d eingerichtet.", DAILY_UPDATE_HOUR, DAILY_UPDATE_MINUTE
         )
 
     @property
@@ -140,12 +147,10 @@ class SchulferienSensor(SensorEntity):
         heute = datetime.now().date()
         jetzt = datetime.now()
 
-        # Prüfen, ob ein Update notwendig ist
-        if self._ferien_info.get("letztes_update") and (jetzt - self._ferien_info["letztes_update"]) < timedelta(hours=24):
-            _LOGGER.debug(
-                "Update übersprungen. Letztes Update war vor %s Stunden.",
-                (jetzt - self._ferien_info["letztes_update"]).total_seconds() // 3600,
-            )
+        # Prüfen, ob ein Update notwendig ist (nur bei Tageswechsel)
+        letztes_update = self._ferien_info.get("letztes_update")
+        if letztes_update and letztes_update.date() == heute:
+            _LOGGER.debug("Update übersprungen. Letztes Update war heute um %s.", letztes_update.strftime("%H:%M:%S"))
             return  # Update nicht erforderlich
 
         _LOGGER.debug("Starte Update der Schulferiendaten.")

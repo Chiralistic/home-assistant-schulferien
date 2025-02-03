@@ -74,8 +74,8 @@ cards:
   - type: entities
     title: Schulferien/Feiertage kombiniert
     entities:
-      - entity: sensor.schulferien_und_feiertage
-        name: Aktueller Status
+      - entity: binary_sensor.schulferien_feiertage
+        name: Schulferien oder Feiertag (binary)
 ```
 
 ## Deinstallation
@@ -160,8 +160,8 @@ cards:
   - type: entities
     title: Schulferien/Feiertage kombiniert
     entities:
-      - entity: ssensor.schulferien_und_feiertage
-        name: Aktueller Status
+      - entity: binary_sensor.schulferien_feiertage
+        name: Schulferien oder Feiertag (binary)
 ```
 
 ## Uninstall

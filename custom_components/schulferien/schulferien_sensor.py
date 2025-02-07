@@ -160,6 +160,12 @@ class SchulferienSensor(SensorEntity):
             startdatum = (heute - timedelta(days=30)).strftime("%Y-%m-%d")
             enddatum = (heute + timedelta(days=365)).strftime("%Y-%m-%d")
 
+            # Holen der aktuellen Sprache aus der Home Assistant-Konfiguration
+            language_iso_code = self.hass.config.language[:2].upper()  # Z.B. "de" -> "DE"
+
+            # Debug-Ausgabe des Sprachcodes im Log
+            _LOGGER.debug(f"Verwendeter Sprachcode: {language_iso_code}")
+
             api_parameter = {
                 "countryIsoCode": self._location["land"],
                 "subdivisionCode": self._location["region"],

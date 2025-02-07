@@ -158,6 +158,16 @@ class FeiertagSensor(SensorEntity):
             startdatum = (heute - timedelta(days=30)).strftime("%Y-%m-%d")
             enddatum = (heute + timedelta(days=365)).strftime("%Y-%m-%d")
 
+             # Holen der aktuellen Sprache aus der Home Assistant-Konfiguration
+            if self.hass and self.hass.config and hasattr(self.hass.config, "language"):
+                language_iso_code = self.hass.config.language[:2].upper()  # Z.B. "de" -> "DE"
+            else:
+                language_iso_code = "DE"  # Standardwert
+                _LOGGER.warning("self.hass oder self.hass.config ist nicht verfügbar. Standard 'DE' wird verwendet.")
+
+            # Debug-Ausgabe des Sprachcodes im Log
+            _LOGGER.debug(f"Verwendeter Sprachcode: {language_iso_code}")
+
             api_parameter = {
                 "countryIsoCode": self._location["land"],  # Aus dem config-_flow übernommen
                 "subdivisionCode": self._location["region"],  # Aus dem config-_flow übernommen

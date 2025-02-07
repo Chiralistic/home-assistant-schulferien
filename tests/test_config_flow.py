@@ -1,13 +1,21 @@
 """Unit Test für den ConfigFlow der Schulferien-Integration."""
 
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 import pytest
 from custom_components.schulferien.config_flow import SchulferienFlowHandler
 
 @pytest.fixture
-def mock_config_flow():
+def mock_hass():
+    """Mock Home Assistant instance."""
+    return MagicMock()
+
+@pytest.fixture
+def mock_config_flow(mock_hass):
     """Fixture für die Erstellung eines ConfigFlow-Handlers."""
-    return SchulferienFlowHandler()
+    flow = SchulferienFlowHandler()
+    flow.hass = mock_hass  # Mock Home Assistant Instanz
+    flow.hass.config.language = "de"  # Setze die Sprache auf "de"
+    return flow
 
 @pytest.mark.asyncio
 async def test_user_step_valid_input(mock_config_flow):

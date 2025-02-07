@@ -1,3 +1,5 @@
+"""API-Hilfsfunktionen für die Schulferien-Integration."""
+
 import logging
 from datetime import datetime
 import aiohttp
@@ -10,8 +12,6 @@ DEFAULT_TIMEOUT = aiohttp.ClientTimeout(total=10, connect=5, sock_read=5)
 async def fetch_data(
     api_url: str, api_parameter: dict, session: aiohttp.ClientSession = None
 ) -> dict:
-    if not isinstance(session, aiohttp.ClientSession):
-        raise ValueError("Session ist ungültig oder fehlt!")
     """
     Ruft Daten von der API ab.
 
@@ -23,7 +23,8 @@ async def fetch_data(
     Returns:
         dict: Die empfangenen JSON-Daten oder leeres Dict bei Fehlern.
     """
-    # _LOGGER.debug("Sende Anfrage an API: %s mit Parametern %s", api_url, api_parameter)
+    if not isinstance(session, aiohttp.ClientSession):
+        raise ValueError("Session ist ungültig oder fehlt!")
 
     if not isinstance(api_url, str):  # Typprüfung für URL
         raise ValueError(f"Ungültige URL: {api_url}")
@@ -41,7 +42,6 @@ async def fetch_data(
         ) as response:
             response.raise_for_status()
             data = await response.json()
-            # _LOGGER.debug("API-Antwort erhalten: %s", data)
             return data
     except aiohttp.ClientResponseError as error:
         _LOGGER.error(
@@ -50,6 +50,8 @@ async def fetch_data(
             error.message,
             error.request_info.url,
         )
+    except aiohttp.ClientError as error:
+        _LOGGER.error("Client-Fehler beim API-Aufruf: %s", error)
     except Exception as error:
         _LOGGER.error("Unbekannter Fehler beim API-Aufruf: %s", error)
     finally:

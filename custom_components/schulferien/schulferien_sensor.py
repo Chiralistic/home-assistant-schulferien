@@ -1,7 +1,6 @@
 """Modul für die Verwaltung und den Abruf von Schulferien in Deutschland."""
 
 import logging
-from homeassistant.core import HomeAssistant
 from datetime import datetime, timedelta
 from homeassistant.helpers.event import async_track_time_change
 from homeassistant.components.sensor import SensorEntity, SensorEntityDescription
@@ -48,14 +47,14 @@ class SchulferienSensor(SensorEntity):
             "letztes_update": None,  # Neuer Schlüssel
         }
         _LOGGER.debug("Sensor für %s mit Land: %s, Region: %s, Brückentagen: %s",
-            self._name, self._location["land"], self._location["region"], 
+            self._name, self._location["land"], self._location["region"],
             self._brueckentage
         )
 
     async def async_added_to_hass(self):
         """Initialisierung des Sensors."""
         _LOGGER.debug("Schulferien-Sensor hinzugefügt, erstes Update wird ausgeführt.")
-        
+
         if self.hass and self.hass.config:
             self._location["iso_code"] = self.hass.config.language[:2].upper()
         else:
@@ -147,11 +146,14 @@ class SchulferienSensor(SensorEntity):
         heute = datetime.now().date()
         jetzt = datetime.now()
 
-        # Prüfen, ob ein Update notwendig ist (nur bei Tageswechsel)
+        # Prüfen, ob ein Update notwendig ist
         letztes_update = self._ferien_info.get("letztes_update")
         if letztes_update and letztes_update.date() == heute:
-            _LOGGER.debug("Update übersprungen. Letztes Update war heute um %s.", letztes_update.strftime("%H:%M:%S"))
-            return  # Update nicht erforderlich
+            _LOGGER.debug(
+                "Update übersprungen. Letztes Update war heute um %s.",
+                letztes_update.strftime("%H:%M:%S"),
+            )
+            return  
 
         _LOGGER.debug("Starte Update der Schulferiendaten.")
         close_session = False
@@ -161,90 +163,79 @@ class SchulferienSensor(SensorEntity):
             close_session = True
 
         try:
-            # Zeitraum erweitern, um laufende Ferien zu erfassen
-            startdatum = (heute - timedelta(days=30)).strftime("%Y-%m-%d")
-            enddatum = (heute + timedelta(days=365)).strftime("%Y-%m-%d")
-
-            api_parameter = {
-                "countryIsoCode": self._location["land"],
-                "subdivisionCode": self._location["region"],
-                "validFrom": startdatum,
-                "validTo": enddatum,
-                "languageIsoCode": self._location["iso_code"],
-            }
-
-            # API-Daten abrufen
-            ferien_daten = None
-            urls = [API_URL_FERIEN, API_FALLBACK_FERIEN]  # Haupt- und Fallback-URL
-            for url in urls:
-                _LOGGER.debug("Prüfe URL: %s", url)
-                try:
-                    ferien_daten = await fetch_data(url, api_parameter, session)
-                    if ferien_daten:
-                        break
-                except aiohttp.ClientError as e:
-                    _LOGGER.error("Fehler beim Abrufen der Daten von %s: %s", url, e)
+            api_parameter = self.get_api_parameter(heute)
+            ferien_daten = await self.hole_ferien_daten(api_parameter, session)
 
             if not ferien_daten:
                 _LOGGER.warning("Keine Daten von der API erhalten.")
                 return
 
-            # Verarbeite die Daten
-            try:
-                ferien_liste = parse_daten(ferien_daten, self._brueckentage)
-                self._ferien_info["ferien_liste"] = ferien_liste
-            except ValueError as e:
-                _LOGGER.error("Fehler beim Verarbeiten der Daten: %s", e)
-                return
+            self.verarbeite_ferien_daten(ferien_daten, heute)
 
-            # Prüfen, ob heute ein Ferientag ist
-            aktuelles_ereignis = next(
-                (
-                    ferien for ferien in ferien_liste
-                    if ferien["start_datum"] <= heute <= ferien["end_datum"]
-                ),
-                None,
+            self._ferien_info["letztes_update"] = jetzt
+            _LOGGER.debug(
+                "Update abgeschlossen. Letztes Update um: %s",
+                self._ferien_info["letztes_update"],
             )
 
-            # Zustand und Attribute setzen
-            if aktuelles_ereignis:
-                self._ferien_info.update({
-                    "heute_ferientag": True,
-                    "naechste_ferien_name": aktuelles_ereignis["name"],
-                    "naechste_ferien_beginn": aktuelles_ereignis["start_datum"].strftime(
-                        "%d.%m.%Y"
-                    ),
-                    "naechste_ferien_ende": aktuelles_ereignis["end_datum"].strftime(
-                        "%d.%m.%Y"
-                    ),
-                })
-            else:
-                self._ferien_info["heute_ferientag"] = False
-
-                # Nächste Ferien ermitteln
-                zukunftsferien = [
-                    ferien for ferien in ferien_liste if ferien["start_datum"] > heute
-                ]
-                if zukunftsferien:
-                    naechste_ferien = min(zukunftsferien, key=lambda f: f["start_datum"])
-                    self._ferien_info.update({
-                        "naechste_ferien_name": naechste_ferien["name"],
-                        "naechste_ferien_beginn": naechste_ferien["start_datum"].strftime(
-                            "%d.%m.%Y"
-                        ),
-                        "naechste_ferien_ende": naechste_ferien["end_datum"].strftime(
-                            "%d.%m.%Y"
-                        ),
-                    })
-
-            # Letztes Update-Zeitpunkt speichern
-            self._ferien_info["letztes_update"] = jetzt
-            _LOGGER.debug("Update abgeschlossen. Letztes Update um: %s", self._ferien_info["letztes_update"])
-
-        except Exception as e:
+        except (aiohttp.ClientError, ValueError, KeyError, TypeError) as e:
             _LOGGER.error("Unerwarteter Fehler beim Aktualisieren der Daten: %s", e)
 
         finally:
             if close_session:
                 await session.close()
                 _LOGGER.debug("API-Session geschlossen.")
+
+    def get_api_parameter(self, heute):
+        """Erstellt die API-Parameter für die Anfrage."""
+        return {
+            "countryIsoCode": self._location["land"],
+            "subdivisionCode": self._location["region"],
+            "validFrom": (heute - timedelta(days=30)).strftime("%Y-%m-%d"),
+            "validTo": (heute + timedelta(days=365)).strftime("%Y-%m-%d"),
+            "languageIsoCode": self._location["iso_code"],
+        }
+
+    async def hole_ferien_daten(self, api_parameter, session):
+        """Versucht, die Ferientermine von der API abzurufen."""
+        for url in [API_URL_FERIEN, API_FALLBACK_FERIEN]:
+            _LOGGER.debug("Prüfe URL: %s", url)
+            try:
+                ferien_daten = await fetch_data(url, api_parameter, session)
+                if ferien_daten:
+                    return ferien_daten
+            except aiohttp.ClientError as e:
+                _LOGGER.error("Fehler beim Abrufen der Daten von %s: %s", url, e)
+        return None
+
+    def verarbeite_ferien_daten(self, ferien_daten, heute):
+        """Verarbeitet die erhaltenen Ferien-Daten."""
+        try:
+            ferien_liste = parse_daten(ferien_daten, self._brueckentage)
+            self._ferien_info["ferien_liste"] = ferien_liste
+        except ValueError as e:
+            _LOGGER.error("Fehler beim Verarbeiten der Daten: %s", e)
+            return
+
+        aktuelles_ereignis = next(
+            (ferien for ferien in ferien_liste if ferien["start_datum"] <= heute <= ferien["end_datum"]),
+            None,
+        )
+
+        if aktuelles_ereignis:
+            self._ferien_info.update({
+                "heute_ferientag": True,
+                "naechste_ferien_name": aktuelles_ereignis["name"],
+                "naechste_ferien_beginn": aktuelles_ereignis["start_datum"].strftime("%d.%m.%Y"),
+                "naechste_ferien_ende": aktuelles_ereignis["end_datum"].strftime("%d.%m.%Y"),
+            })
+        else:
+            self._ferien_info["heute_ferientag"] = False
+            zukunftsferien = [ferien for ferien in ferien_liste if ferien["start_datum"] > heute]
+            if zukunftsferien:
+                naechste_ferien = min(zukunftsferien, key=lambda f: f["start_datum"])
+                self._ferien_info.update({
+                    "naechste_ferien_name": naechste_ferien["name"],
+                    "naechste_ferien_beginn": naechste_ferien["start_datum"].strftime("%d.%m.%Y"),
+                    "naechste_ferien_ende": naechste_ferien["end_datum"].strftime("%d.%m.%Y"),
+                })

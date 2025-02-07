@@ -38,7 +38,7 @@ class SchulferienFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
                         countries_data = await response.json()
                         self.supported_countries = {
                             country["isoCode"]: next(
-                                (name_entry["text"] for name_entry in country["name"] 
+                                (name_entry["text"] for name_entry in country["name"]
                                  if name_entry["language"] == self.language_iso_code),
                                 country["isoCode"]  # Fallback
                             )
@@ -63,7 +63,7 @@ class SchulferienFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
                         subdivisions_data = await response.json()
                         self.supported_regions[country_code] = {
                             subdivision["code"]: next(
-                                (name_entry["text"] for name_entry in subdivision["name"] 
+                                (name_entry["text"] for name_entry in subdivision["name"]
                                 if name_entry["language"] == self.language_iso_code),
                                 subdivision["code"]
                             )
@@ -137,7 +137,7 @@ class SchulferienFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
             errors=errors,
         )
 
-    async def async_step_finish(self, user_input=None):
+    async def async_step_finish(self):
         """Prüft die Konfiguration und erstellt den Eintrag."""
         # Sicherstellen, dass Land und Region gesetzt sind
         if not hasattr(self, "selected_country") or not hasattr(self, "selected_region"):

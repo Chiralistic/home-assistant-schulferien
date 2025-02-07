@@ -1,6 +1,5 @@
 import logging
 from homeassistant.components.binary_sensor import BinarySensorEntity, BinarySensorEntityDescription
-from homeassistant.helpers.entity import EntityDescription
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -49,7 +48,7 @@ class SchulferienFeiertagBinarySensor(BinarySensorEntity):
 async def async_setup_entry(hass, entry, async_add_entities):
     """Setze den Kombinierten Binary Sensor für Schulferien und Feiertage auf."""
     _LOGGER.debug("Initialisiere kombinierten Binärsensor für Schulferien und Feiertage.")
-    
+
     # Konfiguration aus dem Eintrag holen
     config = {
         "schulferien_entity_id": "sensor.schulferien",  # Beispiel für Entitäts-ID der Schulferien
@@ -59,6 +58,6 @@ async def async_setup_entry(hass, entry, async_add_entities):
 
     # Erstelle den Sensor
     binary_sensor = SchulferienFeiertagBinarySensor(hass, config)
-    
+
     # Füge den Sensor zu Home Assistant hinzu
     async_add_entities([binary_sensor])

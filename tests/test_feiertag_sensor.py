@@ -18,14 +18,21 @@ def mock_config():
     }
 
 @pytest.fixture
-def mock_sensor(mock_config):
+def mock_hass():
+    """Mock Home Assistant instance."""
+    return mock.AsyncMock()
+
+@pytest.fixture
+def mock_sensor(mock_hass, mock_config):
     """Erstellt eine Instanz des Feiertag-Sensors."""
-    hass = object()  # Mock für Home Assistant
-    return FeiertagSensor(hass, mock_config)
+    sensor = FeiertagSensor(mock_hass, mock_config)
+    mock_hass.add_job(sensor.async_added_to_hass)
+    return sensor
 
 @pytest.mark.asyncio
-async def test_initial_attributes(mock_sensor):
+async def test_initial_attributes(mock_sensor, mock_hass):
     """Testet die anfänglichen Attribute des Sensors."""
+    await mock_sensor.async_added_to_hass()
     assert mock_sensor.name == "Feiertag Sensor"
     assert mock_sensor.unique_id == "sensor.feiertag"
     assert mock_sensor.state == "kein_feiertag"
@@ -56,6 +63,7 @@ async def test_initial_attributes(mock_sensor):
 )
 async def test_update(mock_sensor, mock_data, expected_state, expected_next_holiday):
     """Testet die Aktualisierung mit und ohne Feiertag."""
+    await mock_sensor.async_added_to_hass()
     with patch(
         "custom_components.schulferien.api_utils.fetch_data",
         new=AsyncMock(return_value=mock_data),
@@ -74,6 +82,7 @@ async def test_update(mock_sensor, mock_data, expected_state, expected_next_holi
 @pytest.mark.asyncio
 async def test_update_error_handling(mock_sensor):
     """Testet das Verhalten bei einem API-Fehler."""
+    await mock_sensor.async_added_to_hass()
     # Netzwerkfehler
     with patch(
         "custom_components.schulferien.api_utils.fetch_data",

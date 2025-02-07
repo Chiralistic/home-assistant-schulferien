@@ -143,7 +143,7 @@ class FeiertagSensor(SensorEntity):
                 "Update übersprungen. Letztes Update war am: %s",
                 letztes_update.date(),
             )
-            return  
+            return
 
         _LOGGER.debug("Starte API-Abfrage für Feiertagsdaten.")
         close_session = False
@@ -212,7 +212,11 @@ class FeiertagSensor(SensorEntity):
             return
 
         aktueller_feiertag = next(
-            (feiertag for feiertag in feiertage_liste if feiertag["start_datum"] <= heute <= feiertag["end_datum"]),
+            (
+                feiertag
+                for feiertag in feiertage_liste
+                if feiertag["start_datum"] <= heute <= feiertag["end_datum"]
+            ),
             None,
         )
 
@@ -220,14 +224,23 @@ class FeiertagSensor(SensorEntity):
             self._feiertags_info.update({
                 "heute_feiertag": True,
                 "naechster_feiertag_name": aktueller_feiertag["name"],
-                "naechster_feiertag_datum": aktueller_feiertag["start_datum"].strftime("%d.%m.%Y"),
+                "naechster_feiertag_datum": aktueller_feiertag["start_datum"].strftime(
+                    "%d.%m.%Y"
+                ),
             })
         else:
             self._feiertags_info["heute_feiertag"] = False
-            zukunft_feiertage = [feiertag for feiertag in feiertage_liste if feiertag["start_datum"] > heute]
+            zukunft_feiertage = [
+                feiertag for feiertag in feiertage_liste if feiertag["start_datum"] > heute
+            ]
             if zukunft_feiertage:
-                naechster_feiertag = min(zukunft_feiertage, key=lambda f: f["start_datum"])
+                naechster_feiertag = min(
+                    zukunft_feiertage,
+                    key=lambda f: f["start_datum"]
+                )
                 self._feiertags_info.update({
                     "naechster_feiertag_name": naechster_feiertag["name"],
-                    "naechster_feiertag_datum": naechster_feiertag["start_datum"].strftime("%d.%m.%Y"),
+                    "naechster_feiertag_datum": naechster_feiertag["start_datum"].strftime(
+                        "%d.%m.%Y"
+                    ),
                 })

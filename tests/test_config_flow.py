@@ -5,12 +5,12 @@ import pytest
 from custom_components.schulferien.config_flow import SchulferienFlowHandler
 
 @pytest.fixture
-def mock_hass():
+async def mock_hass():
     """Mock Home Assistant instance."""
     return MagicMock()
 
 @pytest.fixture
-def mock_config_flow(mock_hass):
+async def mock_config_flow(mock_hass):
     """Fixture für die Erstellung eines ConfigFlow-Handlers."""
     flow = SchulferienFlowHandler()
     flow.hass = mock_hass  # Mock Home Assistant Instanz

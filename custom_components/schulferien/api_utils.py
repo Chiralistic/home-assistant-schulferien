@@ -23,11 +23,8 @@ async def fetch_data(
     Returns:
         dict: Die empfangenen JSON-Daten oder leeres Dict bei Fehlern.
     """
-    if not isinstance(session, aiohttp.ClientSession):
-        raise ValueError("Session ist ungültig oder fehlt!")
-
-    if not isinstance(api_url, str):  # Typprüfung für URL
-        raise ValueError(f"Ungültige URL: {api_url}")
+    if not isinstance(api_url, str) or not api_url:
+        raise ValueError(f"Ungültige API-URL: {api_url}")
 
     close_session = False
     if session is None:
@@ -41,19 +38,21 @@ async def fetch_data(
             headers={"Accept": "application/json"}
         ) as response:
             response.raise_for_status()
-            data = await response.json()
-            return data
+            return await response.json()
+    
     except aiohttp.ClientResponseError as error:
         _LOGGER.error(
-            "API Fehler: Status %s, Nachricht: %s, URL: %s",
-            error.status,
-            error.message,
-            error.request_info.url,
+            "API Fehler: Status %s, URL: %s, Nachricht: %s",
+            error.status, error.request_info.url, error.message
         )
+    except aiohttp.ClientConnectionError as error:
+        _LOGGER.error("Verbindungsfehler zur API: %s", error)
+    except aiohttp.ClientTimeout as error:
+        _LOGGER.error("API-Anfrage hat zu lange gedauert: %s", error)
     except aiohttp.ClientError as error:
-        _LOGGER.error("Client-Fehler beim API-Aufruf: %s", error)
-    except Exception as error:
-        _LOGGER.error("Unbekannter Fehler beim API-Aufruf: %s", error)
+        _LOGGER.error("Allgemeiner Client-Fehler beim API-Aufruf: %s", error)
+    except ValueError as error:
+        _LOGGER.error("Fehler beim Parsen der API-Antwort: %s", error)
     finally:
         if close_session:
             await session.close()
@@ -73,12 +72,16 @@ def parse_daten(json_daten, brueckentage=None, typ="ferien"):
     Returns:
         list: Verarbeitete Daten.
     """
-    if not isinstance(json_daten, list):  # Typprüfung für Datenstruktur
+    if not isinstance(json_daten, list):
         raise ValueError("Ungültige JSON-Datenstruktur erhalten.")
 
+    liste = []
     try:
-        liste = []
         for eintrag in json_daten:
+            if "startDate" not in eintrag or "endDate" not in eintrag:
+                _LOGGER.warning("Eintrag ohne gültiges Start-/Enddatum gefunden: %s", eintrag)
+                continue
+
             name = eintrag.get("name", [{"text": "Unbekannt"}])[0]["text"]
             liste.append({
                 "name": name,
@@ -88,15 +91,19 @@ def parse_daten(json_daten, brueckentage=None, typ="ferien"):
 
         if typ == "ferien" and brueckentage:
             for tag in brueckentage:
-                datum = datetime.strptime(tag, "%d.%m.%Y").date()
-                liste.append({
-                    "name": "Brückentag",
-                    "start_datum": datum,
-                    "end_datum": datum,
-                })
+                try:
+                    datum = datetime.strptime(tag, "%d.%m.%Y").date()
+                    liste.append({
+                        "name": "Brückentag",
+                        "start_datum": datum,
+                        "end_datum": datum,
+                    })
+                except ValueError:
+                    _LOGGER.warning("Ungültiges Brückentagsformat: %s", tag)
 
         _LOGGER.debug("JSON-Daten verarbeitet: %d Einträge", len(liste))
         return liste
+
     except (KeyError, ValueError, IndexError, TypeError) as error:
         _LOGGER.error("Fehler beim Verarbeiten der JSON-Daten: %s", error)
         raise RuntimeError("Ungültige JSON-Daten erhalten.") from error

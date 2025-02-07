@@ -153,7 +153,7 @@ class SchulferienSensor(SensorEntity):
                 "Update übersprungen. Letztes Update war heute um %s.",
                 letztes_update.strftime("%H:%M:%S"),
             )
-            return  
+            return
 
         _LOGGER.debug("Starte Update der Schulferiendaten.")
         close_session = False
@@ -218,7 +218,9 @@ class SchulferienSensor(SensorEntity):
             return
 
         aktuelles_ereignis = next(
-            (ferien for ferien in ferien_liste if ferien["start_datum"] <= heute <= ferien["end_datum"]),
+            (ferien
+            for ferien in ferien_liste
+            if ferien["start_datum"] <= heute <= ferien["end_datum"]),
             None,
         )
 

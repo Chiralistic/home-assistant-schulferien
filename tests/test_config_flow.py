@@ -17,32 +17,57 @@ async def test_user_step_valid_input(mock_config_flow):
         "homeassistant.config_entries.ConfigFlow.async_create_entry"
     ) as mock_create_entry:
         # Schritt 1: Benutzerformular
-        result = await mock_config_flow.async_step_user(
-            {"country": "DE", "region": "Berlin"}
-        )
-        assert result["type"] == "form"
-        assert "errors" not in result
+        with patch.object(
+            mock_config_flow, '_fetch_supported_countries', return_value={"DE": "Deutschland"}
+        ):
+            result = await mock_config_flow.async_step_user()
+            assert result["type"] == "form"
+            assert "errors" not in result
 
-        # Schritt 2: Abschlussformular
-        result = await mock_config_flow.async_step_finish(
-            {"country": "DE", "region": "BE"}
-        )
+            result = await mock_config_flow.async_step_user(
+                {"country": "DE"}
+            )
+            assert result["type"] == "form"
+            assert "errors" not in result
+
+        # Schritt 2: Regionsformular
+        with patch.object(
+            mock_config_flow, '_fetch_supported_regions', return_value={"BE": "Berlin"}
+        ):
+            result = await mock_config_flow.async_step_region()
+            assert result["type"] == "form"
+            assert "errors" not in result
+
+            result = await mock_config_flow.async_step_region(
+                {"region": "BE"}
+            )
+            assert result["type"] == "form"
+            assert "errors" not in result
+
+        # Schritt 3: Abschlussformular
+        result = await mock_config_flow.async_step_finish()
         assert result["type"] == "create_entry"
-        assert result["title"] == "Schulferien-Integration"
+        assert result["title"] == "Schulferien - Deutschland (Berlin)"
         mock_create_entry.assert_called_once()
 
 @pytest.mark.asyncio
 async def test_user_step_invalid_region(mock_config_flow):
     """Testet die Benutzereingabe mit ungültiger Region."""
-    result = await mock_config_flow.async_step_user(
-        {"country": "DE", "region": "Ungültig"}
-    )
-    assert result["type"] == "form"
-    assert result["errors"] == {"region": "ungültige_region"}
+    with patch.object(
+        mock_config_flow, '_fetch_supported_countries', return_value={"DE": "Deutschland"}
+    ):
+        await mock_config_flow.async_step_user({"country": "DE"})
+
+    with patch.object(
+        mock_config_flow, '_fetch_supported_regions', return_value={"BE": "Berlin"}
+    ):
+        result = await mock_config_flow.async_step_region({"region": "Ungültig"})
+        assert result["type"] == "form"
+        assert result["errors"] == {"region": "ungültige_region"}
 
 @pytest.mark.asyncio
 async def test_finish_step_missing_input(mock_config_flow):
     """Testet das Verhalten bei fehlenden Eingabewerten."""
-    result = await mock_config_flow.async_step_finish({})
+    result = await mock_config_flow.async_step_finish()
     assert result["type"] == "abort"
-    assert result["reason"] == "fehlende_konfiguration"
+    assert result["reason"] == "incomplete_configuration"

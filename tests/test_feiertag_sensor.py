@@ -1,7 +1,7 @@
 """Unit Test für Feiertag-Sensor."""
 
 from unittest.mock import patch, AsyncMock
-from datetime import datetime, timedelta
+from datetime import datetime
 import pytest
 from custom_components.schulferien.feiertag_sensor import FeiertagSensor
 
@@ -13,6 +13,8 @@ def mock_config():
         "unique_id": "sensor.feiertag",
         "land": "DE",
         "region": "DE-BY",
+        "land_name": "Deutschland",
+        "region_name": "Bayern",
     }
 
 @pytest.fixture
@@ -21,15 +23,13 @@ def mock_sensor(mock_config):
     hass = object()  # Mock für Home Assistant
     return FeiertagSensor(hass, mock_config)
 
-
 @pytest.mark.asyncio
 async def test_initial_attributes(mock_sensor):
     """Testet die anfänglichen Attribute des Sensors."""
     assert mock_sensor.name == "Feiertag Sensor"
     assert mock_sensor.unique_id == "sensor.feiertag"
-    assert mock_sensor.state == "kein feiertag"
-    assert "Nächster Feiertag" in mock_sensor.extra_state_attributes
-
+    assert mock_sensor.state == "kein_feiertag"
+    assert "Name Feiertag" in mock_sensor.extra_state_attributes
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
@@ -49,7 +49,7 @@ async def test_initial_attributes(mock_sensor):
             [
                 {"name": "Zukunft-Feiertag", "start_datum": datetime(2024, 6, 10).date()},
             ],
-            "kein feiertag",
+            "kein_feiertag",
             "Zukunft-Feiertag",
         ),
     ],
@@ -67,10 +67,9 @@ async def test_update(mock_sensor, mock_data, expected_state, expected_next_holi
 
         assert mock_sensor.state == expected_state
         assert (
-            mock_sensor.extra_state_attributes["Nächster Feiertag"]
+            mock_sensor.extra_state_attributes["Name Feiertag"]
             == expected_next_holiday
         )
-
 
 @pytest.mark.asyncio
 async def test_update_error_handling(mock_sensor):
@@ -82,8 +81,8 @@ async def test_update_error_handling(mock_sensor):
     ):
         await mock_sensor.async_update()
 
-        assert mock_sensor.state == "kein feiertag"
-        assert mock_sensor.extra_state_attributes["Nächster Feiertag"] is None
+        assert mock_sensor.state == "kein_feiertag"
+        assert mock_sensor.extra_state_attributes["Name Feiertag"] is None
 
     # Leere Antwort
     with patch(
@@ -92,5 +91,5 @@ async def test_update_error_handling(mock_sensor):
     ):
         await mock_sensor.async_update()
 
-        assert mock_sensor.state == "kein feiertag"
-        assert mock_sensor.extra_state_attributes["Nächster Feiertag"] is None
+        assert mock_sensor.state == "kein_feiertag"
+        assert mock_sensor.extra_state_attributes["Name Feiertag"] is None

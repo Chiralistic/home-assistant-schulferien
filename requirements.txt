@@ -2,3 +2,4 @@ homeassistant  # Stelle sicher, dass du die passende Version verwendest
 aiohttp  # Für asynchrone HTTP-Anfragen
 aiofiles  # Für asynchrone Dateioperationen
 pylint  # Für den Pylint-Check
+pytest  # Damit pylint die tests reviewen kann

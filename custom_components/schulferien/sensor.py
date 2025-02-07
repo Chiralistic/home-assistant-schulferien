@@ -29,9 +29,18 @@ async def load_bridge_days(bridge_days_path):
 
 async def async_setup_entry(hass, config_entry, async_add_entities):
     """Setup der Sensoren für Schulferien, Feiertage und die Kombination über Config Flow."""
+    
+    # Konfigurationsdaten direkt aus dem Config Entry übernehmen
+    land = config_entry.data.get("land")
+    region = config_entry.data.get("region")
+    land_name = config_entry.data.get("land_name")
+    region_name = config_entry.data.get("region_name")
 
-    land = config_entry.data.get("country", "DE")
-    region = config_entry.data.get("region", "DE-NI")
+    # Debugging: Loggen der vollständigen Konfiguration
+    _LOGGER.debug(
+        "Konfigurationsdaten aus Config Entry: Land=%s, Region=%s, Landname=%s, Regionsname=%s",
+        land, region, land_name, region_name
+    )
 
     # Brückentage asynchron laden
     bridge_days_path = hass.config.path("custom_components/schulferien/bridge_days.yaml")
@@ -43,6 +52,8 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
         "unique_id": "sensor.schulferien",
         "land": land,
         "region": region,
+        "land_name": land_name,
+        "region_name": region_name,
         "brueckentage": brueckentage,
     }
 
@@ -52,6 +63,8 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
         "unique_id": "sensor.feiertag",
         "land": land,
         "region": region,
+        "land_name": land_name,
+        "region_name": region_name,
     }
 
     # Konfiguration für kombinierten Sensor

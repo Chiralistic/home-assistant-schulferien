@@ -1,0 +1,28 @@
+{
+    "entity": {
+      "sensor": {
+        "schulferien_feiertag": {
+          "name": "Okul tatilleri ve resmi tatiller",
+          "state": {
+            "ferientag_feiertag": "Tatil günü veya resmi tatil",
+            "kein_ferientag_feiertag": "Tatil günü veya resmi tatil değil"
+          }
+        },
+        "feiertag": {
+          "name": "Resmi tatil",
+          "state": {
+            "feiertag": "Bugün resmi bir tatil",
+            "kein_feiertag": "Bugün resmi bir tatil değil"
+          }
+        },
+        "schulferien": {
+          "name": "Okul tatilleri",
+          "state": {
+            "ferientag": "Bugün bir tatil günü",
+            "kein_ferientag": "Bugün bir tatil günü değil"
+          }
+        }
+      }
+    }
+  }
+  

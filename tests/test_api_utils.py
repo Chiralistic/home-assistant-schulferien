@@ -15,7 +15,7 @@ async def test_fetch_data_success():
     )
 
     with mock.patch("aiohttp.ClientSession.get", mock_get):
-        result = await fetch_data("https://example.com/api", {"param": "value"})
+        result = await fetch_data("https://example.com/api", {"param": "value"}, aiohttp.ClientSession())
         assert result == {"key": "value"}
 
 @pytest.mark.asyncio
@@ -29,7 +29,7 @@ async def test_fetch_data_timeout():
         "aiohttp.ClientSession.get",
         side_effect=aiohttp.ClientTimeout,
     ):
-        result = await fetch_data("https://example.com/api", {"param": "value"})
+        result = await fetch_data("https://example.com/api", {"param": "value"}, aiohttp.ClientSession())
         assert result == {}  # Erwarte leere Daten bei Timeout
 
 @pytest.mark.asyncio
@@ -39,7 +39,7 @@ async def test_fetch_data_http_error():
     mock_get.return_value.__aenter__.return_value.raise_for_status.side_effect = aiohttp.ClientError
 
     with mock.patch("aiohttp.ClientSession.get", mock_get):
-        result = await fetch_data("https://example.com/api", {"param": "value"})
+        result = await fetch_data("https://example.com/api", {"param": "value"}, aiohttp.ClientSession())
         assert result == {}
 
 def test_parse_daten_valid():

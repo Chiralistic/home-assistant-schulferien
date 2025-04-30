@@ -8,15 +8,16 @@ from custom_components.schulferien.api_utils import fetch_data, parse_daten
 
 @pytest.mark.asyncio
 async def test_fetch_data_success():
-    """Test API fetch with HTTP error."""
+    """Test API fetch with HTTP success."""
     mock_get = mock.AsyncMock()
     mock_get.return_value.__aenter__.return_value = mock.AsyncMock(
         status=200, json=mock.AsyncMock(return_value={"key": "value"})
     )
 
-    with mock.patch("aiohttp.ClientSession.get", mock_get):
-        result = await fetch_data("https://example.com/api", {"param": "value"}, aiohttp.ClientSession())
-        assert result == {"key": "value"}
+    async with aiohttp.ClientSession() as session:
+        with mock.patch.object(session, 'get', mock_get):
+            result = await fetch_data("https://example.com/api", {"param": "value"}, session)
+            assert result == {"key": "value"}
 
 @pytest.mark.asyncio
 async def test_fetch_data_timeout():
@@ -29,7 +30,9 @@ async def test_fetch_data_timeout():
         "aiohttp.ClientSession.get",
         side_effect=aiohttp.ClientTimeout,
     ):
-        result = await fetch_data("https://example.com/api", {"param": "value"}, aiohttp.ClientSession())
+        result = await fetch_data(
+            "https://example.com/api", {"param": "value"}, aiohttp.ClientSession()
+        )
         assert result == {}  # Erwarte leere Daten bei Timeout
 
 @pytest.mark.asyncio
@@ -39,7 +42,9 @@ async def test_fetch_data_http_error():
     mock_get.return_value.__aenter__.return_value.raise_for_status.side_effect = aiohttp.ClientError
 
     with mock.patch("aiohttp.ClientSession.get", mock_get):
-        result = await fetch_data("https://example.com/api", {"param": "value"}, aiohttp.ClientSession())
+        result = await fetch_data(
+            "https://example.com/api", {"param": "value"}, aiohttp.ClientSession()
+        )
         assert result == {}
 
 def test_parse_daten_valid():

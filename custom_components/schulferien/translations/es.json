@@ -1,28 +1,41 @@
 {
-    "entity": {
-      "sensor": {
-        "schulferien_feiertag": {
-          "name": "Vacaciones escolares y festivos",
-          "state": {
-            "ferientag_feiertag": "Día de vacaciones o festivo",
-            "kein_ferientag_feiertag": "No es un día de vacaciones o festivo"
-          }
-        },
-        "feiertag": {
-          "name": "Festivo",
-          "state": {
-            "feiertag": "Hoy es un día festivo",
-            "kein_feiertag": "Hoy no es un día festivo"
-          }
-        },
-        "schulferien": {
-          "name": "Vacaciones escolares",
-          "state": {
-            "ferientag": "Hoy es un día de vacaciones",
-            "kein_ferientag": "Hoy no es un día de vacaciones"
-          }
+  "entity": {
+    "sensor": {
+      "schulferien": {
+        "name": "Vacaciones escolares",
+        "state": {
+          "ferientag": "Hoy es un día de vacaciones escolares",
+          "kein_ferientag": "Hoy no hay vacaciones escolares"
+        }
+      },
+      "feiertag": {
+        "name": "Festivo",
+        "state": {
+          "feiertag": "Hoy es un día festivo",
+          "kein_feiertag": "Hoy no es un día festivo"
+        }
+      },
+      "schulferien_morgen": {
+        "name": "Vacaciones escolares mañana",
+        "state": {
+          "ferientag": "Mañana es un día de vacaciones escolares",
+          "kein_ferientag": "Mañana no hay vacaciones escolares"
+        }
+      },
+      "feiertag_morgen": {
+        "name": "Festivo mañana",
+        "state": {
+          "feiertag": "Mañana es un día festivo",
+          "kein_feiertag": "Mañana no es un día festivo"
+        }
+      },
+      "schulferien_feiertag": {
+        "name": "Vacaciones y festivos",
+        "state": {
+          "ferientag_feiertag": "Vacaciones o festivo",
+          "kein_ferientag_feiertag": "No hay vacaciones ni festivo"
         }
       }
     }
   }
-  
+}

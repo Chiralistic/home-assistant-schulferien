@@ -22,6 +22,12 @@ SCHULFERIEN_SENSOR = SensorEntityDescription(
     translation_key="schulferien",  # Bezug zur Übersetzung
 )
 
+SCHULFERIEN_MORGEN_SENSOR = SensorEntityDescription(
+    key="schulferien_morgen",
+    name="Schulferien Morgen",
+    translation_key="schulferien_morgen",
+)
+
 class SchulferienSensor(SensorEntity):
     """Sensor für Schulferien und Brückentage."""
 
@@ -241,3 +247,40 @@ class SchulferienSensor(SensorEntity):
                     "naechste_ferien_beginn": naechste_ferien["start_datum"].strftime("%d.%m.%Y"),
                     "naechste_ferien_ende": naechste_ferien["end_datum"].strftime("%d.%m.%Y"),
                 })
+
+# Definition der EntityDescription für den morgigen Schulferien-Sensor
+SCHULFERIEN_MORGEN_SENSOR = SensorEntityDescription(
+    key="schulferien_morgen",
+    name="Schulferien Morgen",
+    translation_key="schulferien_morgen",
+)
+
+class SchulferienMorgenSensor(SensorEntity):
+    """Sensor für Schulferien morgen."""
+
+    def __init__(self, referenzsensor: SchulferienSensor):
+        self.entity_description = SCHULFERIEN_MORGEN_SENSOR
+        self._referenzsensor = referenzsensor
+        self._attr_name = "Schulferien Morgen"
+        self._attr_unique_id = "sensor.schulferien_morgen"
+        self._attr_native_value = None
+
+    @property
+    def unique_id(self):
+        return self._attr_unique_id
+
+    @property
+    def name(self):
+        return self._attr_name
+
+    @property
+    def native_value(self):
+        morgen = datetime.now().date() + timedelta(days=1)
+        for ferien in self._referenzsensor._ferien_info.get("ferien_liste", []):
+            if ferien["start_datum"] <= morgen <= ferien["end_datum"]:
+                return "ferientag"
+        return "kein_ferientag"
+
+    async def async_update(self):
+        # Holt sich alles aus dem Referenzsensor, kein extra Update nötig
+        pass

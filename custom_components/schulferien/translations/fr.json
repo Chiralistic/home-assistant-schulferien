@@ -1,28 +1,41 @@
 {
-    "entity": {
-      "sensor": {
-        "schulferien_feiertag": {
-          "name": "Vacances scolaires et jours fériés",
-          "state": {
-            "ferientag_feiertag": "Jour de vacances ou jour férié",
-            "kein_ferientag_feiertag": "Pas un jour de vacances ou jour férié"
-          }
-        },
-        "feiertag": {
-          "name": "Jour férié",
-          "state": {
-            "feiertag": "Aujourd'hui est un jour férié",
-            "kein_feiertag": "Aujourd'hui n'est pas un jour férié"
-          }
-        },
-        "schulferien": {
-          "name": "Vacances scolaires",
-          "state": {
-            "ferientag": "Aujourd'hui est un jour de vacances",
-            "kein_ferientag": "Aujourd'hui n'est pas un jour de vacances"
-          }
+  "entity": {
+    "sensor": {
+      "schulferien": {
+        "name": "Vacances scolaires",
+        "state": {
+          "ferientag": "Aujourd'hui est un jour de vacances",
+          "kein_ferientag": "Aujourd'hui n'est pas un jour de vacances"
+        }
+      },
+      "feiertag": {
+        "name": "Jour férié",
+        "state": {
+          "feiertag": "Aujourd'hui est un jour férié",
+          "kein_feiertag": "Aujourd'hui n'est pas un jour férié"
+        }
+      },
+      "schulferien_morgen": {
+        "name": "Vacances scolaires demain",
+        "state": {
+          "ferientag": "Demain est un jour de vacances scolaires",
+          "kein_ferientag": "Demain n'est pas un jour de vacances"
+        }
+      },
+      "feiertag_morgen": {
+        "name": "Jour férié demain",
+        "state": {
+          "feiertag": "Demain est un jour férié",
+          "kein_feiertag": "Demain n'est pas un jour férié"
+        }
+      },
+      "schulferien_feiertag": {
+        "name": "Vacances et jours fériés",
+        "state": {
+          "ferientag_feiertag": "Vacances ou jour férié",
+          "kein_ferientag_feiertag": "Pas de vacances ni jour férié"
         }
       }
     }
   }
-  
+}

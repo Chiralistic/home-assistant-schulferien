@@ -1,28 +1,41 @@
 {
-    "entity": {
-      "sensor": {
-        "schulferien_feiertag": {
-          "name": "Skoleferier og helligdage",
-          "state": {
-            "ferientag_feiertag": "Feriedag eller helligdag",
-            "kein_ferientag_feiertag": "Ikke en feriedag eller helligdag"
-          }
-        },
-        "feiertag": {
-          "name": "Helligdag",
-          "state": {
-            "feiertag": "I dag er en helligdag",
-            "kein_feiertag": "I dag er ikke en helligdag"
-          }
-        },
-        "schulferien": {
-          "name": "Skoleferier",
-          "state": {
-            "ferientag": "I dag er en feriedag",
-            "kein_ferientag": "I dag er ikke en feriedag"
-          }
+  "entity": {
+    "sensor": {
+      "schulferien": {
+        "name": "Skoleferie",
+        "state": {
+          "ferientag": "I dag er det skoleferie",
+          "kein_ferientag": "I dag er det ikke skoleferie"
+        }
+      },
+      "feiertag": {
+        "name": "Helligdag",
+        "state": {
+          "feiertag": "I dag er det en helligdag",
+          "kein_feiertag": "I dag er det ikke en helligdag"
+        }
+      },
+      "schulferien_morgen": {
+        "name": "Skoleferie i morgen",
+        "state": {
+          "ferientag": "I morgen er der skoleferie",
+          "kein_ferientag": "I morgen er der ikke skoleferie"
+        }
+      },
+      "feiertag_morgen": {
+        "name": "Helligdag i morgen",
+        "state": {
+          "feiertag": "I morgen er det en helligdag",
+          "kein_feiertag": "I morgen er det ikke en helligdag"
+        }
+      },
+      "schulferien_feiertag": {
+        "name": "Skoleferie og helligdage",
+        "state": {
+          "ferientag_feiertag": "Skoleferie eller helligdag",
+          "kein_ferientag_feiertag": "Ingen ferie eller helligdag"
         }
       }
     }
   }
-  
+}

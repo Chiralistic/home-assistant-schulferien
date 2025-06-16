@@ -45,19 +45,65 @@ class SchulferienFeiertagBinarySensor(BinarySensorEntity):
         )
 
 
-async def async_setup_entry(hass, entry, async_add_entities):
-    """Setze den Kombinierten Binary Sensor für Schulferien und Feiertage auf."""
-    _LOGGER.debug("Initialisiere kombinierten Binärsensor für Schulferien und Feiertage.")
+# Neue EntityDescription für den morgigen Tag
+SCHULFERIEN_FEIERTAG_MORGEN_BINARY_SENSOR = BinarySensorEntityDescription(
+    key="schulferien_feiertag_morgen",
+    name="Schulferien/Feiertage Morgen",
+    translation_key="schulferien_feiertag_morgen",
+)
 
-    # Konfiguration aus dem Eintrag holen
-    config = {
-        "schulferien_entity_id": "sensor.schulferien",  # Beispiel für Entitäts-ID der Schulferien
-        "feiertag_entity_id": "sensor.feiertag",  # Beispiel für Entitäts-ID der Feiertage
+class SchulferienFeiertagMorgenBinarySensor(BinarySensorEntity):
+    """Kombinierter Binärsensor für Schulferien und Feiertage am nächsten Tag."""
+
+    def __init__(self, hass, config):
+        """Initialisiert den morgigen Binärsensor mit Konfigurationsdaten."""
+        self.entity_description = SCHULFERIEN_FEIERTAG_MORGEN_BINARY_SENSOR
+        self._hass = hass
+        self._unique_id = config.get("unique_id", "binary_sensor.schulferien_feiertage_morgen")
+        self._entity_ids = {
+            "schulferien": config["schulferien_entity_id"],
+            "feiertag": config["feiertag_entity_id"],
+        }
+        self._state = False
+
+    @property
+    def unique_id(self):
+        """Gibt die eindeutige ID des Sensors zurück."""
+        return self._unique_id
+
+    @property
+    def is_on(self):
+        """Gibt den aktuellen Zustand des Sensors zurück."""
+        return self._state
+
+    async def async_update(self):
+        """Kombiniert die morgigen Zustände der Schulferien- und Feiertag-Sensoren."""
+        schulferien_state = self._hass.states.get(self._entity_ids["schulferien"])
+        feiertag_state = self._hass.states.get(self._entity_ids["feiertag"])
+
+        self._state = (
+            (schulferien_state and schulferien_state.state == "ferientag") or
+            (feiertag_state and feiertag_state.state == "feiertag")
+        )
+
+
+async def async_setup_entry(hass, entry, async_add_entities):
+    """Setze die kombinierten Binary Sensoren für Schulferien und Feiertage (heute und morgen) auf."""
+    _LOGGER.debug("Initialisiere kombinierte Binärsensoren für Schulferien und Feiertage.")
+
+    config_heute = {
+        "schulferien_entity_id": "sensor.schulferien",
+        "feiertag_entity_id": "sensor.feiertag",
         "unique_id": "binary_sensor.schulferien_feiertage"
     }
 
-    # Erstelle den Sensor
-    binary_sensor = SchulferienFeiertagBinarySensor(hass, config)
+    config_morgen = {
+        "schulferien_entity_id": "sensor.schulferien_morgen",
+        "feiertag_entity_id": "sensor.feiertag_morgen",
+        "unique_id": "binary_sensor.schulferien_feiertage_morgen"
+    }
 
-    # Füge den Sensor zu Home Assistant hinzu
-    async_add_entities([binary_sensor])
+    heute_sensor = SchulferienFeiertagBinarySensor(hass, config_heute)
+    morgen_sensor = SchulferienFeiertagMorgenBinarySensor(hass, config_morgen)
+
+    async_add_entities([heute_sensor, morgen_sensor])

@@ -277,6 +277,7 @@ class FeiertagMorgenSensor(SensorEntity):
                 return "feiertag"
         return "kein_feiertag"
 
+# Zweites Update ist nicht erforderlich, da der FeiertagSensor bereits täglich aktualisiert wird.
     async def async_update(self):
         pass
 

@@ -2,7 +2,6 @@
 
 from unittest.mock import mock_open, patch
 import pytest
-import yaml
 from custom_components.schulferien.sensor import load_bridge_days
 
 @pytest.mark.asyncio

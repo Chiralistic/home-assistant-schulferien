@@ -1,28 +1,41 @@
 {
-    "entity": {
-      "sensor": {
-        "schulferien_feiertag": {
-          "name": "Férias escolares e feriados",
-          "state": {
-            "ferientag_feiertag": "Dia de férias ou feriado",
-            "kein_ferientag_feiertag": "Não é um dia de férias ou feriado"
-          }
-        },
-        "feiertag": {
-          "name": "Feriado",
-          "state": {
-            "feiertag": "Hoje é um feriado",
-            "kein_feiertag": "Hoje não é um feriado"
-          }
-        },
-        "schulferien": {
-          "name": "Férias escolares",
-          "state": {
-            "ferientag": "Hoje é um dia de férias",
-            "kein_ferientag": "Hoje não é um dia de férias"
-          }
+  "entity": {
+    "sensor": {
+      "schulferien": {
+        "name": "Férias escolares",
+        "state": {
+          "ferientag": "Hoje é dia de férias escolares",
+          "kein_ferientag": "Hoje não é dia de férias escolares"
+        }
+      },
+      "feiertag": {
+        "name": "Feriado",
+        "state": {
+          "feiertag": "Hoje é feriado",
+          "kein_feiertag": "Hoje não é feriado"
+        }
+      },
+      "schulferien_morgen": {
+        "name": "Férias escolares amanhã",
+        "state": {
+          "ferientag": "Amanhã é dia de férias escolares",
+          "kein_ferientag": "Amanhã não é dia de férias escolares"
+        }
+      },
+      "feiertag_morgen": {
+        "name": "Feriado amanhã",
+        "state": {
+          "feiertag": "Amanhã é feriado",
+          "kein_feiertag": "Amanhã não é feriado"
+        }
+      },
+      "schulferien_feiertag": {
+        "name": "Férias e feriados",
+        "state": {
+          "ferientag_feiertag": "Férias ou feriado",
+          "kein_ferientag_feiertag": "Sem férias nem feriado"
         }
       }
     }
   }
-  
+}

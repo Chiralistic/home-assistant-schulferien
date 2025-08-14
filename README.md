@@ -6,7 +6,7 @@ Home Assistant-Integration, um Schulferien mithilfe der OpenHolidays-API als Ent
 
 ### Manuell über HACS
 
-1. Füge diesen Github Pfad in HACS -> Benutzerdefinierte Repositories hinzu
+1. Nutze HACS
 
 2. Suche nach "Schulferien" und lade den letzten Release herunter
 
@@ -76,6 +76,8 @@ cards:
     entities:
       - entity: binary_sensor.schulferien_feiertage
         name: Schulferien oder Feiertag (binary)
+      - entity: binary_sensor.schulferien_feiertage_morgen
+        name: Morgen Schulferien oder Feiertag (binary)
 ```
 
 ## Deinstallation
@@ -92,7 +94,7 @@ Home Assistant integration to make school holidays available as entities for aut
 
 ### Manual with HACS
 
-1. Add this GitHub path to HACS -> Custom Repositories.
+1. Use HACS
 
 2. Search for "Schulferien" and download the latest release.
 
@@ -162,6 +164,8 @@ cards:
     entities:
       - entity: binary_sensor.schulferien_feiertage
         name: Schulferien oder Feiertag (binary)
+      - entity: binary_sensor.schulferien_feiertage_morgen
+        name: Morgen Schulferien oder Feiertag (binary)
 ```
 
 ## Uninstall

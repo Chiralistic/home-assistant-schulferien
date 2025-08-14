@@ -3,5 +3,6 @@ aiohttp  # Für asynchrone HTTP-Anfragen
 aiofiles  # Für asynchrone Dateioperationen
 pytest  # zum testen
 pytest-asyncio # zum testen
+coverage
 pytest-cov # zur Messung der Testabdeckung
 pytest-homeassistant-custom-component   # zum testen

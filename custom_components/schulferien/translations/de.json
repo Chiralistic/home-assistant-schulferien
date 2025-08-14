@@ -15,11 +15,25 @@
           "kein_feiertag": "Heute ist kein Feiertag"
         }
       },
+      "feiertag_morgen": {
+        "name": "Feiertag Morgen",
+        "state": {
+          "feiertag": "Morgen ist ein Feiertag",
+          "kein_feiertag": "Morgen ist kein Feiertag"
+        }
+      },
       "schulferien": {
         "name": "Schulferien",
         "state": {
           "ferientag": "Heute ist ein Ferientag",
           "kein_ferientag": "Heute ist kein Ferientag"
+        }
+      },
+      "schulferien_morgen": {
+        "name": "Schulferien Morgen",
+        "state": {
+          "ferientag": "Morgen ist ein Ferientag",
+          "kein_ferientag": "Morgen ist kein Ferientag"
         }
       }
     }

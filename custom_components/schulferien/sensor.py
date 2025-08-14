@@ -5,8 +5,8 @@ import aiofiles
 import aiohttp
 import yaml
 
-from .schulferien_sensor import SchulferienSensor
-from .feiertag_sensor import FeiertagSensor
+from .schulferien_sensor import SchulferienSensor, SchulferienMorgenSensor
+from .feiertag_sensor import FeiertagSensor, FeiertagMorgenSensor
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -74,10 +74,23 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
         # Erstellen des Feiertag-Sensors
         feiertag_sensor = FeiertagSensor(hass, config_feiertag)
 
+        # Sensor für "Schulferien Morgen"
+        schulferien_morgen_sensor = SchulferienMorgenSensor(schulferien_sensor)
+
+        # Sensor für "Feiertag Morgen"
+        feiertag_morgen_sensor = FeiertagMorgenSensor(feiertag_sensor)
+
         # Sensoren zu Home Assistant hinzufügen
-        async_add_entities([schulferien_sensor, feiertag_sensor])
+        async_add_entities([
+            schulferien_sensor,
+            feiertag_sensor,
+            schulferien_morgen_sensor,
+            feiertag_morgen_sensor
+        ])
         _LOGGER.debug("Füge Schulferien-Sensor hinzu.")
         _LOGGER.debug("Füge Feiertag-Sensor hinzu.")
+        _LOGGER.debug("Füge Schulferien-Morgen-Sensor hinzu.")
+        _LOGGER.debug("Füge Feiertag-Morgen-Sensor hinzu.")
 
         # Initialisiere die Daten für beide Sensoren mit der gemeinsamen Session
         await schulferien_sensor.async_update(session)

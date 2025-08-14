@@ -4,22 +4,36 @@
       "schulferien_feiertag": {
         "name": "School Holidays and Public Holidays",
         "state": {
-          "ferientag_feiertag": "Holiday or Public Holiday",
-          "kein_ferientag_feiertag": "No Holiday or Public Holiday"
+          "ferientag_feiertag": "Holiday or School Break",
+          "kein_ferientag_feiertag": "No Holiday or School Break"
         }
       },
       "feiertag": {
         "name": "Public Holiday",
         "state": {
-          "feiertag": "Today is a Public Holiday",
-          "kein_feiertag": "Today is not a Public Holiday"
+          "feiertag": "Today is a public holiday",
+          "kein_feiertag": "Today is not a public holiday"
+        }
+      },
+      "feiertag_morgen": {
+        "name": "Public Holiday Tomorrow",
+        "state": {
+          "feiertag": "Tomorrow is a public holiday",
+          "kein_feiertag": "Tomorrow is not a public holiday"
         }
       },
       "schulferien": {
         "name": "School Holidays",
         "state": {
-          "ferientag": "Today is a Holiday",
-          "kein_feiertag": "Today is not a Holiday"
+          "ferientag": "Today is a school holiday",
+          "kein_ferientag": "Today is not a school holiday"
+        }
+      },
+      "schulferien_morgen": {
+        "name": "School Holidays Tomorrow",
+        "state": {
+          "ferientag": "Tomorrow is a school holiday",
+          "kein_ferientag": "Tomorrow is not a school holiday"
         }
       }
     }

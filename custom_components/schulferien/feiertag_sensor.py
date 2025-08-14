@@ -22,6 +22,12 @@ FEIERTAG_SENSOR = SensorEntityDescription(
     translation_key="feiertag",  # Bezug zur Übersetzung
 )
 
+FEIERTAG_MORGEN_SENSOR = SensorEntityDescription(
+    key="feiertag_morgen",
+    name="Feiertag Morgen",
+    translation_key="feiertag_morgen",
+)
+
 class FeiertagSensor(SensorEntity):
     """Sensor für Feiertage."""
 
@@ -244,3 +250,49 @@ class FeiertagSensor(SensorEntity):
                         "%d.%m.%Y"
                     ),
                 })
+
+class FeiertagMorgenSensor(SensorEntity):
+    """Sensor für Feiertag morgen."""
+
+    def __init__(self, referenzsensor: FeiertagSensor):
+        self.entity_description = FEIERTAG_MORGEN_SENSOR
+        self._referenzsensor = referenzsensor
+        self._attr_name = "Feiertag Morgen"
+        self._attr_unique_id = "sensor.feiertag_morgen"
+        self._attr_native_value = None
+
+    @property
+    def unique_id(self):
+        return self._attr_unique_id
+
+    @property
+    def name(self):
+        return self._attr_name
+
+    @property
+    def native_value(self):
+        morgen = datetime.now().date() + timedelta(days=1)
+        for feiertag in self._referenzsensor._feiertags_info.get("feiertage_liste", []):
+            if feiertag["start_datum"] == morgen:
+                return "feiertag"
+        return "kein_feiertag"
+
+# Zweites Update ist nicht erforderlich, da der FeiertagSensor bereits täglich aktualisiert wird.
+    async def async_update(self):
+        pass
+
+async def load_bridge_days(bridge_days_path):
+    """Lädt die Brückentage aus der bridge_days.yaml-Datei asynchron."""
+    try:
+        async with aiofiles.open(bridge_days_path, "r", encoding="utf-8") as file:
+            content = await file.read()
+            if not content:
+                return []
+            bridge_days_config = yaml.safe_load(content)
+            return bridge_days_config.get("bridge_days", [])
+    except FileNotFoundError:
+        _LOGGER.warning("Die Datei bridge_days.yaml wurde nicht gefunden.")
+        return []
+    except yaml.YAMLError as error:
+        _LOGGER.error("Fehler beim Laden der Brückentage: %s", error)
+        return []

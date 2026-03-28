@@ -1,25 +1,38 @@
 {
   "entity": {
+    "binary_sensor": {
+      "schulferien_feiertag": {
+        "name": "Schoolvakantie/feestdagen"
+      },
+      "schulferien_feiertag_morgen": {
+        "name": "Schoolvakantie/feestdagen morgen"
+      },
+      "schulferien_only": {
+        "name": "Alleen schoolvakantie"
+      },
+      "schulferien_only_morgen": {
+        "name": "Alleen schoolvakantie morgen"
+      },
+      "feiertag_only": {
+        "name": "Alleen feestdagen"
+      },
+      "feiertag_only_morgen": {
+        "name": "Alleen feestdagen morgen"
+      }
+    },
     "sensor": {
-      "schulferien": {
-        "name": "Schoolvakantie",
+      "schulferien_feiertag": {
+        "name": "Schoolvakanties en feestdagen",
         "state": {
-          "ferientag": "Vandaag is het schoolvakantie",
-          "kein_ferientag": "Vandaag is het geen schoolvakantie"
+          "ferientag_feiertag": "Vakantiedag of feestdag",
+          "kein_ferientag_feiertag": "Geen vakantiedag of feestdag"
         }
       },
       "feiertag": {
         "name": "Feestdag",
         "state": {
-          "feiertag": "Vandaag is het een feestdag",
-          "kein_feiertag": "Vandaag is het geen feestdag"
-        }
-      },
-      "schulferien_morgen": {
-        "name": "Schoolvakantie morgen",
-        "state": {
-          "ferientag": "Morgen is er schoolvakantie",
-          "kein_ferientag": "Morgen is er geen schoolvakantie"
+          "feiertag": "Vandaag is een feestdag",
+          "kein_feiertag": "Vandaag is geen feestdag"
         }
       },
       "feiertag_morgen": {
@@ -29,11 +42,18 @@
           "kein_feiertag": "Morgen is geen feestdag"
         }
       },
-      "schulferien_feiertag": {
-        "name": "Schoolvakantie en feestdagen",
+      "schulferien": {
+        "name": "Schoolvakantie",
         "state": {
-          "ferientag_feiertag": "Schoolvakantie of feestdag",
-          "kein_ferientag_feiertag": "Geen vakantie of feestdag"
+          "ferientag": "Vandaag is een vakantiedag",
+          "kein_ferientag": "Vandaag is geen vakantiedag"
+        }
+      },
+      "schulferien_morgen": {
+        "name": "Schoolvakantie morgen",
+        "state": {
+          "ferientag": "Morgen is een vakantiedag",
+          "kein_ferientag": "Morgen is geen vakantiedag"
         }
       }
     }

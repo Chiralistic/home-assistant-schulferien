@@ -1,39 +1,59 @@
 {
   "entity": {
+    "binary_sensor": {
+      "schulferien_feiertag": {
+        "name": "Vacaciones escolares/festivos"
+      },
+      "schulferien_feiertag_morgen": {
+        "name": "Vacaciones escolares/festivos mañana"
+      },
+      "schulferien_only": {
+        "name": "Solo vacaciones escolares"
+      },
+      "schulferien_only_morgen": {
+        "name": "Solo vacaciones escolares mañana"
+      },
+      "feiertag_only": {
+        "name": "Solo festivos"
+      },
+      "feiertag_only_morgen": {
+        "name": "Solo festivos mañana"
+      }
+    },
     "sensor": {
-      "schulferien": {
-        "name": "Vacaciones escolares",
+      "schulferien_feiertag": {
+        "name": "Vacaciones escolares y festivos",
         "state": {
-          "ferientag": "Hoy es un día de vacaciones escolares",
-          "kein_ferientag": "Hoy no hay vacaciones escolares"
+          "ferientag_feiertag": "Día de vacaciones o festivo",
+          "kein_ferientag_feiertag": "No es día de vacaciones ni festivo"
         }
       },
       "feiertag": {
         "name": "Festivo",
         "state": {
-          "feiertag": "Hoy es un día festivo",
-          "kein_feiertag": "Hoy no es un día festivo"
-        }
-      },
-      "schulferien_morgen": {
-        "name": "Vacaciones escolares mañana",
-        "state": {
-          "ferientag": "Mañana es un día de vacaciones escolares",
-          "kein_ferientag": "Mañana no hay vacaciones escolares"
+          "feiertag": "Hoy es festivo",
+          "kein_feiertag": "Hoy no es festivo"
         }
       },
       "feiertag_morgen": {
         "name": "Festivo mañana",
         "state": {
-          "feiertag": "Mañana es un día festivo",
-          "kein_feiertag": "Mañana no es un día festivo"
+          "feiertag": "Mañana es festivo",
+          "kein_feiertag": "Mañana no es festivo"
         }
       },
-      "schulferien_feiertag": {
-        "name": "Vacaciones y festivos",
+      "schulferien": {
+        "name": "Vacaciones escolares",
         "state": {
-          "ferientag_feiertag": "Vacaciones o festivo",
-          "kein_ferientag_feiertag": "No hay vacaciones ni festivo"
+          "ferientag": "Hoy es un día de vacaciones",
+          "kein_ferientag": "Hoy no es un día de vacaciones"
+        }
+      },
+      "schulferien_morgen": {
+        "name": "Vacaciones escolares mañana",
+        "state": {
+          "ferientag": "Mañana es un día de vacaciones",
+          "kein_ferientag": "Mañana no es un día de vacaciones"
         }
       }
     }

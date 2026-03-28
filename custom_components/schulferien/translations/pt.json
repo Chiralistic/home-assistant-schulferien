@@ -1,11 +1,31 @@
 {
   "entity": {
+    "binary_sensor": {
+      "schulferien_feiertag": {
+        "name": "Férias escolares/feriados"
+      },
+      "schulferien_feiertag_morgen": {
+        "name": "Férias escolares/feriados amanhã"
+      },
+      "schulferien_only": {
+        "name": "Apenas férias escolares"
+      },
+      "schulferien_only_morgen": {
+        "name": "Apenas férias escolares amanhã"
+      },
+      "feiertag_only": {
+        "name": "Apenas feriados"
+      },
+      "feiertag_only_morgen": {
+        "name": "Apenas feriados amanhã"
+      }
+    },
     "sensor": {
-      "schulferien": {
-        "name": "Férias escolares",
+      "schulferien_feiertag": {
+        "name": "Férias escolares e feriados",
         "state": {
-          "ferientag": "Hoje é dia de férias escolares",
-          "kein_ferientag": "Hoje não é dia de férias escolares"
+          "ferientag_feiertag": "Dia de férias ou feriado",
+          "kein_ferientag_feiertag": "Nem dia de férias nem feriado"
         }
       },
       "feiertag": {
@@ -15,13 +35,6 @@
           "kein_feiertag": "Hoje não é feriado"
         }
       },
-      "schulferien_morgen": {
-        "name": "Férias escolares amanhã",
-        "state": {
-          "ferientag": "Amanhã é dia de férias escolares",
-          "kein_ferientag": "Amanhã não é dia de férias escolares"
-        }
-      },
       "feiertag_morgen": {
         "name": "Feriado amanhã",
         "state": {
@@ -29,11 +42,18 @@
           "kein_feiertag": "Amanhã não é feriado"
         }
       },
-      "schulferien_feiertag": {
-        "name": "Férias e feriados",
+      "schulferien": {
+        "name": "Férias escolares",
         "state": {
-          "ferientag_feiertag": "Férias ou feriado",
-          "kein_ferientag_feiertag": "Sem férias nem feriado"
+          "ferientag": "Hoje é um dia de férias",
+          "kein_ferientag": "Hoje não é um dia de férias"
+        }
+      },
+      "schulferien_morgen": {
+        "name": "Férias escolares amanhã",
+        "state": {
+          "ferientag": "Amanhã é um dia de férias",
+          "kein_ferientag": "Amanhã não é um dia de férias"
         }
       }
     }

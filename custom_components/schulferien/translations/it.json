@@ -1,39 +1,59 @@
 {
   "entity": {
+    "binary_sensor": {
+      "schulferien_feiertag": {
+        "name": "Vacanze scolastiche/festività"
+      },
+      "schulferien_feiertag_morgen": {
+        "name": "Vacanze scolastiche/festività domani"
+      },
+      "schulferien_only": {
+        "name": "Solo vacanze scolastiche"
+      },
+      "schulferien_only_morgen": {
+        "name": "Solo vacanze scolastiche domani"
+      },
+      "feiertag_only": {
+        "name": "Solo festivi"
+      },
+      "feiertag_only_morgen": {
+        "name": "Solo festivi domani"
+      }
+    },
     "sensor": {
-      "schulferien": {
-        "name": "Vacanze scolastiche",
+      "schulferien_feiertag": {
+        "name": "Vacanze scolastiche e festivi",
         "state": {
-          "ferientag": "Oggi è un giorno di vacanza scolastica",
-          "kein_ferientag": "Oggi non è un giorno di vacanza scolastica"
+          "ferientag_feiertag": "Giorno di vacanza o festivo",
+          "kein_ferientag_feiertag": "Né giorno di vacanza né festivo"
         }
       },
       "feiertag": {
-        "name": "Festa",
+        "name": "Festivo",
         "state": {
-          "feiertag": "Oggi è un giorno festivo",
-          "kein_feiertag": "Oggi non è un giorno festivo"
+          "feiertag": "Oggi è festivo",
+          "kein_feiertag": "Oggi non è festivo"
+        }
+      },
+      "feiertag_morgen": {
+        "name": "Festivo domani",
+        "state": {
+          "feiertag": "Domani è festivo",
+          "kein_feiertag": "Domani non è festivo"
+        }
+      },
+      "schulferien": {
+        "name": "Vacanze scolastiche",
+        "state": {
+          "ferientag": "Oggi è un giorno di vacanza",
+          "kein_ferientag": "Oggi non è un giorno di vacanza"
         }
       },
       "schulferien_morgen": {
         "name": "Vacanze scolastiche domani",
         "state": {
-          "ferientag": "Domani è un giorno di vacanza scolastica",
-          "kein_ferientag": "Domani non è un giorno di vacanza scolastica"
-        }
-      },
-      "feiertag_morgen": {
-        "name": "Festa domani",
-        "state": {
-          "feiertag": "Domani è un giorno festivo",
-          "kein_feiertag": "Domani non è un giorno festivo"
-        }
-      },
-      "schulferien_feiertag": {
-        "name": "Vacanze e festività",
-        "state": {
-          "ferientag_feiertag": "Vacanza o giorno festivo",
-          "kein_ferientag_feiertag": "Né vacanza né giorno festivo"
+          "ferientag": "Domani è un giorno di vacanza",
+          "kein_ferientag": "Domani non è un giorno di vacanza"
         }
       }
     }

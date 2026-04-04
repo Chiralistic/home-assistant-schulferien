@@ -146,13 +146,9 @@ class SchulferienOnlyBinarySensor(BinarySensorEntity):
         schulferien_state = self._hass.states.get(
             self._entity_ids["schulferien"]
         )
-        feiertag_state = self._hass.states.get(
-            self._entity_ids["feiertag"]
-        )
 
         self._state = (
-            (schulferien_state and schulferien_state.state == "ferientag")
-            and not (feiertag_state and feiertag_state.state == "feiertag")
+            schulferien_state and schulferien_state.state == "ferientag"
         )
 
 
@@ -183,13 +179,9 @@ class SchulferienOnlyMorgenBinarySensor(BinarySensorEntity):
         schulferien_state = self._hass.states.get(
             self._entity_ids["schulferien"]
         )
-        feiertag_state = self._hass.states.get(
-            self._entity_ids["feiertag"]
-        )
 
         self._state = (
-            (schulferien_state and schulferien_state.state == "ferientag")
-            and not (feiertag_state and feiertag_state.state == "feiertag")
+            schulferien_state and schulferien_state.state == "ferientag"
         )
 
 
@@ -217,16 +209,12 @@ class FeiertagOnlyBinarySensor(BinarySensorEntity):
         return self._state
 
     async def async_update(self):
-        schulferien_state = self._hass.states.get(
-            self._entity_ids["schulferien"]
-        )
         feiertag_state = self._hass.states.get(
             self._entity_ids["feiertag"]
         )
 
         self._state = (
-            (feiertag_state and feiertag_state.state == "feiertag")
-            and not (schulferien_state and schulferien_state.state == "ferientag")
+            feiertag_state and feiertag_state.state == "feiertag"
         )
 
 
@@ -247,25 +235,19 @@ class FeiertagOnlyMorgenBinarySensor(BinarySensorEntity):
 
     @property
     def unique_id(self):
-        """Gibt die eindeutige ID des Sensors zurück."""
         return self._unique_id
 
     @property
     def is_on(self):
-        """Gibt den aktuellen Zustand des Sensors zurück."""
         return self._state
 
     async def async_update(self):
-        schulferien_state = self._hass.states.get(
-            self._entity_ids["schulferien"]
-        )
         feiertag_state = self._hass.states.get(
             self._entity_ids["feiertag"]
         )
 
         self._state = (
-            (feiertag_state and feiertag_state.state == "feiertag")
-            and not (schulferien_state and schulferien_state.state == "ferientag")
+            feiertag_state and feiertag_state.state == "feiertag"
         )
 
 

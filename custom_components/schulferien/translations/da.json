@@ -1,39 +1,59 @@
 {
   "entity": {
+    "binary_sensor": {
+      "schulferien_feiertag": {
+        "name": "Skoleferie/helligdage"
+      },
+      "schulferien_feiertag_morgen": {
+        "name": "Skoleferie/helligdage i morgen"
+      },
+      "schulferien_only": {
+        "name": "Kun skoleferie"
+      },
+      "schulferien_only_morgen": {
+        "name": "Kun skoleferie i morgen"
+      },
+      "feiertag_only": {
+        "name": "Kun helligdage"
+      },
+      "feiertag_only_morgen": {
+        "name": "Kun helligdage i morgen"
+      }
+    },
     "sensor": {
-      "schulferien": {
-        "name": "Skoleferie",
+      "schulferien_feiertag": {
+        "name": "Skoleferie og helligdage",
         "state": {
-          "ferientag": "I dag er det skoleferie",
-          "kein_ferientag": "I dag er det ikke skoleferie"
+          "ferientag_feiertag": "Feriedag eller helligdag",
+          "kein_ferientag_feiertag": "Ingen feriedag eller helligdag"
         }
       },
       "feiertag": {
         "name": "Helligdag",
         "state": {
-          "feiertag": "I dag er det en helligdag",
-          "kein_feiertag": "I dag er det ikke en helligdag"
-        }
-      },
-      "schulferien_morgen": {
-        "name": "Skoleferie i morgen",
-        "state": {
-          "ferientag": "I morgen er der skoleferie",
-          "kein_ferientag": "I morgen er der ikke skoleferie"
+          "feiertag": "I dag er en helligdag",
+          "kein_feiertag": "I dag er ikke en helligdag"
         }
       },
       "feiertag_morgen": {
         "name": "Helligdag i morgen",
         "state": {
-          "feiertag": "I morgen er det en helligdag",
-          "kein_feiertag": "I morgen er det ikke en helligdag"
+          "feiertag": "I morgen er en helligdag",
+          "kein_feiertag": "I morgen er ikke en helligdag"
         }
       },
-      "schulferien_feiertag": {
-        "name": "Skoleferie og helligdage",
+      "schulferien": {
+        "name": "Skoleferie",
         "state": {
-          "ferientag_feiertag": "Skoleferie eller helligdag",
-          "kein_ferientag_feiertag": "Ingen ferie eller helligdag"
+          "ferientag": "I dag er en feriedag",
+          "kein_ferientag": "I dag er ikke en feriedag"
+        }
+      },
+      "schulferien_morgen": {
+        "name": "Skoleferie i morgen",
+        "state": {
+          "ferientag": "I morgen er en feriedag",
+          "kein_ferientag": "I morgen er ikke en feriedag"
         }
       }
     }

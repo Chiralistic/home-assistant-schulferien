@@ -1,8 +1,28 @@
 {
   "entity": {
+    "binary_sensor": {
+      "schulferien_feiertag": {
+        "name": "Schulferien/Feiertage"
+      },
+      "schulferien_feiertag_morgen": {
+        "name": "Schulferien/Feiertage Morgen"
+      },
+      "schulferien_only": {
+        "name": "Nur Schulferien"
+      },
+      "schulferien_only_morgen": {
+        "name": "Nur Schulferien Morgen"
+      },
+      "feiertag_only": {
+        "name": "Nur Feiertage"
+      },
+      "feiertag_only_morgen": {
+        "name": "Nur Feiertage Morgen"
+      }
+    },
     "sensor": {
       "schulferien_feiertag": {
-        "name": "Schulferien und Feiertage",
+        "name": "Schulferien oder Feiertage",
         "state": {
           "ferientag_feiertag": "Ferientag oder Feiertag",
           "kein_ferientag_feiertag": "Kein Ferientag oder Feiertag"

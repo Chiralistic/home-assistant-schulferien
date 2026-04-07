@@ -1,25 +1,38 @@
 {
   "entity": {
+    "binary_sensor": {
+      "schulferien_feiertag": {
+        "name": "Okul tatili/resmi tatiller"
+      },
+      "schulferien_feiertag_morgen": {
+        "name": "Okul tatili/resmi tatiller yarın"
+      },
+      "schulferien_only": {
+        "name": "Sadece okul tatili"
+      },
+      "schulferien_only_morgen": {
+        "name": "Sadece okul tatili yarın"
+      },
+      "feiertag_only": {
+        "name": "Sadece resmi tatiller"
+      },
+      "feiertag_only_morgen": {
+        "name": "Sadece resmi tatiller yarın"
+      }
+    },
     "sensor": {
-      "schulferien": {
-        "name": "Okul Tatili",
+      "schulferien_feiertag": {
+        "name": "Okul tatilleri ve resmi tatiller",
         "state": {
-          "ferientag": "Bugün okul tatili",
-          "kein_ferientag": "Bugün okul tatili değil"
+          "ferientag_feiertag": "Tatil günü veya resmi tatil",
+          "kein_ferientag_feiertag": "Ne tatil günü ne resmi tatil"
         }
       },
       "feiertag": {
-        "name": "Resmi Tatil",
+        "name": "Resmi tatil",
         "state": {
           "feiertag": "Bugün resmi tatil",
           "kein_feiertag": "Bugün resmi tatil değil"
-        }
-      },
-      "schulferien_morgen": {
-        "name": "Yarın okul tatili",
-        "state": {
-          "ferientag": "Yarın okul tatili var",
-          "kein_ferientag": "Yarın okul tatili yok"
         }
       },
       "feiertag_morgen": {
@@ -29,11 +42,18 @@
           "kein_feiertag": "Yarın resmi tatil değil"
         }
       },
-      "schulferien_feiertag": {
-        "name": "Okul Tatili ve Resmi Tatil",
+      "schulferien": {
+        "name": "Okul tatili",
         "state": {
-          "ferientag_feiertag": "Tatildir",
-          "kein_ferientag_feiertag": "Tatil değildir"
+          "ferientag": "Bugün tatil günü",
+          "kein_ferientag": "Bugün tatil günü değil"
+        }
+      },
+      "schulferien_morgen": {
+        "name": "Yarın okul tatili",
+        "state": {
+          "ferientag": "Yarın tatil günü",
+          "kein_ferientag": "Yarın tatil günü değil"
         }
       }
     }

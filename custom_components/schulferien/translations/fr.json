@@ -1,39 +1,59 @@
 {
   "entity": {
+    "binary_sensor": {
+      "schulferien_feiertag": {
+        "name": "Vacances scolaires/jours fériés"
+      },
+      "schulferien_feiertag_morgen": {
+        "name": "Vacances scolaires/jours fériés demain"
+      },
+      "schulferien_only": {
+        "name": "Seulement vacances scolaires"
+      },
+      "schulferien_only_morgen": {
+        "name": "Seulement vacances scolaires demain"
+      },
+      "feiertag_only": {
+        "name": "Seulement jours fériés"
+      },
+      "feiertag_only_morgen": {
+        "name": "Seulement jours fériés demain"
+      }
+    },
     "sensor": {
-      "schulferien": {
-        "name": "Vacances scolaires",
+      "schulferien_feiertag": {
+        "name": "Vacances scolaires et jours fériés",
         "state": {
-          "ferientag": "Aujourd'hui est un jour de vacances",
-          "kein_ferientag": "Aujourd'hui n'est pas un jour de vacances"
+          "ferientag_feiertag": "Jour de vacances ou jour férié",
+          "kein_ferientag_feiertag": "Ni jour de vacances ni jour férié"
         }
       },
       "feiertag": {
         "name": "Jour férié",
         "state": {
-          "feiertag": "Aujourd'hui est un jour férié",
-          "kein_feiertag": "Aujourd'hui n'est pas un jour férié"
-        }
-      },
-      "schulferien_morgen": {
-        "name": "Vacances scolaires demain",
-        "state": {
-          "ferientag": "Demain est un jour de vacances scolaires",
-          "kein_ferientag": "Demain n'est pas un jour de vacances"
+          "feiertag": "Aujourd’hui est un jour férié",
+          "kein_feiertag": "Aujourd’hui n’est pas un jour férié"
         }
       },
       "feiertag_morgen": {
         "name": "Jour férié demain",
         "state": {
           "feiertag": "Demain est un jour férié",
-          "kein_feiertag": "Demain n'est pas un jour férié"
+          "kein_feiertag": "Demain n’est pas un jour férié"
         }
       },
-      "schulferien_feiertag": {
-        "name": "Vacances et jours fériés",
+      "schulferien": {
+        "name": "Vacances scolaires",
         "state": {
-          "ferientag_feiertag": "Vacances ou jour férié",
-          "kein_ferientag_feiertag": "Pas de vacances ni jour férié"
+          "ferientag": "Aujourd’hui est un jour de vacances",
+          "kein_ferientag": "Aujourd’hui n’est pas un jour de vacances"
+        }
+      },
+      "schulferien_morgen": {
+        "name": "Vacances scolaires demain",
+        "state": {
+          "ferientag": "Demain est un jour de vacances",
+          "kein_ferientag": "Demain n’est pas un jour de vacances"
         }
       }
     }

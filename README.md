@@ -78,6 +78,14 @@ cards:
         name: Schulferien oder Feiertag (binary)
       - entity: binary_sensor.schulferien_feiertage_morgen
         name: Morgen Schulferien oder Feiertag (binary)
+      - entity: binary_sensor.nur_schulferien
+        name: Nur Schulferien (binary)
+      - entity: binary_sensor.nur_schulferien_morgen
+        name: Nur Schulferien Morgen (binary)
+      - entity: binary_sensor.nur_feiertage
+        name: Nur Feiertage (binary)
+      - entity: binary_sensor.nur_feiertage_morgen
+        name: Nur Feiertage Morgen (binary)
 ```
 
 ## Deinstallation
@@ -166,6 +174,14 @@ cards:
         name: Schulferien oder Feiertag (binary)
       - entity: binary_sensor.schulferien_feiertage_morgen
         name: Morgen Schulferien oder Feiertag (binary)
+      - entity: binary_sensor.nur_schulferien
+        name: Nur Schulferien (binary)
+      - entity: binary_sensor.nur_schulferien_morgen
+        name: Nur Schulferien Morgen (binary)
+      - entity: binary_sensor.nur_feiertage
+        name: Nur Feiertage (binary)
+      - entity: binary_sensor.nur_feiertage_morgen
+        name: Nur Feiertage Morgen (binary)
 ```
 
 ## Uninstall

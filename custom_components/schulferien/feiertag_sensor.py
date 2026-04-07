@@ -212,6 +212,23 @@ class FeiertagSensor(SensorEntity):
         """Verarbeitet die erhaltenen Feiertags-Daten."""
         try:
             feiertage_liste = parse_daten(feiertage_daten, typ="feiertage")
+
+            # Workaround: Ostersonntag ergänzen
+            for feiertag in feiertage_liste:
+                name = feiertag["name"].lower()
+                if "ostermontag" in name or "easter monday" in name:
+                    ostersonntag_datum = feiertag["start_datum"] - timedelta(days=1)
+                    # Doppelten Eintrag vermeiden
+                    if not any(
+                        f["start_datum"] == ostersonntag_datum
+                        for f in feiertage_liste
+                    ):
+                        feiertage_liste.append({
+                            "name": "Ostersonntag",
+                            "start_datum": ostersonntag_datum,
+                            "end_datum": ostersonntag_datum,
+                        })
+                    break
             self._feiertags_info["feiertage_liste"] = feiertage_liste
         except Exception as e:
             _LOGGER.error("Fehler beim Verarbeiten der Daten: %s", e)

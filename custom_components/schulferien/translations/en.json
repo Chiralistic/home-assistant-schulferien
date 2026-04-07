@@ -1,5 +1,25 @@
 {
   "entity": {
+    "binary_sensor": {
+      "schulferien_feiertag": {
+        "name": "School Holidays/Public Holidays"
+      },
+      "schulferien_feiertag_morgen": {
+        "name": "School Holidays/Public Holidays Tomorrow"
+      },
+      "schulferien_only": {
+        "name": "School Holidays Only"
+      },
+      "schulferien_only_morgen": {
+        "name": "School Holidays Only Tomorrow"
+      },
+      "feiertag_only": {
+        "name": "Public Holidays Only"
+      },
+      "feiertag_only_morgen": {
+        "name": "Public Holidays Only Tomorrow"
+      }
+    },
     "sensor": {
       "schulferien_feiertag": {
         "name": "School Holidays and Public Holidays",

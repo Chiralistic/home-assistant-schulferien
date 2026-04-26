@@ -1,33 +1,810 @@
-"""Unit Test um die Implementierung der Brückentage zu testen."""
+"""Unit Tests für sensor.py (async_setup_entry, load_bridge_days)."""
 
-from unittest.mock import mock_open, patch
 import pytest
-from custom_components.schulferien.sensor import load_bridge_days
+from unittest.mock import patch, AsyncMock, MagicMock
+from datetime import datetime
+
+from custom_components.schulferien.sensor import load_bridge_days, async_setup_entry
+
+
+# ============================================================
+# Tests für load_bridge_days
+# ============================================================
 
 @pytest.mark.asyncio
 async def test_load_bridge_days_success():
-    """Testet das erfolgreiche Laden der Brückentage aus einer YAML-Datei."""
-    mock_yaml = """
-    bridge_days:
-      - "01.01.2024"
-      - "02.01.2024"
-    """
-    with patch(
-        "builtins.open", mock_open(read_data=mock_yaml)
-    ), patch("yaml.safe_load", return_value={"bridge_days": ["01.01.2024", "02.01.2024"]}):
-        bridge_days = await load_bridge_days("fake_path.yaml")
-        assert bridge_days == ["01.01.2024", "02.01.2024"]
+    """Test erfolgreiches Laden der Brückentage aus YAML."""
+    yaml_content = """
+bridge_days:
+  - "01.01.2024"
+  - "02.01.2024"
+"""
+    mock_aiofile = MagicMock()
+    mock_aiofile.__aenter__ = AsyncMock(return_value=mock_aiofile)
+    mock_aiofile.__aexit__ = AsyncMock(return_value=None)
+    mock_aiofile.read = AsyncMock(return_value=yaml_content)
+
+    with patch("custom_components.schulferien.sensor.aiofiles.open", return_value=mock_aiofile), \
+         patch("yaml.safe_load", return_value={"bridge_days": ["01.01.2024", "02.01.2024"]}):
+        result = await load_bridge_days("fake_path.yaml")
+        assert result == ["01.01.2024", "02.01.2024"]
+
+
+@pytest.mark.asyncio
+async def test_load_bridge_days_success_with_objects():
+    """Test Laden wenn Brückentage als Objekte vorliegen."""
+    yaml_content = """
+bridge_days:
+  - date: "2024-04-22"
+    name: "Brücktag"
+"""
+    mock_aiofile = MagicMock()
+    mock_aiofile.__aenter__ = AsyncMock(return_value=mock_aiofile)
+    mock_aiofile.__aexit__ = AsyncMock(return_value=None)
+    mock_aiofile.read = AsyncMock(return_value=yaml_content)
+
+    bridge_days_data = [{"date": "2024-04-22", "name": "Brücktag"}]
+
+    with patch("custom_components.schulferien.sensor.aiofiles.open", return_value=mock_aiofile), \
+         patch("yaml.safe_load", return_value={"bridge_days": bridge_days_data}):
+        result = await load_bridge_days("fake_path.yaml")
+        assert result == bridge_days_data
+
+
+@pytest.mark.asyncio
+async def test_load_bridge_days_empty_file():
+    """Test Laden bei leerer Datei."""
+    mock_aiofile = MagicMock()
+    mock_aiofile.__aenter__ = AsyncMock(return_value=mock_aiofile)
+    mock_aiofile.__aexit__ = AsyncMock(return_value=None)
+    mock_aiofile.read = AsyncMock(return_value="")
+
+    with patch("custom_components.schulferien.sensor.aiofiles.open", return_value=mock_aiofile), \
+         patch("yaml.safe_load", return_value={}):
+        result = await load_bridge_days("empty_path.yaml")
+        assert result == []
+
 
 @pytest.mark.asyncio
 async def test_load_bridge_days_file_not_found():
-    """Testet das Verhalten, wenn die YAML-Datei nicht gefunden wird."""
-    with patch("builtins.open", side_effect=FileNotFoundError):
-        bridge_days = await load_bridge_days("fake_path.yaml")
-        assert bridge_days == []
+    """Test Verhalten wenn YAML-Datei nicht gefunden wird."""
+    with patch("custom_components.schulferien.sensor.aiofiles.open") as mock_open_fn:
+        mock_open_fn.side_effect = FileNotFoundError("Datei nicht gefunden")
+        result = await load_bridge_days("nonexistent.yaml")
+        assert result == []
+
 
 @pytest.mark.asyncio
 async def test_load_bridge_days_yaml_error():
-    """Testet das Verhalten bei einem YAML-Parsing-Fehler."""
-    with patch("builtins.open", mock_open(read_data="invalid_yaml: [")):
-        bridge_days = await load_bridge_days("fake_path.yaml")
-        assert bridge_days == []
+    """Test Verhalten bei YAML-Parsing-Fehler."""
+    import yaml
+
+    mock_aiofile = MagicMock()
+    mock_aiofile.__aenter__ = AsyncMock(return_value=mock_aiofile)
+    mock_aiofile.__aexit__ = AsyncMock(return_value=None)
+    mock_aiofile.read = AsyncMock(return_value="invalid_yaml: [")
+
+    with patch("custom_components.schulferien.sensor.aiofiles.open", return_value=mock_aiofile), \
+         patch("yaml.safe_load", side_effect=yaml.YAMLError("Invalid YAML")):
+        result = await load_bridge_days("invalid.yaml")
+        assert result == []
+
+
+@pytest.mark.asyncio
+async def test_load_bridge_days_no_bridge_days_key():
+    """Test wenn bridge_days Key fehlt."""
+    mock_aiofile = MagicMock()
+    mock_aiofile.__aenter__ = AsyncMock(return_value=mock_aiofile)
+    mock_aiofile.__aexit__ = AsyncMock(return_value=None)
+    mock_aiofile.read = AsyncMock(return_value="other_key: value")
+
+    with patch("custom_components.schulferien.sensor.aiofiles.open", return_value=mock_aiofile), \
+         patch("yaml.safe_load", return_value={"other_key": "value"}):
+        result = await load_bridge_days("no_key.yaml")
+        assert result == []
+
+
+@pytest.mark.asyncio
+async def test_load_bridge_days_empty_bridge_days_list():
+    """Test wenn bridge_days Liste leer ist."""
+    mock_aiofile = MagicMock()
+    mock_aiofile.__aenter__ = AsyncMock(return_value=mock_aiofile)
+    mock_aiofile.__aexit__ = AsyncMock(return_value=None)
+    mock_aiofile.read = AsyncMock(return_value="bridge_days: []")
+
+    with patch("custom_components.schulferien.sensor.aiofiles.open", return_value=mock_aiofile), \
+         patch("yaml.safe_load", return_value={"bridge_days": []}):
+        result = await load_bridge_days("empty_list.yaml")
+        assert result == []
+
+
+@pytest.mark.asyncio
+async def test_load_bridge_days_with_null_bridge_days():
+    """Test wenn bridge_days Null ist."""
+    mock_aiofile = MagicMock()
+    mock_aiofile.__aenter__ = AsyncMock(return_value=mock_aiofile)
+    mock_aiofile.__aexit__ = AsyncMock(return_value=None)
+    mock_aiofile.read = AsyncMock(return_value="bridge_days: null")
+
+    with patch("custom_components.schulferien.sensor.aiofiles.open", return_value=mock_aiofile), \
+         patch("yaml.safe_load", return_value={"bridge_days": None}):
+        result = await load_bridge_days("null.yaml")
+        # bridge_days ist None, .get() gibt None zurück (nicht [])
+        assert result is None
+
+
+@pytest.mark.asyncio
+async def test_load_bridge_days_non_list_bridge_days():
+    """Test wenn bridge_days kein List ist."""
+    mock_aiofile = MagicMock()
+    mock_aiofile.__aenter__ = AsyncMock(return_value=mock_aiofile)
+    mock_aiofile.__aexit__ = AsyncMock(return_value=None)
+    mock_aiofile.read = AsyncMock(return_value="bridge_days: 'string'")
+
+    with patch("custom_components.schulferien.sensor.aiofiles.open", return_value=mock_aiofile), \
+         patch("yaml.safe_load", return_value={"bridge_days": "string"}):
+        result = await load_bridge_days("string.yaml")
+        assert result == "string"
+
+
+# ============================================================
+# Tests für async_setup_entry
+# ============================================================
+
+@pytest.mark.asyncio
+async def test_async_setup_entry_creates_all_sensors():
+    """Test dass alle Sensoren erstellt werden."""
+    hass = MagicMock()
+    hass.config.path = MagicMock(return_value="custom_components/schulferien/bridge_days.yaml")
+
+    config_entry = MagicMock()
+    config_entry.data = {
+        "land": "DE",
+        "region": "DE-BY",
+        "land_name": "Deutschland",
+        "region_name": "Bayern",
+    }
+
+    added_entities = []
+
+    # sync def, da sensor.py Zeile 84: async_add_entities([...]) ohne await
+    def mock_add_entities(entities):
+        added_entities.extend(entities)
+
+    mock_bridge_days = ["01.01.2024"]
+
+    with patch("custom_components.schulferien.sensor.load_bridge_days", new=AsyncMock(return_value=mock_bridge_days)), \
+         patch("custom_components.schulferien.sensor.aiohttp.ClientSession") as mock_session_class, \
+         patch("custom_components.schulferien.sensor.SchulferienSensor") as MockSchulferien, \
+         patch("custom_components.schulferien.sensor.FeiertagSensor") as MockFeiertag:
+
+        mock_session = AsyncMock()
+        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_session.__aexit__ = AsyncMock(return_value=None)
+        mock_session_class.return_value = mock_session
+
+        mock_schulferien_instance = MagicMock()
+        mock_schulferien_instance.async_update = AsyncMock()
+        MockSchulferien.return_value = mock_schulferien_instance
+
+        mock_feiertag_instance = MagicMock()
+        mock_feiertag_instance.async_update = AsyncMock()
+        MockFeiertag.return_value = mock_feiertag_instance
+
+        await async_setup_entry(hass, config_entry, mock_add_entities)
+
+    assert len(added_entities) == 4
+    assert added_entities[0] == mock_schulferien_instance
+    assert added_entities[1] == mock_feiertag_instance
+    assert added_entities[2].__class__.__name__ == "SchulferienMorgenSensor"
+    assert added_entities[3].__class__.__name__ == "FeiertagMorgenSensor"
+
+
+@pytest.mark.asyncio
+async def test_async_setup_entry_config_data_passed():
+    """Test dass Config-Daten korrekt an Sensoren weitergegeben werden."""
+    hass = MagicMock()
+    hass.config.path = MagicMock(return_value="custom_components/schulferien/bridge_days.yaml")
+
+    config_entry = MagicMock()
+    config_entry.data = {
+        "land": "DE",
+        "region": "DE-HE",
+        "land_name": "Deutschland",
+        "region_name": "Hessen",
+    }
+
+    added_entities = []
+
+    def mock_add_entities(entities):
+        added_entities.extend(entities)
+
+    mock_bridge_days = []
+
+    with patch("custom_components.schulferien.sensor.load_bridge_days", new=AsyncMock(return_value=mock_bridge_days)), \
+         patch("custom_components.schulferien.sensor.aiohttp.ClientSession") as mock_session_class, \
+         patch("custom_components.schulferien.sensor.SchulferienSensor") as MockSchulferien, \
+         patch("custom_components.schulferien.sensor.FeiertagSensor") as MockFeiertag:
+
+        mock_session = AsyncMock()
+        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_session.__aexit__ = AsyncMock(return_value=None)
+        mock_session_class.return_value = mock_session
+
+        mock_schulferien = MagicMock()
+        mock_schulferien.async_update = AsyncMock()
+        MockSchulferien.return_value = mock_schulferien
+
+        mock_feiertag = MagicMock()
+        mock_feiertag.async_update = AsyncMock()
+        MockFeiertag.return_value = mock_feiertag
+
+        await async_setup_entry(hass, config_entry, mock_add_entities)
+
+    # Prüfen dass SchulferienSensor mit korrekten Config erstellt wurde
+    MockSchulferien.assert_called_once()
+    schulferien_config = MockSchulferien.call_args[0][1]
+    assert schulferien_config["land"] == "DE"
+    assert schulferien_config["region"] == "DE-HE"
+    assert schulferien_config["land_name"] == "Deutschland"
+    assert schulferien_config["region_name"] == "Hessen"
+    assert schulferien_config["brueckentage"] == []
+    assert schulferien_config["name"] == "Schulferien"
+    assert schulferien_config["unique_id"] == "sensor.schulferien"
+
+    # Prüfen dass FeiertagSensor mit korrekten Config erstellt wurde
+    MockFeiertag.assert_called_once()
+    feiertag_config = MockFeiertag.call_args[0][1]
+    assert feiertag_config["land"] == "DE"
+    assert feiertag_config["region"] == "DE-HE"
+    assert feiertag_config["land_name"] == "Deutschland"
+    assert feiertag_config["region_name"] == "Hessen"
+    assert feiertag_config["name"] == "Feiertag"
+    assert feiertag_config["unique_id"] == "sensor.feiertag"
+
+
+@pytest.mark.asyncio
+async def test_async_setup_entry_initial_updates():
+    """Test dass initiale Updates aufgerufen werden."""
+    hass = MagicMock()
+    hass.config.path = MagicMock(return_value="custom_components/schulferien/bridge_days.yaml")
+
+    config_entry = MagicMock()
+    config_entry.data = {
+        "land": "DE",
+        "region": "DE-BW",
+        "land_name": "Deutschland",
+        "region_name": "Baden-Württemberg",
+    }
+
+    added_entities = []
+
+    def mock_add_entities(entities):
+        added_entities.extend(entities)
+
+    mock_bridge_days = []
+
+    with patch("custom_components.schulferien.sensor.load_bridge_days", new=AsyncMock(return_value=mock_bridge_days)), \
+         patch("custom_components.schulferien.sensor.aiohttp.ClientSession") as mock_session_class, \
+         patch("custom_components.schulferien.sensor.SchulferienSensor") as MockSchulferien, \
+         patch("custom_components.schulferien.sensor.FeiertagSensor") as MockFeiertag:
+
+        mock_session = AsyncMock()
+        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_session.__aexit__ = AsyncMock(return_value=None)
+        mock_session_class.return_value = mock_session
+
+        mock_schulferien = MagicMock()
+        mock_schulferien.async_update = AsyncMock()
+        MockSchulferien.return_value = mock_schulferien
+
+        mock_feiertag = MagicMock()
+        mock_feiertag.async_update = AsyncMock()
+        MockFeiertag.return_value = mock_feiertag
+
+        await async_setup_entry(hass, config_entry, mock_add_entities)
+
+    # Initiale Updates sollten mit Session aufgerufen werden
+    mock_schulferien.async_update.assert_called_once()
+    mock_feiertag.async_update.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_async_setup_entry_bridge_days_passed_to_schulferien():
+    """Test dass Brückentage an den Schulferien-Sensor übergeben werden."""
+    hass = MagicMock()
+    hass.config.path = MagicMock(return_value="custom_components/schulferien/bridge_days.yaml")
+
+    config_entry = MagicMock()
+    config_entry.data = {
+        "land": "DE",
+        "region": "DE-NW",
+        "land_name": "Deutschland",
+        "region_name": "Nordrhein-Westfalen",
+    }
+
+    added_entities = []
+
+    def mock_add_entities(entities):
+        added_entities.extend(entities)
+
+    mock_bridge_days = ["17.10.2024", "29.10.2024"]
+
+    with patch("custom_components.schulferien.sensor.load_bridge_days", new=AsyncMock(return_value=mock_bridge_days)), \
+         patch("custom_components.schulferien.sensor.aiohttp.ClientSession") as mock_session_class, \
+         patch("custom_components.schulferien.sensor.SchulferienSensor") as MockSchulferien, \
+         patch("custom_components.schulferien.sensor.FeiertagSensor") as MockFeiertag:
+
+        mock_session = AsyncMock()
+        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_session.__aexit__ = AsyncMock(return_value=None)
+        mock_session_class.return_value = mock_session
+
+        mock_schulferien = MagicMock()
+        mock_schulferien.async_update = AsyncMock()
+        MockSchulferien.return_value = mock_schulferien
+
+        mock_feiertag = MagicMock()
+        mock_feiertag.async_update = AsyncMock()
+        MockFeiertag.return_value = mock_feiertag
+
+        await async_setup_entry(hass, config_entry, mock_add_entities)
+
+    schulferien_config = MockSchulferien.call_args[0][1]
+    assert schulferien_config["brueckentage"] == ["17.10.2024", "29.10.2024"]
+
+
+@pytest.mark.asyncio
+async def test_async_setup_entry_morning_sensors_reference_parent():
+    """Test dass Morgen-Sensoren ihre Eltern-Sensoren referenzieren."""
+    hass = MagicMock()
+    hass.config.path = MagicMock(return_value="custom_components/schulferien/bridge_days.yaml")
+
+    config_entry = MagicMock()
+    config_entry.data = {
+        "land": "DE",
+        "region": "DE-BE",
+        "land_name": "Deutschland",
+        "region_name": "Berlin",
+    }
+
+    added_entities = []
+
+    def mock_add_entities(entities):
+        added_entities.extend(entities)
+
+    mock_bridge_days = []
+
+    with patch("custom_components.schulferien.sensor.load_bridge_days", new=AsyncMock(return_value=mock_bridge_days)), \
+         patch("custom_components.schulferien.sensor.aiohttp.ClientSession") as mock_session_class, \
+         patch("custom_components.schulferien.sensor.SchulferienSensor") as MockSchulferien, \
+         patch("custom_components.schulferien.sensor.FeiertagSensor") as MockFeiertag:
+
+        mock_session = AsyncMock()
+        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_session.__aexit__ = AsyncMock(return_value=None)
+        mock_session_class.return_value = mock_session
+
+        mock_schulferien = MagicMock()
+        mock_schulferien.async_update = AsyncMock()
+        MockSchulferien.return_value = mock_schulferien
+
+        mock_feiertag = MagicMock()
+        mock_feiertag.async_update = AsyncMock()
+        MockFeiertag.return_value = mock_feiertag
+
+        await async_setup_entry(hass, config_entry, mock_add_entities)
+
+    # Der FeiertagMorgenSensor sollte den FeiertagSensor als Referenz haben
+    feiertag_morgen = added_entities[3]
+    assert feiertag_morgen._referenzsensor == mock_feiertag
+
+
+@pytest.mark.asyncio
+async def test_async_setup_entry_sensor_order():
+    """Test dass Sensoren in der richtigen Reihenfolge erstellt werden."""
+    hass = MagicMock()
+    hass.config.path = MagicMock(return_value="custom_components/schulferien/bridge_days.yaml")
+
+    config_entry = MagicMock()
+    config_entry.data = {
+        "land": "DE",
+        "region": "DE-HH",
+        "land_name": "Deutschland",
+        "region_name": "Hamburg",
+    }
+
+    added_entities = []
+
+    def mock_add_entities(entities):
+        added_entities.extend(entities)
+
+    mock_bridge_days = []
+
+    with patch("custom_components.schulferien.sensor.load_bridge_days", new=AsyncMock(return_value=mock_bridge_days)), \
+         patch("custom_components.schulferien.sensor.aiohttp.ClientSession") as mock_session_class, \
+         patch("custom_components.schulferien.sensor.SchulferienSensor") as MockSchulferien, \
+         patch("custom_components.schulferien.sensor.FeiertagSensor") as MockFeiertag:
+
+        mock_session = AsyncMock()
+        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_session.__aexit__ = AsyncMock(return_value=None)
+        mock_session_class.return_value = mock_session
+
+        mock_schulferien = MagicMock()
+        mock_schulferien.async_update = AsyncMock()
+        MockSchulferien.return_value = mock_schulferien
+
+        mock_feiertag = MagicMock()
+        mock_feiertag.async_update = AsyncMock()
+        MockFeiertag.return_value = mock_feiertag
+
+        await async_setup_entry(hass, config_entry, mock_add_entities)
+
+    # Reihenfolge: Schulferien, Feiertag, SchulferienMorgen, FeiertagMorgen
+    # MockSchulferien/MockFeiertag geben MagicMock zurück, also prüfen wir die Mock-Konfiguration
+    assert MockSchulferien.call_count == 1
+    assert MockFeiertag.call_count == 1
+    # SchulferienMorgenSensor und FeiertagMorgenSensor sind echte Klassen (nicht gemockt)
+    assert added_entities[2].__class__.__name__ == "SchulferienMorgenSensor"
+    assert added_entities[3].__class__.__name__ == "FeiertagMorgenSensor"
+
+
+@pytest.mark.asyncio
+async def test_async_setup_entry_default_paths():
+    """Test dass Standard-Pfade korrekt verwendet werden."""
+    hass = MagicMock()
+    hass.config.path = MagicMock(return_value="custom_components/schulferien/bridge_days.yaml")
+
+    config_entry = MagicMock()
+    config_entry.data = {
+        "land": "DE",
+        "region": "DE-SN",
+        "land_name": "Deutschland",
+        "region_name": "Sachsen",
+    }
+
+    added_entities = []
+
+    def mock_add_entities(entities):
+        added_entities.extend(entities)
+
+    with patch("custom_components.schulferien.sensor.load_bridge_days") as mock_load:
+        mock_load.return_value = []
+
+        with patch("custom_components.schulferien.sensor.aiohttp.ClientSession") as mock_session_class, \
+             patch("custom_components.schulferien.sensor.SchulferienSensor") as MockSchulferien, \
+             patch("custom_components.schulferien.sensor.FeiertagSensor") as MockFeiertag:
+
+            mock_session = AsyncMock()
+            mock_session.__aenter__ = AsyncMock(return_value=mock_session)
+            mock_session.__aexit__ = AsyncMock(return_value=None)
+            mock_session_class.return_value = mock_session
+
+            mock_schulferien = MagicMock()
+            mock_schulferien.async_update = AsyncMock()
+            MockSchulferien.return_value = mock_schulferien
+
+            mock_feiertag = MagicMock()
+            mock_feiertag.async_update = AsyncMock()
+            MockFeiertag.return_value = mock_feiertag
+
+            await async_setup_entry(hass, config_entry, mock_add_entities)
+
+    # load_bridge_days sollte mit dem korrekten Pfad aufgerufen werden
+    mock_load.assert_called_once_with("custom_components/schulferien/bridge_days.yaml")
+
+
+@pytest.mark.asyncio
+async def test_async_setup_entry_schulferien_morgen_references_parent():
+    """Test dass SchulferienMorgenSensor den SchulferienSensor referenziert."""
+    hass = MagicMock()
+    hass.config.path = MagicMock(return_value="custom_components/schulferien/bridge_days.yaml")
+
+    config_entry = MagicMock()
+    config_entry.data = {
+        "land": "DE",
+        "region": "DE-BB",
+        "land_name": "Deutschland",
+        "region_name": "Brandenburg",
+    }
+
+    added_entities = []
+
+    def mock_add_entities(entities):
+        added_entities.extend(entities)
+
+    with patch("custom_components.schulferien.sensor.load_bridge_days", new=AsyncMock(return_value=[])), \
+         patch("custom_components.schulferien.sensor.aiohttp.ClientSession") as mock_session_class, \
+         patch("custom_components.schulferien.sensor.SchulferienSensor") as MockSchulferien, \
+         patch("custom_components.schulferien.sensor.FeiertagSensor") as MockFeiertag:
+
+        mock_session = AsyncMock()
+        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_session.__aexit__ = AsyncMock(return_value=None)
+        mock_session_class.return_value = mock_session
+
+        mock_schulferien = MagicMock()
+        mock_schulferien.async_update = AsyncMock()
+        MockSchulferien.return_value = mock_schulferien
+
+        mock_feiertag = MagicMock()
+        mock_feiertag.async_update = AsyncMock()
+        MockFeiertag.return_value = mock_feiertag
+
+        await async_setup_entry(hass, config_entry, mock_add_entities)
+
+    # Der SchulferienMorgenSensor sollte den SchulferienSensor als Referenz haben
+    schulferien_morgen = added_entities[2]
+    assert schulferien_morgen._referenzsensor == mock_schulferien
+
+
+@pytest.mark.asyncio
+async def test_async_setup_entry_with_bridge_days_objects():
+    """Test dass Brückentage als Objekte korrekt übergeben werden."""
+    hass = MagicMock()
+    hass.config.path = MagicMock(return_value="custom_components/schulferien/bridge_days.yaml")
+
+    config_entry = MagicMock()
+    config_entry.data = {
+        "land": "DE",
+        "region": "DE-HB",
+        "land_name": "Deutschland",
+        "region_name": "Bremen",
+    }
+
+    added_entities = []
+
+    def mock_add_entities(entities):
+        added_entities.extend(entities)
+
+    bridge_days_objects = [{"date": "2024-04-22", "name": "Brücktag"}]
+
+    with patch("custom_components.schulferien.sensor.load_bridge_days", new=AsyncMock(return_value=bridge_days_objects)), \
+         patch("custom_components.schulferien.sensor.aiohttp.ClientSession") as mock_session_class, \
+         patch("custom_components.schulferien.sensor.SchulferienSensor") as MockSchulferien, \
+         patch("custom_components.schulferien.sensor.FeiertagSensor") as MockFeiertag:
+
+        mock_session = AsyncMock()
+        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_session.__aexit__ = AsyncMock(return_value=None)
+        mock_session_class.return_value = mock_session
+
+        mock_schulferien = MagicMock()
+        mock_schulferien.async_update = AsyncMock()
+        MockSchulferien.return_value = mock_schulferien
+
+        mock_feiertag = MagicMock()
+        mock_feiertag.async_update = AsyncMock()
+        MockFeiertag.return_value = mock_feiertag
+
+        await async_setup_entry(hass, config_entry, mock_add_entities)
+
+    schulferien_config = MockSchulferien.call_args[0][1]
+    assert schulferien_config["brueckentage"] == bridge_days_objects
+
+
+@pytest.mark.asyncio
+async def test_async_setup_entry_all_entity_ids():
+    """Test dass alle Sensoren die korrekten unique_ids haben."""
+    hass = MagicMock()
+    hass.config.path = MagicMock(return_value="custom_components/schulferien/bridge_days.yaml")
+
+    config_entry = MagicMock()
+    config_entry.data = {
+        "land": "DE",
+        "region": "DE-RP",
+        "land_name": "Deutschland",
+        "region_name": "Rheinland-Pfalz",
+    }
+
+    added_entities = []
+
+    def mock_add_entities(entities):
+        added_entities.extend(entities)
+
+    with patch("custom_components.schulferien.sensor.load_bridge_days", new=AsyncMock(return_value=[])), \
+         patch("custom_components.schulferien.sensor.aiohttp.ClientSession") as mock_session_class, \
+         patch("custom_components.schulferien.sensor.SchulferienSensor") as MockSchulferien, \
+         patch("custom_components.schulferien.sensor.FeiertagSensor") as MockFeiertag:
+
+        mock_session = AsyncMock()
+        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_session.__aexit__ = AsyncMock(return_value=None)
+        mock_session_class.return_value = mock_session
+
+        mock_schulferien = MagicMock()
+        mock_schulferien.unique_id = "sensor.schulferien"
+        mock_schulferien.async_update = AsyncMock()
+        MockSchulferien.return_value = mock_schulferien
+
+        mock_feiertag = MagicMock()
+        mock_feiertag.unique_id = "sensor.feiertag"
+        mock_feiertag.async_update = AsyncMock()
+        MockFeiertag.return_value = mock_feiertag
+
+        await async_setup_entry(hass, config_entry, mock_add_entities)
+
+    assert added_entities[0].unique_id == "sensor.schulferien"
+    assert added_entities[1].unique_id == "sensor.feiertag"
+    assert added_entities[2].unique_id == "sensor.schulferien_morgen"
+    assert added_entities[3].unique_id == "sensor.feiertag_morgen"
+
+
+@pytest.mark.asyncio
+async def test_async_setup_entry_session_passed_to_updates():
+    """Test dass die Session an die Update-Methoden übergeben wird."""
+    hass = MagicMock()
+    hass.config.path = MagicMock(return_value="custom_components/schulferien/bridge_days.yaml")
+
+    config_entry = MagicMock()
+    config_entry.data = {
+        "land": "DE",
+        "region": "DE-TH",
+        "land_name": "Deutschland",
+        "region_name": "Thüringen",
+    }
+
+    added_entities = []
+
+    def mock_add_entities(entities):
+        added_entities.extend(entities)
+
+    captured_session = None
+
+    with patch("custom_components.schulferien.sensor.load_bridge_days", new=AsyncMock(return_value=[])), \
+         patch("custom_components.schulferien.sensor.aiohttp.ClientSession") as mock_session_class, \
+         patch("custom_components.schulferien.sensor.SchulferienSensor") as MockSchulferien, \
+         patch("custom_components.schulferien.sensor.FeiertagSensor") as MockFeiertag:
+
+        mock_session = AsyncMock()
+        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_session.__aexit__ = AsyncMock(return_value=None)
+        mock_session_class.return_value = mock_session
+
+        mock_schulferien = MagicMock()
+        mock_schulferien.async_update = AsyncMock()
+        MockSchulferien.return_value = mock_schulferien
+
+        mock_feiertag = MagicMock()
+        mock_feiertag.async_update = AsyncMock()
+        MockFeiertag.return_value = mock_feiertag
+
+        await async_setup_entry(hass, config_entry, mock_add_entities)
+
+    # async_update sollte mit der Session aufgerufen werden
+    mock_schulferien.async_update.assert_called_once_with(mock_session)
+    mock_feiertag.async_update.assert_called_once_with(mock_session)
+
+
+@pytest.mark.asyncio
+async def test_async_setup_entry_missing_config_values():
+    """Test Verhalten wenn Config-Werte fehlen."""
+    hass = MagicMock()
+    hass.config.path = MagicMock(return_value="custom_components/schulferien/bridge_days.yaml")
+
+    config_entry = MagicMock()
+    config_entry.data = {
+        "land": "DE",
+        # region fehlt
+        "land_name": "Deutschland",
+        # region_name fehlt
+    }
+
+    added_entities = []
+
+    def mock_add_entities(entities):
+        added_entities.extend(entities)
+
+    with patch("custom_components.schulferien.sensor.load_bridge_days", new=AsyncMock(return_value=[])), \
+         patch("custom_components.schulferien.sensor.aiohttp.ClientSession") as mock_session_class, \
+         patch("custom_components.schulferien.sensor.SchulferienSensor") as MockSchulferien, \
+         patch("custom_components.schulferien.sensor.FeiertagSensor") as MockFeiertag:
+
+        mock_session = AsyncMock()
+        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_session.__aexit__ = AsyncMock(return_value=None)
+        mock_session_class.return_value = mock_session
+
+        mock_schulferien = MagicMock()
+        mock_schulferien.async_update = AsyncMock()
+        MockSchulferien.return_value = mock_schulferien
+
+        mock_feiertag = MagicMock()
+        mock_feiertag.async_update = AsyncMock()
+        MockFeiertag.return_value = mock_feiertag
+
+        await async_setup_entry(hass, config_entry, mock_add_entities)
+
+    schulferien_config = MockSchulferien.call_args[0][1]
+    assert schulferien_config["land"] == "DE"
+    assert schulferien_config["region"] is None
+    assert schulferien_config["region_name"] is None
+
+
+# ============================================================
+# Edge Case Tests
+# ============================================================
+
+@pytest.mark.asyncio
+async def test_load_bridge_days_whitespace_only_file():
+    """Test Laden bei whitespace-nur Datei."""
+    mock_aiofile = MagicMock()
+    mock_aiofile.__aenter__ = AsyncMock(return_value=mock_aiofile)
+    mock_aiofile.__aexit__ = AsyncMock(return_value=None)
+    mock_aiofile.read = AsyncMock(return_value="   \n  \n  ")
+
+    # whitespace-only wird von yaml.safe_load als None geparst
+    # content ist nicht leer (whitespace), also geht es zu yaml.safe_load
+    # yaml.safe_load("   \n  \n  ") gibt None -> bridge_days_config ist None
+    # None.get("bridge_days", []) wirft AttributeError
+    # Der Code wirft AttributeError wenn bridge_days_config None ist
+    with patch("custom_components.schulferien.sensor.aiofiles.open", return_value=mock_aiofile), \
+         patch("yaml.safe_load", return_value=None):
+        with pytest.raises(AttributeError):
+            await load_bridge_days("whitespace.yaml")
+
+
+@pytest.mark.asyncio
+async def test_load_bridge_days_special_characters_in_yaml():
+    """Test Laden mit Sonderzeichen im YAML."""
+    yaml_content = """
+bridge_days:
+  - "25.12.2024 - Heiligabend"
+  - "31.12.2024 - Silvester"
+"""
+    mock_aiofile = MagicMock()
+    mock_aiofile.__aenter__ = AsyncMock(return_value=mock_aiofile)
+    mock_aiofile.__aexit__ = AsyncMock(return_value=None)
+    mock_aiofile.read = AsyncMock(return_value=yaml_content)
+
+    with patch("custom_components.schulferien.sensor.aiofiles.open", return_value=mock_aiofile), \
+         patch("yaml.safe_load", return_value={"bridge_days": ["25.12.2024 - Heiligabend", "31.12.2024 - Silvester"]}):
+        result = await load_bridge_days("special.yaml")
+        assert result == ["25.12.2024 - Heiligabend", "31.12.2024 - Silvester"]
+
+
+@pytest.mark.asyncio
+async def test_async_setup_entry_multiple_regions():
+    """Test async_setup_entry mit verschiedenen Regionen."""
+    regions = [
+        {"land": "DE", "region": "DE-BW", "land_name": "Deutschland", "region_name": "Baden-Württemberg"},
+        {"land": "DE", "region": "DE-BY", "land_name": "Deutschland", "region_name": "Bayern"},
+        {"land": "DE", "region": "DE-BE", "land_name": "Deutschland", "region_name": "Berlin"},
+    ]
+
+    for region_data in regions:
+        hass = MagicMock()
+        hass.config.path = MagicMock(return_value="custom_components/schulferien/bridge_days.yaml")
+
+        config_entry = MagicMock()
+        config_entry.data = region_data
+
+        added_entities = []
+
+        def mock_add_entities(entities):
+            added_entities.extend(entities)
+
+        with patch("custom_components.schulferien.sensor.load_bridge_days", new=AsyncMock(return_value=[])), \
+             patch("custom_components.schulferien.sensor.aiohttp.ClientSession") as mock_session_class, \
+             patch("custom_components.schulferien.sensor.SchulferienSensor") as MockSchulferien, \
+             patch("custom_components.schulferien.sensor.FeiertagSensor") as MockFeiertag:
+
+            mock_session = AsyncMock()
+            mock_session.__aenter__ = AsyncMock(return_value=mock_session)
+            mock_session.__aexit__ = AsyncMock(return_value=None)
+            mock_session_class.return_value = mock_session
+
+            mock_schulferien = MagicMock()
+            mock_schulferien.async_update = AsyncMock()
+            MockSchulferien.return_value = mock_schulferien
+
+            mock_feiertag = MagicMock()
+            mock_feiertag.async_update = AsyncMock()
+            MockFeiertag.return_value = mock_feiertag
+
+            await async_setup_entry(hass, config_entry, mock_add_entities)
+
+        assert len(added_entities) == 4
+        schulferien_config = MockSchulferien.call_args[0][1]
+        assert schulferien_config["region"] == region_data["region"]

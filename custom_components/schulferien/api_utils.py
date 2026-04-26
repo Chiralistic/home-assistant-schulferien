@@ -1,5 +1,6 @@
 """API-Hilfsfunktionen für die Schulferien-Integration."""
 
+import asyncio
 import logging
 from datetime import datetime
 import aiohttp
@@ -47,7 +48,7 @@ async def fetch_data(
         )
     except aiohttp.ClientConnectionError as error:
         _LOGGER.error("Verbindungsfehler zur API: %s", error)
-    except aiohttp.ClientTimeout as error:
+    except asyncio.TimeoutError as error:
         _LOGGER.error("API-Anfrage hat zu lange gedauert: %s", error)
     except aiohttp.ClientError as error:
         _LOGGER.error("Allgemeiner Client-Fehler beim API-Aufruf: %s", error)

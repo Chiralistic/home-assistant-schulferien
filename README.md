@@ -2,6 +2,8 @@
 
 Home Assistant-Integration, um Schulferien mithilfe der OpenHolidays-API als Entität für Automationen verfügbar zu machen. Zur Zeit noch auf eigene Gefahr verwenden, da ich hier auch viel über Home Assistant und Integrationen lerne. Die Releases sind getestet und funktionieren.
 
+Disclaimer: Die Tests für die Integration, die nicht mit in Home Assistant installiert werden, sind vollständig von KI gecoded worden.
+
 ## Installation
 
 ### Manuell über HACS

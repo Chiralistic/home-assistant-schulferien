@@ -76,7 +76,7 @@ class SchulferienFeiertagBinarySensor(BinarySensorEntity):
             self._entity_ids["feiertag"]
         )
 
-        self._state = (
+        self._state = bool(
             (schulferien_state and schulferien_state.state == "ferientag")
             or (feiertag_state and feiertag_state.state == "feiertag")
         )
@@ -113,7 +113,7 @@ class SchulferienFeiertagMorgenBinarySensor(BinarySensorEntity):
             self._entity_ids["feiertag"]
         )
 
-        self._state = (
+        self._state = bool(
             (schulferien_state and schulferien_state.state == "ferientag")
             or (feiertag_state and feiertag_state.state == "feiertag")
         )
@@ -147,7 +147,7 @@ class SchulferienOnlyBinarySensor(BinarySensorEntity):
             self._entity_ids["schulferien"]
         )
 
-        self._state = (
+        self._state = bool(
             schulferien_state and schulferien_state.state == "ferientag"
         )
 
@@ -180,7 +180,7 @@ class SchulferienOnlyMorgenBinarySensor(BinarySensorEntity):
             self._entity_ids["schulferien"]
         )
 
-        self._state = (
+        self._state = bool(
             schulferien_state and schulferien_state.state == "ferientag"
         )
 
@@ -213,7 +213,7 @@ class FeiertagOnlyBinarySensor(BinarySensorEntity):
             self._entity_ids["feiertag"]
         )
 
-        self._state = (
+        self._state = bool(
             feiertag_state and feiertag_state.state == "feiertag"
         )
 
@@ -246,7 +246,7 @@ class FeiertagOnlyMorgenBinarySensor(BinarySensorEntity):
             self._entity_ids["feiertag"]
         )
 
-        self._state = (
+        self._state = bool(
             feiertag_state and feiertag_state.state == "feiertag"
         )
 

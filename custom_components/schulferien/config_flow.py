@@ -116,11 +116,11 @@ class SchulferienFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         regions = await self._fetch_supported_regions(self.selected_country)
 
         if not regions:
-            # Wenn keine Regionen verfügbar sind, setze eine Standardregion (DE-NS)
+            # Wenn keine Regionen verfügbar sind, verwende das Land als Fallback-Region
             _LOGGER.warning(
-                "Keine Regionen für Land %s verfügbar, setze Standardregion DE-NS.", self.selected_country
+                "Keine Regionen für Land %s verfügbar, verwende Land-Code als Region.", self.selected_country
             )
-            regions = {"DE-NS": "Keine Regionen"}
+            regions = {self.selected_country: f"{self.supported_countries.get(self.selected_country, self.selected_country)} (Ganzes Land)"}
 
         if user_input is not None:
             # Benutzer hat eine Region ausgewählt
@@ -140,26 +140,38 @@ class SchulferienFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
     async def async_step_finish(self):
         """Prüft die Konfiguration und erstellt den Eintrag."""
         # Sicherstellen, dass Land und Region gesetzt sind
-        if not hasattr(self, "selected_country") or not hasattr(self, "selected_region"):
+        if not hasattr(self, "selected_country") or self.selected_country is None or \
+           not hasattr(self, "selected_region") or self.selected_region is None:
             return self.async_abort(reason="incomplete_configuration")
 
         # Daten für den Eintrag vorbereiten
+        land_name = self.supported_countries.get(self.selected_country)
+        if land_name is None:
+            _LOGGER.warning("Ländername für '%s' nicht gefunden, verwende Code.", self.selected_country)
+            land_name = self.selected_country
+
+        region_name = self.supported_regions.get(self.selected_country, {}).get(self.selected_region)
+        if region_name is None:
+            _LOGGER.warning("Regionsname für '%s' in Land '%s' nicht gefunden, verwende Code.", self.selected_region, self.selected_country)
+            region_name = self.selected_region
+
         config_data = {
             "land": self.selected_country,
             "region": self.selected_region,
-            "land_name": self.supported_countries.get(
-                self.selected_country, self.selected_country
-            ),
-            "region_name": self.supported_regions.get(
-                self.selected_country, {}
-            ).get(self.selected_region, self.selected_region),
+            "land_name": land_name,
+            "region_name": region_name,
         }
 
         _LOGGER.debug("Erstelle Eintrag mit Konfigurationsdaten: %s", config_data)
 
+        if not config_data.get("land") or not config_data.get("region"):
+            _LOGGER.error("Konfigurationsdaten unvollständig: %s", config_data)
+            return self.async_abort(reason="incomplete_configuration")
+
         try:
+            entry_title = f"Schulferien - {config_data['land_name']} ({config_data['region_name']})"
             return self.async_create_entry(
-                title=f"Schulferien - {config_data['land_name']} ({config_data['region_name']})",
+                title=entry_title,
                 data=config_data,
             )
         except (vol.Invalid, KeyError) as e:

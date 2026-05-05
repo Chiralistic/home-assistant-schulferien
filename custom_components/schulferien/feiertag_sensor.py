@@ -5,6 +5,8 @@ from datetime import datetime, timedelta
 from homeassistant.helpers.event import async_track_time_change
 from homeassistant.components.sensor import SensorEntity, SensorEntityDescription
 import aiohttp
+import aiofiles
+import yaml
 from .api_utils import fetch_data, parse_daten, DEFAULT_TIMEOUT
 from .const import (
     API_URL_FEIERTAGE,
@@ -35,7 +37,16 @@ class FeiertagSensor(SensorEntity):
         """Initialisiert den Feiertag-Sensor mit Konfigurationsdaten."""
         self.entity_description = FEIERTAG_SENSOR
         self._name = config["name"]
-        self._unique_id = config.get("unique_id", "sensor.feiertag")
+        land_upper = config["land"].upper()
+        region_raw = config["region"]
+        # Strip country prefix from region to avoid duplication (e.g., DE-BY → BY)
+        if region_raw.startswith(land_upper + "-"):
+            region_id = region_raw[len(land_upper) + 1:]
+        else:
+            region_id = region_raw
+        region_slug = region_id.replace("-", "_")
+        self._unique_id = config.get("unique_id", f"feiertag_{land_upper}_{region_slug}")
+        self._entity_id = config.get("entity_id", f"sensor.feiertag_{land_upper.lower()}_{region_slug.lower()}")
         # Hier verwenden wir die über die Konfiguration erhaltenen Länder und Regionen
         self._location = {
             "land": config["land"],  # Wird aus dem ConfigFlow übernommen
@@ -103,6 +114,11 @@ class FeiertagSensor(SensorEntity):
     def unique_id(self):
         """Gibt die eindeutige ID des Sensors zurück."""
         return self._unique_id
+
+    @property
+    def entity_id(self):
+        """Gibt die Entity ID des Sensors zurück."""
+        return self._entity_id
 
     @property
     def native_value(self):
@@ -275,12 +291,20 @@ class FeiertagMorgenSensor(SensorEntity):
         self.entity_description = FEIERTAG_MORGEN_SENSOR
         self._referenzsensor = referenzsensor
         self._attr_name = "Feiertag Morgen"
-        self._attr_unique_id = "sensor.feiertag_morgen"
+        # Unique ID und Entity ID vom Referenzsensor ableiten
+        base_unique_id = referenzsensor.unique_id
+        base_entity_id = referenzsensor.entity_id
+        self._attr_unique_id = f"{base_unique_id}_morgen"
+        self._attr_entity_id = f"{base_entity_id}_morgen"
         self._attr_native_value = None
 
     @property
     def unique_id(self):
         return self._attr_unique_id
+
+    @property
+    def entity_id(self):
+        return self._attr_entity_id
 
     @property
     def name(self):
@@ -301,7 +325,7 @@ class FeiertagMorgenSensor(SensorEntity):
 async def load_bridge_days(bridge_days_path):
     """Lädt die Brückentage aus der bridge_days.yaml-Datei asynchron."""
     try:
-        async with aiofiles.open(bridge_days_path, "r", encoding="utf-8") as file:
+        async with aiofiles.open(str(bridge_days_path), "r", encoding="utf-8") as file:
             content = await file.read()
             if not content:
                 return []

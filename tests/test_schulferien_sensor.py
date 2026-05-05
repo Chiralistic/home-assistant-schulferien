@@ -21,8 +21,9 @@ from custom_components.schulferien.schulferien_sensor import (
 def mock_config():
     """Standard-Konfiguration für Schulferien-Sensoren."""
     return {
-        "name": "Schulferien Sensor",
-        "unique_id": "sensor.schulferien",
+        "name": "Schulferien - Deutschland (Bayern)",
+        "unique_id": "schulferien_DE_BY",
+        "entity_id": "sensor.schulferien_de_by",
         "land": "DE",
         "region": "DE-BY",
         "land_name": "Deutschland",
@@ -35,8 +36,9 @@ def mock_config():
 def mock_config_with_brueckentage():
     """Konfiguration mit Brückentagen."""
     return {
-        "name": "Schulferien Sensor",
-        "unique_id": "sensor.schulferien",
+        "name": "Schulferien - Deutschland (Bayern)",
+        "unique_id": "schulferien_DE_BY",
+        "entity_id": "sensor.schulferien_de_by",
         "land": "DE",
         "region": "DE-BY",
         "land_name": "Deutschland",
@@ -104,21 +106,22 @@ def test_sensor_default_unique_id(hass_mock):
         "region_name": "Bayern",
     }
     sensor = SchulferienSensor(hass_mock, config)
-    assert sensor.unique_id == "sensor.schulferien"
+    assert sensor.unique_id == "schulferien_DE_BY"
 
 
 def test_sensor_custom_unique_id(hass_mock):
     """Test dass ein benutzerdefinierter unique_id verwendet wird."""
     config = {
         "name": "Test Sensor",
-        "unique_id": "sensor.mein_schulferien",
+        "unique_id": "schulferien_DE_BW",
+        "entity_id": "sensor.schulferien_de_bw",
         "land": "DE",
         "region": "DE-BW",
         "land_name": "Deutschland",
         "region_name": "Baden-Württemberg",
     }
     sensor = SchulferienSensor(hass_mock, config)
-    assert sensor.unique_id == "sensor.mein_schulferien"
+    assert sensor.unique_id == "schulferien_DE_BW"
 
 
 def test_sensor_entity_description(mock_sensor):
@@ -143,7 +146,7 @@ def test_sensor_initialization_missing_unique_id(hass_mock):
         "region_name": "Baden-Württemberg",
     }
     sensor = SchulferienSensor(hass_mock, config)
-    assert sensor.unique_id == "sensor.schulferien"
+    assert sensor.unique_id == "schulferien_DE_BW"
 
 
 def test_sensor_initialization_missing_brueckentage(hass_mock):
@@ -960,13 +963,25 @@ def test_verarbeite_ferien_daten_missing_endDate(mock_sensor):
 
 def test_morgen_sensor_initialization(mock_sensor, morgen_sensor):
     """Test die Initialisierung des Morgen-Sensors."""
-    assert morgen_sensor.name == "Schulferien Morgen"
-    assert morgen_sensor.unique_id == "sensor.schulferien_morgen"
+    assert morgen_sensor.name == "Schulferien Morgen - Deutschland (Bayern)"
+    assert morgen_sensor.unique_id == "schulferien_DE_BY_morgen"
 
 
 def test_morgen_sensor_no_ferien_nearby(mock_sensor, morgen_sensor):
     """Test Morgen-Sensor wenn keine Ferien in der Nähe."""
-    mock_sensor._ferien_info["ferien_liste"] = [
+    config = {
+        "name": "Schulferien - Deutschland (Bayern)",
+        "unique_id": "schulferien_DE_BY",
+        "entity_id": "sensor.schulferien_de_by",
+        "land": "DE",
+        "region": "DE-BY",
+        "land_name": "Deutschland",
+        "region_name": "Bayern",
+        "brueckentage": [],
+    }
+    base = SchulferienSensor(hass_mock, config)
+    morgen_sensor = SchulferienMorgenSensor(base)
+    base._ferien_info["ferien_liste"] = [
         {
             "name": "Sommerferien",
             "start_datum": datetime(2024, 7, 25).date(),
@@ -979,7 +994,19 @@ def test_morgen_sensor_no_ferien_nearby(mock_sensor, morgen_sensor):
 def test_morgen_sensor_ferien_tomorrow(mock_sensor, morgen_sensor):
     """Test Morgen-Sensor wenn morgen Ferien beginnen."""
     morgen = datetime.now().date() + timedelta(days=1)
-    mock_sensor._ferien_info["ferien_liste"] = [
+    config = {
+        "name": "Schulferien - Deutschland (Bayern)",
+        "unique_id": "schulferien_DE_BY",
+        "entity_id": "sensor.schulferien_de_by",
+        "land": "DE",
+        "region": "DE-BY",
+        "land_name": "Deutschland",
+        "region_name": "Bayern",
+        "brueckentage": [],
+    }
+    base = SchulferienSensor(hass_mock, config)
+    morgen_sensor = SchulferienMorgenSensor(base)
+    base._ferien_info["ferien_liste"] = [
         {
             "name": "Pfingstferien",
             "start_datum": morgen,
@@ -993,7 +1020,19 @@ def test_morgen_sensor_ferien_spanning_tomorrow(mock_sensor, morgen_sensor):
     """Test Morgen-Sensor wenn Ferien morgen andauern."""
     heute = datetime.now().date()
     morgen = heute + timedelta(days=1)
-    mock_sensor._ferien_info["ferien_liste"] = [
+    config = {
+        "name": "Schulferien - Deutschland (Bayern)",
+        "unique_id": "schulferien_DE_BY",
+        "entity_id": "sensor.schulferien_de_by",
+        "land": "DE",
+        "region": "DE-BY",
+        "land_name": "Deutschland",
+        "region_name": "Bayern",
+        "brueckentage": [],
+    }
+    base = SchulferienSensor(hass_mock, config)
+    morgen_sensor = SchulferienMorgenSensor(base)
+    base._ferien_info["ferien_liste"] = [
         {
             "name": "Sommerferien",
             "start_datum": heute - timedelta(days=5),
@@ -1005,25 +1044,59 @@ def test_morgen_sensor_ferien_spanning_tomorrow(mock_sensor, morgen_sensor):
 
 def test_morgen_sensor_empty_ferien_list(mock_sensor, morgen_sensor):
     """Test Morgen-Sensor mit leerer Ferien-Liste."""
-    mock_sensor._ferien_info["ferien_liste"] = []
+    config = {
+        "name": "Schulferien - Deutschland (Bayern)",
+        "unique_id": "schulferien_DE_BY",
+        "entity_id": "sensor.schulferien_de_by",
+        "land": "DE",
+        "region": "DE-BY",
+        "land_name": "Deutschland",
+        "region_name": "Bayern",
+        "brueckentage": [],
+    }
+    base = SchulferienSensor(hass_mock, config)
+    morgen_sensor = SchulferienMorgenSensor(base)
+    base._ferien_info["ferien_liste"] = []
     assert morgen_sensor.native_value == "kein_ferientag"
 
 
 def test_morgen_sensor_none_ferien_list(mock_sensor, morgen_sensor):
     """Test Morgen-Sensor mit None Ferien-Liste.
     
-    Bug im Code: .get("ferien_liste", []) gibt None zurück wenn der Schlüssel
-    existiert aber None ist. Dies führt zu TypeError bei der Iteration.
+    Fix: Der Code verwendet `or []` um None korrekt zu behandeln.
     """
-    mock_sensor._ferien_info["ferien_liste"] = None
-    # Bei None.ferien_liste wirft der Code TypeError
-    with pytest.raises(TypeError):
-        morgen_sensor.native_value
+    config = {
+        "name": "Schulferien - Deutschland (Bayern)",
+        "unique_id": "schulferien_DE_BY",
+        "entity_id": "sensor.schulferien_de_by",
+        "land": "DE",
+        "region": "DE-BY",
+        "land_name": "Deutschland",
+        "region_name": "Bayern",
+        "brueckentage": [],
+    }
+    base = SchulferienSensor(hass_mock, config)
+    morgen_sensor = SchulferienMorgenSensor(base)
+    base._ferien_info["ferien_liste"] = None
+    # Mit Fix (or []) sollte kein Fehler mehr auftreten
+    assert morgen_sensor.native_value == "kein_ferientag"
 
 
 @pytest.mark.asyncio
 async def test_morgen_sensor_async_update(mock_sensor, morgen_sensor):
     """Test dass async_update beim Morgen-Sensor nichts tut."""
+    config = {
+        "name": "Schulferien - Deutschland (Bayern)",
+        "unique_id": "schulferien_DE_BY",
+        "entity_id": "sensor.schulferien_de_by",
+        "land": "DE",
+        "region": "DE-BY",
+        "land_name": "Deutschland",
+        "region_name": "Bayern",
+        "brueckentage": [],
+    }
+    base = SchulferienSensor(hass_mock, config)
+    morgen_sensor = SchulferienMorgenSensor(base)
     await morgen_sensor.async_update()
     # async_update macht nur pass - kein Fehler = Erfolg
 
@@ -1031,7 +1104,19 @@ async def test_morgen_sensor_async_update(mock_sensor, morgen_sensor):
 def test_morgen_sensor_multiple_ferien(mock_sensor, morgen_sensor):
     """Test Morgen-Sensor mit mehreren Ferien."""
     heute = datetime.now().date()
-    mock_sensor._ferien_info["ferien_liste"] = [
+    config = {
+        "name": "Schulferien - Deutschland (Bayern)",
+        "unique_id": "schulferien_DE_BY",
+        "entity_id": "sensor.schulferien_de_by",
+        "land": "DE",
+        "region": "DE-BY",
+        "land_name": "Deutschland",
+        "region_name": "Bayern",
+        "brueckentage": [],
+    }
+    base = SchulferienSensor(hass_mock, config)
+    morgen_sensor = SchulferienMorgenSensor(base)
+    base._ferien_info["ferien_liste"] = [
         {
             "name": "Osterferien",
             "start_datum": heute - timedelta(days=20),
@@ -1050,7 +1135,19 @@ def test_morgen_sensor_ends_tomorrow(mock_sensor, morgen_sensor):
     """Test Morgen-Sensor wenn Ferien morgen enden."""
     heute = datetime.now().date()
     morgen = heute + timedelta(days=1)
-    mock_sensor._ferien_info["ferien_liste"] = [
+    config = {
+        "name": "Schulferien - Deutschland (Bayern)",
+        "unique_id": "schulferien_DE_BY",
+        "entity_id": "sensor.schulferien_de_by",
+        "land": "DE",
+        "region": "DE-BY",
+        "land_name": "Deutschland",
+        "region_name": "Bayern",
+        "brueckentage": [],
+    }
+    base = SchulferienSensor(hass_mock, config)
+    morgen_sensor = SchulferienMorgenSensor(base)
+    base._ferien_info["ferien_liste"] = [
         {
             "name": "Weihnachtsferien",
             "start_datum": heute - timedelta(days=10),
@@ -1063,7 +1160,19 @@ def test_morgen_sensor_ends_tomorrow(mock_sensor, morgen_sensor):
 def test_morgen_sensor_starts_and_ends_same_day(mock_sensor, morgen_sensor):
     """Test Morgen-Sensor wenn Ferien nur einen Tag morgen sind."""
     morgen = datetime.now().date() + timedelta(days=1)
-    mock_sensor._ferien_info["ferien_liste"] = [
+    config = {
+        "name": "Schulferien - Deutschland (Bayern)",
+        "unique_id": "schulferien_DE_BY",
+        "entity_id": "sensor.schulferien_de_by",
+        "land": "DE",
+        "region": "DE-BY",
+        "land_name": "Deutschland",
+        "region_name": "Bayern",
+        "brueckentage": [],
+    }
+    base = SchulferienSensor(hass_mock, config)
+    morgen_sensor = SchulferienMorgenSensor(base)
+    base._ferien_info["ferien_liste"] = [
         {
             "name": "Herbstferien",
             "start_datum": morgen,
@@ -1192,12 +1301,12 @@ def test_ferien_liste_missing_key(mock_sensor):
 
 def test_sensor_name_property(mock_sensor):
     """Test name-Eigenschaft."""
-    assert mock_sensor.name == "Schulferien Sensor"
+    assert mock_sensor.name == "Schulferien - Deutschland (Bayern)"
 
 
 def test_sensor_unique_id_property(mock_sensor):
     """Test unique_id-Eigenschaft."""
-    assert mock_sensor.unique_id == "sensor.schulferien"
+    assert mock_sensor.unique_id == "schulferien_DE_BY"
 
 
 def test_native_value_with_empty_ferien_list(mock_sensor):
@@ -1217,7 +1326,19 @@ def test_morgen_sensor_with_single_day_ferien(mock_sensor, morgen_sensor):
     """Test Morgen-Sensor mit eintägigen Ferien."""
     heute = datetime.now().date()
     morgen = heute + timedelta(days=1)
-    mock_sensor._ferien_info["ferien_liste"] = [
+    config = {
+        "name": "Schulferien - Deutschland (Bayern)",
+        "unique_id": "schulferien_DE_BY",
+        "entity_id": "sensor.schulferien_de_by",
+        "land": "DE",
+        "region": "DE-BY",
+        "land_name": "Deutschland",
+        "region_name": "Bayern",
+        "brueckentage": [],
+    }
+    base = SchulferienSensor(hass_mock, config)
+    morgen_sensor = SchulferienMorgenSensor(base)
+    base._ferien_info["ferien_liste"] = [
         {
             "name": "Brückentag",
             "start_datum": morgen,

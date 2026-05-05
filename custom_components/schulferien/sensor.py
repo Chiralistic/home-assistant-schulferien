@@ -36,10 +36,13 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
     land_name = config_entry.data.get("land_name")
     region_name = config_entry.data.get("region_name")
 
+    # Eindeutiges Präfix aus Land und Region generieren (z.B. "_DE_BY")
+    instance_prefix = f"{land}_{region}".upper()
+
     # Debugging: Loggen der vollständigen Konfiguration
     _LOGGER.debug(
-        "Konfigurationsdaten aus Config Entry: Land=%s, Region=%s, Landname=%s, Regionsname=%s",
-        land, region, land_name, region_name
+        "Konfigurationsdaten aus Config Entry: Land=%s, Region=%s, Landname=%s, Regionsname=%s, Prefix=%s",
+        land, region, land_name, region_name, instance_prefix
     )
 
     # Brückentage asynchron laden
@@ -48,8 +51,9 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
 
     # Konfiguration für Schulferien-Sensor
     config_schulferien = {
-        "name": "Schulferien",
-        "unique_id": "sensor.schulferien",
+        "name": f"Schulferien - {land_name} ({region_name})",
+        "unique_id": f"schulferien_{instance_prefix}",
+        "entity_id": f"sensor.schulferien_{instance_prefix.lower()}",
         "land": land,
         "region": region,
         "land_name": land_name,
@@ -59,8 +63,9 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
 
     # Konfiguration für Feiertag-Sensor
     config_feiertag = {
-        "name": "Feiertag",
-        "unique_id": "sensor.feiertag",
+        "name": f"Feiertag - {land_name} ({region_name})",
+        "unique_id": f"feiertag_{instance_prefix}",
+        "entity_id": f"sensor.feiertag_{instance_prefix.lower()}",
         "land": land,
         "region": region,
         "land_name": land_name,

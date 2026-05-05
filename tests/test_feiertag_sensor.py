@@ -32,7 +32,8 @@ def hass():
 def config_heute():
     """Standard-Konfiguration für heute-Sensor."""
     return {
-        "unique_id": "sensor.feiertag",
+        "unique_id": "feiertag_DE_BY",
+        "entity_id": "sensor.feiertag_de_by",
         "name": "Feiertag",
         "land": "DE",
         "region": "DE-BY",
@@ -116,7 +117,7 @@ def test_entity_description_feiertag_morgen():
 def test_feiertag_sensor_initialization(hass, config_heute):
     """Test die Initialisierung des FeiertagSensors."""
     sensor = FeiertagSensor(hass, config_heute)
-    assert sensor.unique_id == "sensor.feiertag"
+    assert sensor.unique_id == "feiertag_DE_BY"
     assert sensor.name == "Feiertag"
     assert sensor._location["land"] == "DE"
     assert sensor._location["region"] == "DE-BY"
@@ -132,7 +133,8 @@ def test_feiertag_sensor_initialization(hass, config_heute):
 def test_feiertag_sensor_custom_unique_id(hass):
     """Test mit benutzerdefiniertem unique_id."""
     config = {
-        "unique_id": "sensor.custom_feiertag",
+        "unique_id": "feiertag_DE_BW",
+        "entity_id": "sensor.feiertag_de_bw",
         "name": "Mein Feiertag",
         "land": "DE",
         "region": "DE-BW",
@@ -140,7 +142,7 @@ def test_feiertag_sensor_custom_unique_id(hass):
         "region_name": "Baden-Württemberg",
     }
     sensor = FeiertagSensor(hass, config)
-    assert sensor.unique_id == "sensor.custom_feiertag"
+    assert sensor.unique_id == "feiertag_DE_BW"
     assert sensor.name == "Mein Feiertag"
 
 
@@ -154,7 +156,7 @@ def test_feiertag_sensor_default_unique_id(hass):
         "region_name": "Bayern",
     }
     sensor = FeiertagSensor(hass, config)
-    assert sensor.unique_id == "sensor.feiertag"
+    assert sensor.unique_id == "feiertag_DE_BY"
 
 
 def test_feiertag_sensor_default_iso_code(hass, config_heute):
@@ -299,6 +301,25 @@ def test_get_api_parameter(mock_feiertag_sensor):
     assert params["languageIsoCode"] == "DE"
     assert params["validFrom"] == (heute - timedelta(days=30)).strftime("%Y-%m-%d")
     assert params["validTo"] == (heute + timedelta(days=365)).strftime("%Y-%m-%d")
+
+
+def test_get_api_parameter_different_region(hass):
+    """Test get_api_parameter mit anderer Region."""
+    config = {
+        "unique_id": "feiertag_DE_BW",
+        "entity_id": "sensor.feiertag_de_bw",
+        "name": "Feiertag",
+        "land": "DE",
+        "region": "DE-BW",
+        "land_name": "Deutschland",
+        "region_name": "Baden-Württemberg",
+    }
+    sensor = FeiertagSensor(hass, config)
+    heute = datetime.now().date()
+    params = sensor.get_api_parameter(heute)
+
+    assert params["countryIsoCode"] == "DE"
+    assert params["subdivisionCode"] == "DE-BW"
 
 
 def test_get_api_parameter_with_different_region(hass):
@@ -635,7 +656,7 @@ def test_feiertag_morgen_sensor_initialization(hass, config_heute):
     """Test die Initialisierung des FeiertagMorgenSensors."""
     main_sensor = FeiertagSensor(hass, config_heute)
     morgen_sensor = FeiertagMorgenSensor(main_sensor)
-    assert morgen_sensor.unique_id == "sensor.feiertag_morgen"
+    assert morgen_sensor.unique_id == "feiertag_DE_BY_morgen"
     assert morgen_sensor.name == "Feiertag Morgen"
 
 
@@ -696,7 +717,7 @@ def test_feiertag_morgen_sensor_unique_id(hass, config_heute):
     """Test unique_id des MorgenSensors."""
     main_sensor = FeiertagSensor(hass, config_heute)
     morgen_sensor = FeiertagMorgenSensor(main_sensor)
-    assert morgen_sensor.unique_id == "sensor.feiertag_morgen"
+    assert morgen_sensor.unique_id == "feiertag_DE_BY_morgen"
 
 
 def test_feiertag_morgen_sensor_name(hass, config_heute):

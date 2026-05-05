@@ -2,6 +2,22 @@
 
 Home Assistant-Integration, um Schulferien mithilfe der OpenHolidays-API als Entität für Automationen verfügbar zu machen. Zur Zeit noch auf eigene Gefahr verwenden, da ich hier auch viel über Home Assistant und Integrationen lerne. Die Releases sind getestet und funktionieren.
 
+## Mehrere Bundesländer/Länder gleichzeitig tracken
+
+Die Integration kann mehrfach installiert werden, um Schulferien aus verschiedenen Bundesländern oder Ländern zu verfolgen. Jede Installation erzeugt automatisch eindeutige IDs basierend auf Land und Region:
+
+```
+sensor.schulferien_de_by   → Deutschland, Bayern
+sensor.schulferien_de_bw   → Deutschland, Baden-Württemberg
+sensor.schulferien_at_by   → Österreich, Burgenland
+```
+
+Jede Instanz hat eigene Sensoren für:
+- **Schulferien** (`sensor.schulferien_{land}_{region}`) – aktueller Status
+- **Schulferien Morgen** (`sensor.schulferien_{land}_{region}_morgen`) – Status für morgen
+- **Feiertage** (`sensor.feiertag_{land}_{region}`) – nächster Feiertag
+- **Binary Sensors** – kombinierte Zustände
+
 Disclaimer: Die Tests für die Integration, die nicht mit in Home Assistant installiert werden, sind vollständig von KI gecoded worden.
 
 ## Installation
@@ -20,75 +36,90 @@ Disclaimer: Die Tests für die Integration, die nicht mit in Home Assistant inst
 
 Erstelle eine einfache Entitätskarte, die alle Attribute anzeigt in deinem Dashboard mit dem folgenden Code. Bei Bedarf kann der Stack verkleinert werden um nur die Informationen anzuzeigen, die gewünscht sind.
 
+### Beispiel: Deutschland (Niedersachsen)
+
+Dieses Beispiel zeigt die Entitäten für Niedersachsen. Passe die Entity-IDs (`sensor.schulferien_de_ni`, `sensor.feiertag_de_ni`, `binary_sensor.schulferien_feiertage_de_ni`) an das gewünschte Land und die Region an. Ersetze dabei `de` durch den Ländercode (z.B. `at` für Österreich, `ch` für die Schweiz) und `ni` durch den Regionscode (z.B. `by` für Bayern, `bw` für Baden-Württemberg).
+
 ```yaml
 type: vertical-stack
 cards:
   - type: entities
-    title: Schulferien
+    title: Schulferien – Niedersachsen (Beispiel)
     entities:
-      - entity: sensor.schulferien
+      - entity: sensor.schulferien_de_ni
         name: Aktueller Status
       - type: attribute
-        entity: sensor.schulferien
+        entity: sensor.schulferien_de_ni
         attribute: Name der Ferien
         name: Name der Ferien
       - type: attribute
-        entity: sensor.schulferien
+        entity: sensor.schulferien_de_ni
         attribute: Beginn
         name: Beginn der Ferien
       - type: attribute
-        entity: sensor.schulferien
+        entity: sensor.schulferien_de_ni
         attribute: Ende
         name: Ende der Ferien
       - type: attribute
-        entity: sensor.schulferien
+        entity: sensor.schulferien_de_ni
         attribute: Land
         name: Land
       - type: attribute
-        entity: sensor.schulferien
+        entity: sensor.schulferien_de_ni
         attribute: Region
         name: Region
       - type: attribute
-        entity: sensor.schulferien
+        entity: sensor.schulferien_de_ni
         attribute: Brückentage
         name: Brückentage
   - type: entities
-    title: Feiertage
+    title: Feiertage – Niedersachsen (Beispiel)
     entities:
-      - entity: sensor.feiertag
+      - entity: sensor.feiertag_de_ni
         name: Aktueller Status
       - type: attribute
-        entity: sensor.feiertag
+        entity: sensor.feiertag_de_ni
         attribute: Name Feiertag
         name: Name des Feiertags
       - type: attribute
-        entity: sensor.feiertag
+        entity: sensor.feiertag_de_ni
         attribute: Datum
         name: Datum des Feiertags
       - type: attribute
-        entity: sensor.feiertag
+        entity: sensor.feiertag_de_ni
         attribute: Land
         name: Land
       - type: attribute
-        entity: sensor.feiertag
+        entity: sensor.feiertag_de_ni
         attribute: Region
         name: Region
   - type: entities
-    title: Schulferien/Feiertage kombiniert
+    title: Kombiniert – Niedersachsen (Beispiel)
     entities:
-      - entity: binary_sensor.schulferien_feiertage
+      - entity: binary_sensor.schulferien_feiertage_de_ni
         name: Schulferien oder Feiertag (binary)
-      - entity: binary_sensor.schulferien_feiertage_morgen
+      - entity: binary_sensor.schulferien_feiertage_de_ni_morgen
         name: Morgen Schulferien oder Feiertag (binary)
-      - entity: binary_sensor.nur_schulferien
+      - entity: binary_sensor.nur_schulferien_de_ni
         name: Nur Schulferien (binary)
-      - entity: binary_sensor.nur_schulferien_morgen
+      - entity: binary_sensor.nur_schulferien_de_ni_morgen
         name: Nur Schulferien Morgen (binary)
-      - entity: binary_sensor.nur_feiertage
+      - entity: binary_sensor.nur_feiertage_de_ni
         name: Nur Feiertage (binary)
-      - entity: binary_sensor.nur_feiertage_morgen
+      - entity: binary_sensor.nur_feiertage_de_ni_morgen
         name: Nur Feiertage Morgen (binary)
 ```
+
+### Mehrere Bundesländer gleichzeitig anzeigen
+
+Um Schulferien aus mehreren Bundesländern anzuzeigen, füge einfach weitere Blöcke hinzu und passe die Entity-IDs an. Beispiel für Bayern und Baden-Württemberg:
+
+| Bundesland | Länder-Code | Regions-Code | Entity-ID Schulferien |
+|---|---|---|---|
+| Bayern | `de` | `by` | `sensor.schulferien_de_by` |
+| Baden-Württemberg | `de` | `bw` | `sensor.schulferien_de_bw` |
+| Niedersachsen | `de` | `ni` | `sensor.schulferien_de_ni` |
+| Österreich (Burgenland) | `at` | `at-1` | `sensor.schulferien_at_at_1` |
 
 ## Deinstallation
 
@@ -100,91 +131,106 @@ cards:
 
 Home Assistant integration to make school holidays available as entities for automations using the OpenHolidays API. Use at your own risk for now, as I am still learning a lot about Home Assistant and integrations. The releases have been tested and they work.
 
-## Installation-EN
+## Multiple countries/regions at once
 
-### Manual with HACS
+The integration can be installed multiple times to track school holidays from different states or countries. Each installation automatically generates unique IDs based on country and region:
 
-1. Use HACS
+```
+sensor.schulferien_de_by   → Germany, Bavaria
+sensor.schulferien_de_bw   → Germany, Baden-Württemberg
+sensor.schulferien_at_by   → Austria, Burgenland
+```
 
-2. Search for "Schulferien" and download the latest release.
+Each instance has its own sensors for:
+- **School holidays** (`sensor.schulferien_{country}_{region}`) – current status
+- **School holidays tomorrow** (`sensor.schulferien_{country}_{region}_morgen`) – status for tomorrow
+- **Holidays** (`sensor.feiertag_{country}_{region}`) – next public holiday
+- **Binary sensors** – combined states
 
-3. Restart Home Assisttant.
+### Example: Germany (Lower Saxony)
 
-4. Add the integration under Settings -> Devices & Services -> + Add Integration -> "Schulferien".
-
-5. "Wait: After the setup or after a Home Assistant restart, it may take up to 30 seconds for all attributes and states to be updated.
-
-Create a simple entity card that displays all attributes on your dashboard with the following code. If necessary, the stack can be reduced to show only the desired information.
+This example shows the entities for Lower Saxony. Adjust the entity IDs (`sensor.schulferien_de_ni`, `sensor.feiertag_de_ni`, `binary_sensor.schulferien_feiertage_de_ni`) to your desired country and region. Replace `de` with the country code (e.g., `at` for Austria, `ch` for Switzerland) and `ni` with the region code (e.g., `by` for Bavaria, `bw` for Baden-Württemberg).
 
 ```yaml
 type: vertical-stack
 cards:
   - type: entities
-    title: Schulferien
+    title: School holidays – Lower Saxony (example)
     entities:
-      - entity: sensor.schulferien
-        name: Aktueller Status
+      - entity: sensor.schulferien_de_ni
+        name: Current status
       - type: attribute
-        entity: sensor.schulferien
+        entity: sensor.schulferien_de_ni
         attribute: Name der Ferien
-        name: Name der Ferien
+        name: Holiday name
       - type: attribute
-        entity: sensor.schulferien
+        entity: sensor.schulferien_de_ni
         attribute: Beginn
-        name: Beginn der Ferien
+        name: Start date
       - type: attribute
-        entity: sensor.schulferien
+        entity: sensor.schulferien_de_ni
         attribute: Ende
-        name: Ende der Ferien
+        name: End date
       - type: attribute
-        entity: sensor.schulferien
+        entity: sensor.schulferien_de_ni
         attribute: Land
-        name: Land
+        name: Country
       - type: attribute
-        entity: sensor.schulferien
+        entity: sensor.schulferien_de_ni
         attribute: Region
         name: Region
       - type: attribute
-        entity: sensor.schulferien
+        entity: sensor.schulferien_de_ni
         attribute: Brückentage
-        name: Brückentage
+        name: Bridge days
   - type: entities
-    title: Feiertage
+    title: Public holidays – Lower Saxony (example)
     entities:
-      - entity: sensor.feiertag
-        name: Aktueller Status
+      - entity: sensor.feiertag_de_ni
+        name: Current status
       - type: attribute
-        entity: sensor.feiertag
+        entity: sensor.feiertag_de_ni
         attribute: Name Feiertag
-        name: Name des Feiertags
+        name: Holiday name
       - type: attribute
-        entity: sensor.feiertag
+        entity: sensor.feiertag_de_ni
         attribute: Datum
-        name: Datum des Feiertags
+        name: Date
       - type: attribute
-        entity: sensor.feiertag
+        entity: sensor.feiertag_de_ni
         attribute: Land
-        name: Land
+        name: Country
       - type: attribute
-        entity: sensor.feiertag
+        entity: sensor.feiertag_de_ni
         attribute: Region
         name: Region
   - type: entities
-    title: Schulferien/Feiertage kombiniert
+    title: Combined – Lower Saxony (example)
     entities:
-      - entity: binary_sensor.schulferien_feiertage
-        name: Schulferien oder Feiertag (binary)
-      - entity: binary_sensor.schulferien_feiertage_morgen
-        name: Morgen Schulferien oder Feiertag (binary)
-      - entity: binary_sensor.nur_schulferien
-        name: Nur Schulferien (binary)
-      - entity: binary_sensor.nur_schulferien_morgen
-        name: Nur Schulferien Morgen (binary)
-      - entity: binary_sensor.nur_feiertage
-        name: Nur Feiertage (binary)
-      - entity: binary_sensor.nur_feiertage_morgen
-        name: Nur Feiertage Morgen (binary)
+      - entity: binary_sensor.schulferien_feiertage_de_ni
+        name: School holidays or public holiday
+      - entity: binary_sensor.schulferien_feiertage_de_ni_morgen
+        name: Tomorrow: school holidays or public holiday
+      - entity: binary_sensor.nur_schulferien_de_ni
+        name: Only school holidays
+      - entity: binary_sensor.nur_schulferien_de_ni_morgen
+        name: Tomorrow: only school holidays
+      - entity: binary_sensor.nur_feiertage_de_ni
+        name: Only public holidays
+      - entity: binary_sensor.nur_feiertage_de_ni_morgen
+        name: Tomorrow: only public holidays
 ```
+
+### Track multiple states at once
+
+To display school holidays from multiple states, simply add more blocks and adjust the entity IDs. Example for Bavaria and Baden-Württemberg:
+
+| State | Country Code | Region Code | School holiday Entity ID |
+|---|---|---|---|
+| Bavaria | `de` | `by` | `sensor.schulferien_de_by` |
+| Baden-Württemberg | `de` | `bw` | `sensor.schulferien_de_bw` |
+| Lower Saxony | `de` | `ni` | `sensor.schulferien_de_ni` |
+| Austria (Burgenland) | `at` | `at-1` | `sensor.schulferien_at_at_1` |
 
 ## Uninstall
 

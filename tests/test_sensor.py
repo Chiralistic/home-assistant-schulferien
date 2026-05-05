@@ -249,8 +249,9 @@ async def test_async_setup_entry_config_data_passed():
     assert schulferien_config["land_name"] == "Deutschland"
     assert schulferien_config["region_name"] == "Hessen"
     assert schulferien_config["brueckentage"] == []
-    assert schulferien_config["name"] == "Schulferien"
-    assert schulferien_config["unique_id"] == "sensor.schulferien"
+    assert schulferien_config["name"] == "Schulferien - Deutschland (Hessen)"
+    assert schulferien_config["unique_id"] == "schulferien_DE_DE-HE"
+    assert schulferien_config["entity_id"] == "sensor.schulferien_de_de-he"
 
     # Prüfen dass FeiertagSensor mit korrekten Config erstellt wurde
     MockFeiertag.assert_called_once()
@@ -259,8 +260,9 @@ async def test_async_setup_entry_config_data_passed():
     assert feiertag_config["region"] == "DE-HE"
     assert feiertag_config["land_name"] == "Deutschland"
     assert feiertag_config["region_name"] == "Hessen"
-    assert feiertag_config["name"] == "Feiertag"
-    assert feiertag_config["unique_id"] == "sensor.feiertag"
+    assert feiertag_config["name"] == "Feiertag - Deutschland (Hessen)"
+    assert feiertag_config["unique_id"] == "feiertag_DE_DE-HE"
+    assert feiertag_config["entity_id"] == "sensor.feiertag_de_de-he"
 
 
 @pytest.mark.asyncio
@@ -614,21 +616,23 @@ async def test_async_setup_entry_all_entity_ids():
         mock_session_class.return_value = mock_session
 
         mock_schulferien = MagicMock()
-        mock_schulferien.unique_id = "sensor.schulferien"
+        mock_schulferien.unique_id = "schulferien_DE_DE-RP"
+        mock_schulferien.entity_id = "sensor.schulferien_de_de-rp"
         mock_schulferien.async_update = AsyncMock()
         MockSchulferien.return_value = mock_schulferien
 
         mock_feiertag = MagicMock()
-        mock_feiertag.unique_id = "sensor.feiertag"
+        mock_feiertag.unique_id = "feiertag_DE_DE-RP"
+        mock_feiertag.entity_id = "sensor.feiertag_de_de-rp"
         mock_feiertag.async_update = AsyncMock()
         MockFeiertag.return_value = mock_feiertag
 
         await async_setup_entry(hass, config_entry, mock_add_entities)
 
-    assert added_entities[0].unique_id == "sensor.schulferien"
-    assert added_entities[1].unique_id == "sensor.feiertag"
-    assert added_entities[2].unique_id == "sensor.schulferien_morgen"
-    assert added_entities[3].unique_id == "sensor.feiertag_morgen"
+    assert added_entities[0].unique_id == "schulferien_DE_DE-RP"
+    assert added_entities[1].unique_id == "feiertag_DE_DE-RP"
+    assert added_entities[2].unique_id == "schulferien_DE_DE-RP_morgen"
+    assert added_entities[3].unique_id == "feiertag_DE_DE-RP_morgen"
 
 
 @pytest.mark.asyncio

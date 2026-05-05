@@ -35,7 +35,16 @@ class SchulferienSensor(SensorEntity):
         """Initialisiert den Schulferien-Sensor mit Konfigurationsdaten."""
         self.entity_description = SCHULFERIEN_SENSOR
         self._name = config["name"]
-        self._unique_id = config.get("unique_id", "sensor.schulferien")
+        region_raw = config["region"]
+        # Strip country prefix from region to avoid duplication (e.g., DE-BY → BY)
+        land_upper = config["land"].upper()
+        if region_raw.startswith(land_upper + "-"):
+            region_id = region_raw[len(land_upper) + 1:]
+        else:
+            region_id = region_raw
+        region_slug = region_id.replace("-", "_")
+        self._unique_id = config.get("unique_id", f"schulferien_{land_upper}_{region_slug}")
+        self._entity_id = config.get("entity_id", f"sensor.schulferien_{config['land'].lower()}_{region_slug.lower()}")
         self._location = {
             "land": config["land"],
             "region": config["region"],
@@ -104,6 +113,11 @@ class SchulferienSensor(SensorEntity):
     def unique_id(self):
         """Gibt die eindeutige ID des Sensors zurück."""
         return self._unique_id
+
+    @property
+    def entity_id(self):
+        """Gibt die Entity ID des Sensors zurück."""
+        return self._entity_id
 
     @property
     def native_value(self):
@@ -261,13 +275,26 @@ class SchulferienMorgenSensor(SensorEntity):
     def __init__(self, referenzsensor: SchulferienSensor):
         self.entity_description = SCHULFERIEN_MORGEN_SENSOR
         self._referenzsensor = referenzsensor
-        self._attr_name = "Schulferien Morgen"
-        self._attr_unique_id = "sensor.schulferien_morgen"
+        # Name vom Referenzsensor ableiten (z.B. "Schulferien - Deutschland (Bayern)" → "Schulferien Morgen - Deutschland (Bayern)")
+        base_name = referenzsensor._name
+        if " - " in base_name:
+            self._attr_name = f"Schulferien Morgen{base_name[base_name.index(' - '):]}"
+        else:
+            self._attr_name = f"{base_name} Morgen"
+        # Unique ID und Entity ID vom Referenzsensor ableiten
+        base_unique_id = referenzsensor.unique_id
+        base_entity_id = referenzsensor.entity_id
+        self._attr_unique_id = f"{base_unique_id}_morgen"
+        self._attr_entity_id = f"{base_entity_id}_morgen"
         self._attr_native_value = None
 
     @property
     def unique_id(self):
         return self._attr_unique_id
+
+    @property
+    def entity_id(self):
+        return self._attr_entity_id
 
     @property
     def name(self):
@@ -276,7 +303,8 @@ class SchulferienMorgenSensor(SensorEntity):
     @property
     def native_value(self):
         morgen = datetime.now().date() + timedelta(days=1)
-        for ferien in self._referenzsensor._ferien_info.get("ferien_liste", []):
+        ferien_liste = self._referenzsensor._ferien_info.get("ferien_liste") or []
+        for ferien in ferien_liste:
             if ferien["start_datum"] <= morgen <= ferien["end_datum"]:
                 return "ferientag"
         return "kein_ferientag"

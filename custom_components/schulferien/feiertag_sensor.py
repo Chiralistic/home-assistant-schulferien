@@ -5,9 +5,7 @@ from datetime import datetime, timedelta
 from homeassistant.helpers.event import async_track_time_change
 from homeassistant.components.sensor import SensorEntity, SensorEntityDescription
 import aiohttp
-import aiofiles
-import yaml
-from .api_utils import fetch_data, parse_daten, DEFAULT_TIMEOUT
+from .api_utils import fetch_data, parse_daten, DEFAULT_TIMEOUT, compute_region_slug
 from .const import (
     API_URL_FEIERTAGE,
     API_FALLBACK_FEIERTAGE,
@@ -33,20 +31,21 @@ FEIERTAG_MORGEN_SENSOR = SensorEntityDescription(
 class FeiertagSensor(SensorEntity):
     """Sensor für Feiertage."""
 
+    # pylint: disable=unused-argument
     def __init__(self, hass, config):
         """Initialisiert den Feiertag-Sensor mit Konfigurationsdaten."""
+    # pylint: enable=unused-argument
         self.entity_description = FEIERTAG_SENSOR
         self._name = config["name"]
         land_upper = config["land"].upper()
-        region_raw = config["region"]
-        # Strip country prefix from region to avoid duplication (e.g., DE-BY → BY)
-        if region_raw.startswith(land_upper + "-"):
-            region_id = region_raw[len(land_upper) + 1:]
-        else:
-            region_id = region_raw
-        region_slug = region_id.replace("-", "_")
-        self._unique_id = config.get("unique_id", f"feiertag_{land_upper}_{region_slug}")
-        self._entity_id = config.get("entity_id", f"sensor.feiertag_{land_upper.lower()}_{region_slug.lower()}")
+        region_slug = compute_region_slug(config["land"], config["region"])
+        self._unique_id = config.get(
+            "unique_id", f"feiertag_{land_upper}_{region_slug}"
+        )
+        self._entity_id = config.get(
+            "entity_id",
+            f"sensor.feiertag_{land_upper.lower()}_{region_slug.lower()}",
+        )
         # Hier verwenden wir die über die Konfiguration erhaltenen Länder und Regionen
         self._location = {
             "land": config["land"],  # Wird aus dem ConfigFlow übernommen
@@ -190,8 +189,10 @@ class FeiertagSensor(SensorEntity):
                 self._feiertags_info["letztes_update"],
             )
 
+        # pylint: disable=broad-exception-caught
         except Exception as e:
             _LOGGER.error("Unerwarteter Fehler beim Aktualisieren der Feiertagsdaten: %s", e)
+        # pylint: enable=broad-exception-caught
 
         finally:
             if close_session:
@@ -220,7 +221,7 @@ class FeiertagSensor(SensorEntity):
                 feiertage_daten = await fetch_data(url, api_parameter, session)
                 if feiertage_daten:
                     return feiertage_daten
-            except Exception as e:
+            except (aiohttp.ClientError, ValueError) as e:
                 _LOGGER.error("Fehler beim Abrufen der Daten von %s: %s", url, e)
         return None
 
@@ -230,7 +231,8 @@ class FeiertagSensor(SensorEntity):
             feiertage_liste = parse_daten(feiertage_daten, typ="feiertage")
 
             # Workaround: Ostersonntag ergänzen
-            for feiertag in feiertage_liste:
+            # Iterate over a copy to avoid modifying the list during iteration
+            for feiertag in list(feiertage_liste):
                 name = feiertag["name"].lower()
                 if "ostermontag" in name or "easter monday" in name:
                     ostersonntag_datum = feiertag["start_datum"] - timedelta(days=1)
@@ -246,8 +248,10 @@ class FeiertagSensor(SensorEntity):
                         })
                     break
             self._feiertags_info["feiertage_liste"] = feiertage_liste
+        # pylint: disable=broad-exception-caught
         except Exception as e:
             _LOGGER.error("Fehler beim Verarbeiten der Daten: %s", e)
+        # pylint: enable=broad-exception-caught
             return
 
         aktueller_feiertag = next(
@@ -304,6 +308,7 @@ class FeiertagMorgenSensor(SensorEntity):
 
     @property
     def entity_id(self):
+        """Gibt die Entity ID des Sensors zurück."""
         return self._attr_entity_id
 
     @property
@@ -312,28 +317,15 @@ class FeiertagMorgenSensor(SensorEntity):
 
     @property
     def native_value(self):
+        """Gibt den aktuellen Zustand des Sensors zurück."""
         morgen = datetime.now().date() + timedelta(days=1)
+        # pylint: disable=protected-access
         for feiertag in self._referenzsensor._feiertags_info.get("feiertage_liste", []):
+        # pylint: enable=protected-access
             if feiertag["start_datum"] == morgen:
                 return "feiertag"
         return "kein_feiertag"
 
-# Zweites Update ist nicht erforderlich, da der FeiertagSensor bereits täglich aktualisiert wird.
+    # pylint: disable=missing-function-docstring
     async def async_update(self):
         pass
-
-async def load_bridge_days(bridge_days_path):
-    """Lädt die Brückentage aus der bridge_days.yaml-Datei asynchron."""
-    try:
-        async with aiofiles.open(str(bridge_days_path), "r", encoding="utf-8") as file:
-            content = await file.read()
-            if not content:
-                return []
-            bridge_days_config = yaml.safe_load(content)
-            return bridge_days_config.get("bridge_days", [])
-    except FileNotFoundError:
-        _LOGGER.warning("Die Datei bridge_days.yaml wurde nicht gefunden.")
-        return []
-    except yaml.YAMLError as error:
-        _LOGGER.error("Fehler beim Laden der Brückentage: %s", error)
-        return []

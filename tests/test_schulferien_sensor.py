@@ -1,15 +1,12 @@
 """Unit Tests für SchulferienSensor & SchulferienMorgenSensor."""
 
-from unittest.mock import patch, AsyncMock, MagicMock, PropertyMock
+from unittest.mock import patch, AsyncMock, MagicMock
 from datetime import datetime, timedelta
 import aiohttp
 import pytest
-from homeassistant.core import HomeAssistant
 from custom_components.schulferien.schulferien_sensor import (
     SchulferienSensor,
     SchulferienMorgenSensor,
-    SCHULFERIEN_SENSOR,
-    SCHULFERIEN_MORGEN_SENSOR,
 )
 
 

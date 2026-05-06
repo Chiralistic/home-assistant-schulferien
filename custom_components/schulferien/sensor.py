@@ -1,31 +1,13 @@
 """Modul zum Setup der Sensoren für Schulferien und Feiertage."""
 
 import logging
-import aiofiles
 import aiohttp
-import yaml
 
 from .schulferien_sensor import SchulferienSensor, SchulferienMorgenSensor
 from .feiertag_sensor import FeiertagSensor, FeiertagMorgenSensor
+from .api_utils import load_bridge_days
 
 _LOGGER = logging.getLogger(__name__)
-
-async def load_bridge_days(bridge_days_path):
-    """Lädt die Brückentage aus der bridge_days.yaml-Datei asynchron."""
-    try:
-        async with aiofiles.open(bridge_days_path, "r", encoding="utf-8") as file:
-            content = await file.read()
-            if not content:
-                return []
-            bridge_days_config = yaml.safe_load(content)
-            return bridge_days_config.get("bridge_days", [])
-    except FileNotFoundError:
-        _LOGGER.warning("Die Datei bridge_days.yaml wurde nicht gefunden.")
-        return []
-    except yaml.YAMLError as error:
-        _LOGGER.error("Fehler beim Laden der Brückentage: %s", error)
-        return []
-
 
 async def async_setup_entry(hass, config_entry, async_add_entities):
     """Setup der Sensoren für Schulferien und Feiertage."""
@@ -41,7 +23,8 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
 
     # Debugging: Loggen der vollständigen Konfiguration
     _LOGGER.debug(
-        "Konfigurationsdaten aus Config Entry: Land=%s, Region=%s, Landname=%s, Regionsname=%s, Prefix=%s",
+        "Konfigurationsdaten aus Config Entry: Land=%s, Region=%s, "
+        "Landname=%s, Regionsname=%s, Prefix=%s",
         land, region, land_name, region_name, instance_prefix
     )
 

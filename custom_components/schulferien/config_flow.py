@@ -13,14 +13,18 @@ from .const import DOMAIN
 _LOGGER = logging.getLogger(__name__)
 
 
+# pylint: disable=abstract-method
 class SchulferienFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
     """Konfigurations-Flow für die Schulferien-Integration."""
 
     def __init__(self):
         """Initialisierung."""
+        # pylint: disable=invalid-name
         self.language_iso_code = "DE"  # Fallback-Sprache auf "DE" setzen.
         self.supported_countries = {}
         self.supported_regions = {}
+        self.selected_country = None
+        self.selected_region = None
 
     def _get_hass_language(self, hass: HomeAssistant) -> str:
         """Holt den aktuellen Sprachcode aus der Home Assistant-Konfiguration und formatiert ihn."""
@@ -53,7 +57,11 @@ class SchulferienFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
 
     async def _fetch_supported_regions(self, country_code: str) -> dict:
         """Holt die Liste der Regionen basierend auf dem Land von der API."""
-        url = f"https://openholidaysapi.org/Subdivisions?countryIsoCode={country_code}&languageIsoCode={self.language_iso_code}"
+        url = (
+            f"https://openholidaysapi.org/Subdivisions"
+            f"?countryIsoCode={country_code}"
+            f"&languageIsoCode={self.language_iso_code}"
+        )
         async with aiohttp.ClientSession() as session:
             async with session.get(url) as response:
                 if response.status == 200:
@@ -118,13 +126,20 @@ class SchulferienFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         if not regions:
             # Wenn keine Regionen verfügbar sind, verwende das Land als Fallback-Region
             _LOGGER.warning(
-                "Keine Regionen für Land %s verfügbar, verwende Land-Code als Region.", self.selected_country
+                "Keine Regionen für Land %s verfügbar, "
+                "verwende Land-Code als Region.",
+                self.selected_country,
             )
-            regions = {self.selected_country: f"{self.supported_countries.get(self.selected_country, self.selected_country)} (Ganzes Land)"}
+            regions = {
+                self.selected_country: (
+                    f"{self.supported_countries.get(self.selected_country, self.selected_country)}"
+                    " (Ganzes Land)"
+                )
+            }
 
         if user_input is not None:
             # Benutzer hat eine Region ausgewählt
-            self.selected_region = user_input["region"]  # Speichern der Region
+            self.selected_region = user_input["region"]
             return await self.async_step_finish()
 
         return self.async_show_form(
@@ -147,12 +162,22 @@ class SchulferienFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         # Daten für den Eintrag vorbereiten
         land_name = self.supported_countries.get(self.selected_country)
         if land_name is None:
-            _LOGGER.warning("Ländername für '%s' nicht gefunden, verwende Code.", self.selected_country)
+            _LOGGER.warning(
+                "Ländername für '%s' nicht gefunden, verwende Code.",
+                self.selected_country,
+            )
             land_name = self.selected_country
 
-        region_name = self.supported_regions.get(self.selected_country, {}).get(self.selected_region)
+        region_name = self.supported_regions.get(
+            self.selected_country, {}
+        ).get(self.selected_region)
         if region_name is None:
-            _LOGGER.warning("Regionsname für '%s' in Land '%s' nicht gefunden, verwende Code.", self.selected_region, self.selected_country)
+            _LOGGER.warning(
+                "Regionsname für '%s' in Land '%s' nicht gefunden, "
+                "verwende Code.",
+                self.selected_region,
+                self.selected_country,
+            )
             region_name = self.selected_region
 
         config_data = {

@@ -1,8 +1,11 @@
+"""Binary sensors for school holidays and public holidays integration."""
+
 import logging
 from homeassistant.components.binary_sensor import (
     BinarySensorEntity,
     BinarySensorEntityDescription,
 )
+from .api_utils import compute_region_slug
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -49,15 +52,16 @@ class SchulferienFeiertagBinarySensor(BinarySensorEntity):
     """Kombinierter Binärsensor für Schulferien und Feiertage."""
 
     def __init__(self, hass, config):
+        """Initialisiere den Sensor.
+
+        Args:
+            hass: Home Assistant Instanz.
+            config: Konfigurationsdaten für den Sensor.
+        """
         self.entity_description = SCHULFERIEN_FEIERTAG_BINARY_SENSOR
         self._hass = hass
         land_upper = config.get("land", "DE").upper()
-        region_raw = config.get("region", "BY")
-        if region_raw.startswith(land_upper + "-"):
-            region_id = region_raw[len(land_upper) + 1:]
-        else:
-            region_id = region_raw
-        region_slug = region_id.replace("-", "_")
+        region_slug = compute_region_slug(config.get("land", "DE"), config.get("region", "BY"))
         self._unique_id = config.get(
             "unique_id", f"binary_sensor.schulferien_feiertage_{land_upper}_{region_slug}"
         )
@@ -73,9 +77,11 @@ class SchulferienFeiertagBinarySensor(BinarySensorEntity):
 
     @property
     def is_on(self):
+        """Gibt den aktuellen Zustand des Sensors zurück."""
         return self._state
 
     async def async_update(self):
+        """Aktualisiert den Zustand des Sensors."""
         schulferien_state = self._hass.states.get(
             self._entity_ids["schulferien"]
         )
@@ -93,15 +99,16 @@ class SchulferienFeiertagMorgenBinarySensor(BinarySensorEntity):
     """Kombinierter Binärsensor für morgen."""
 
     def __init__(self, hass, config):
+        """Initialisiere den Sensor.
+
+        Args:
+            hass: Home Assistant Instanz.
+            config: Konfigurationsdaten für den Sensor.
+        """
         self.entity_description = SCHULFERIEN_FEIERTAG_MORGEN_BINARY_SENSOR
         self._hass = hass
         land_upper = config.get("land", "DE").upper()
-        region_raw = config.get("region", "BY")
-        if region_raw.startswith(land_upper + "-"):
-            region_id = region_raw[len(land_upper) + 1:]
-        else:
-            region_id = region_raw
-        region_slug = region_id.replace("-", "_")
+        region_slug = compute_region_slug(config.get("land", "DE"), config.get("region", "BY"))
         self._unique_id = config.get(
             "unique_id", f"binary_sensor.schulferien_feiertage_{land_upper}_{region_slug}_morgen"
         )
@@ -117,9 +124,11 @@ class SchulferienFeiertagMorgenBinarySensor(BinarySensorEntity):
 
     @property
     def is_on(self):
+        """Gibt den aktuellen Zustand des Sensors zurück."""
         return self._state
 
     async def async_update(self):
+        """Aktualisiert den Zustand des Sensors."""
         schulferien_state = self._hass.states.get(
             self._entity_ids["schulferien"]
         )
@@ -137,15 +146,16 @@ class SchulferienOnlyBinarySensor(BinarySensorEntity):
     """Binärsensor: Nur Schulferien."""
 
     def __init__(self, hass, config):
+        """Initialisiere den Sensor.
+
+        Args:
+            hass: Home Assistant Instanz.
+            config: Konfigurationsdaten für den Sensor.
+        """
         self.entity_description = SCHULFERIEN_ONLY_BINARY_SENSOR
         self._hass = hass
         land_upper = config.get("land", "DE").upper()
-        region_raw = config.get("region", "BY")
-        if region_raw.startswith(land_upper + "-"):
-            region_id = region_raw[len(land_upper) + 1:]
-        else:
-            region_id = region_raw
-        region_slug = region_id.replace("-", "_")
+        region_slug = compute_region_slug(config.get("land", "DE"), config.get("region", "BY"))
         self._unique_id = config.get(
             "unique_id", f"binary_sensor.schulferien_only_{land_upper}_{region_slug}"
         )
@@ -161,9 +171,11 @@ class SchulferienOnlyBinarySensor(BinarySensorEntity):
 
     @property
     def is_on(self):
+        """Gibt den aktuellen Zustand des Sensors zurück."""
         return self._state
 
     async def async_update(self):
+        """Aktualisiert den Zustand des Sensors."""
         schulferien_state = self._hass.states.get(
             self._entity_ids["schulferien"]
         )
@@ -177,15 +189,16 @@ class SchulferienOnlyMorgenBinarySensor(BinarySensorEntity):
     """Binärsensor: Nur Schulferien morgen."""
 
     def __init__(self, hass, config):
+        """Initialisiere den Sensor.
+
+        Args:
+            hass: Home Assistant Instanz.
+            config: Konfigurationsdaten für den Sensor.
+        """
         self.entity_description = SCHULFERIEN_ONLY_MORGEN_BINARY_SENSOR
         self._hass = hass
         land_upper = config.get("land", "DE").upper()
-        region_raw = config.get("region", "BY")
-        if region_raw.startswith(land_upper + "-"):
-            region_id = region_raw[len(land_upper) + 1:]
-        else:
-            region_id = region_raw
-        region_slug = region_id.replace("-", "_")
+        region_slug = compute_region_slug(config.get("land", "DE"), config.get("region", "BY"))
         self._unique_id = config.get(
             "unique_id", f"binary_sensor.schulferien_only_{land_upper}_{region_slug}_morgen"
         )
@@ -201,9 +214,11 @@ class SchulferienOnlyMorgenBinarySensor(BinarySensorEntity):
 
     @property
     def is_on(self):
+        """Gibt den aktuellen Zustand des Sensors zurück."""
         return self._state
 
     async def async_update(self):
+        """Aktualisiert den Zustand des Sensors."""
         schulferien_state = self._hass.states.get(
             self._entity_ids["schulferien"]
         )
@@ -217,15 +232,16 @@ class FeiertagOnlyBinarySensor(BinarySensorEntity):
     """Binärsensor: Nur Feiertag."""
 
     def __init__(self, hass, config):
+        """Initialisiere den Sensor.
+
+        Args:
+            hass: Home Assistant Instanz.
+            config: Konfigurationsdaten für den Sensor.
+        """
         self.entity_description = FEIERTAG_ONLY_BINARY_SENSOR
         self._hass = hass
         land_upper = config.get("land", "DE").upper()
-        region_raw = config.get("region", "BY")
-        if region_raw.startswith(land_upper + "-"):
-            region_id = region_raw[len(land_upper) + 1:]
-        else:
-            region_id = region_raw
-        region_slug = region_id.replace("-", "_")
+        region_slug = compute_region_slug(config.get("land", "DE"), config.get("region", "BY"))
         self._unique_id = config.get(
             "unique_id", f"binary_sensor.feiertag_only_{land_upper}_{region_slug}"
         )
@@ -241,9 +257,11 @@ class FeiertagOnlyBinarySensor(BinarySensorEntity):
 
     @property
     def is_on(self):
+        """Gibt den aktuellen Zustand des Sensors zurück."""
         return self._state
 
     async def async_update(self):
+        """Aktualisiert den Zustand des Sensors."""
         feiertag_state = self._hass.states.get(
             self._entity_ids["feiertag"]
         )
@@ -257,15 +275,16 @@ class FeiertagOnlyMorgenBinarySensor(BinarySensorEntity):
     """Binärsensor: Nur Feiertag morgen."""
 
     def __init__(self, hass, config):
+        """Initialisiere den Sensor.
+
+        Args:
+            hass: Home Assistant Instanz.
+            config: Konfigurationsdaten für den Sensor.
+        """
         self.entity_description = FEIERTAG_ONLY_MORGEN_BINARY_SENSOR
         self._hass = hass
         land_upper = config.get("land", "DE").upper()
-        region_raw = config.get("region", "BY")
-        if region_raw.startswith(land_upper + "-"):
-            region_id = region_raw[len(land_upper) + 1:]
-        else:
-            region_id = region_raw
-        region_slug = region_id.replace("-", "_")
+        region_slug = compute_region_slug(config.get("land", "DE"), config.get("region", "BY"))
         self._unique_id = config.get(
             "unique_id", f"binary_sensor.feiertag_only_{land_upper}_{region_slug}_morgen"
         )
@@ -281,9 +300,11 @@ class FeiertagOnlyMorgenBinarySensor(BinarySensorEntity):
 
     @property
     def is_on(self):
+        """Gibt den aktuellen Zustand des Sensors zurück."""
         return self._state
 
     async def async_update(self):
+        """Aktualisiert den Zustand des Sensors."""
         feiertag_state = self._hass.states.get(
             self._entity_ids["feiertag"]
         )
@@ -294,7 +315,13 @@ class FeiertagOnlyMorgenBinarySensor(BinarySensorEntity):
 
 
 async def async_setup_entry(hass, entry, async_add_entities):
-    """Setup der Binärsensoren für eine Konfiguration."""
+    """Setup der Binärsensoren für eine Konfiguration.
+
+    Args:
+        hass: Home Assistant Instanz.
+        entry: Config entry für die Konfiguration.
+        async_add_entities: Funktion zum Hinzufügen von Entitäten.
+    """
     _LOGGER.debug("Initialisiere alle Binärsensoren für Entry: %s", entry.title)
 
     # Eindeutiges Präfix aus Land und Region generieren (z.B. "_DE_BY")

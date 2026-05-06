@@ -1,17 +1,17 @@
 """Unit Tests für SchulferienFeiertagSensor und FeiertagMorgenSensor."""
 
-import pytest
-from unittest.mock import MagicMock, AsyncMock, patch, PropertyMock
+from unittest.mock import MagicMock, AsyncMock, patch
 from datetime import datetime, timedelta
-import yaml
+
+import pytest
 
 from custom_components.schulferien.feiertag_sensor import (
     FeiertagSensor,
     FeiertagMorgenSensor,
     FEIERTAG_SENSOR,
     FEIERTAG_MORGEN_SENSOR,
-    load_bridge_days,
 )
+from custom_components.schulferien.api_utils import load_bridge_days
 
 
 # ============================================================
@@ -21,11 +21,11 @@ from custom_components.schulferien.feiertag_sensor import (
 @pytest.fixture
 def hass():
     """Mock HomeAssistant."""
-    hass = MagicMock()
-    hass.config.language = "de"
-    hass.config.time_zone = MagicMock()
-    hass.config.time_zone.name = "Europe/Berlin"
-    return hass
+    ha = MagicMock()
+    ha.config.language = "de"
+    ha.config.time_zone = MagicMock()
+    ha.config.time_zone.name = "Europe/Berlin"
+    return ha
 
 
 @pytest.fixture
@@ -240,6 +240,7 @@ def test_extra_state_attributes_kein_feiertag(hass, config_heute):
 
     attributes = sensor.extra_state_attributes
     assert attributes["Name Feiertag"] == "Neujahr"
+
     assert attributes["Land"] == "Deutschland"
     assert attributes["Region"] == "Bayern"
 
@@ -278,7 +279,7 @@ def test_extra_state_attributes_aktueller_feiertag_vorgezogen(mock_feiertag_sens
 def test_extra_state_attributes_fehlt_feiertage_liste(hass, config_heute):
     """Test Attribute wenn feiertage_liste fehlt."""
     sensor = FeiertagSensor(hass, config_heute)
-    # feiertage_liste wird nicht gesetzt (fehlt)
+    sensor._feiertags_info["feiertage_liste"]  # wird nicht gesetzt
     sensor._feiertags_info["heute_feiertag"] = False
     sensor._feiertags_info["naechster_feiertag_name"] = "Test"
     sensor._feiertags_info["naechster_feiertag_datum"] = "01.01.2025"
@@ -397,7 +398,6 @@ async def test_async_added_to_hass_skip_if_same_day(mock_feiertag_sensor):
 
     await mock_feiertag_sensor.async_added_to_hass()
 
-    # Update sollte nicht aufgerufen werden, da gleicher Tag
     mock_feiertag_sensor.async_update.assert_not_called()
 
 
@@ -570,7 +570,6 @@ def test_verarbeite_feiertags_daten_ostersonntag(mock_feiertag_sensor):
         "end_datum": ostermontag,
     }]):
         mock_feiertag_sensor.verarbeite_feiertags_daten({"feiertage": []}, heute)
-        # Ostersonntag sollte hinzugefügt worden sein
         feiertage_liste = mock_feiertag_sensor._feiertags_info["feiertage_liste"]
         ostersonntag_found = any(f["name"] == "Ostersonntag" for f in feiertage_liste)
         assert ostersonntag_found is True
@@ -614,7 +613,9 @@ def test_verarbeite_feiertags_daten_keine_daten(mock_feiertag_sensor):
     """Test Verarbeitung bei leeren Daten (parse_daten gemockt)."""
     from custom_components.schulferien import feiertag_sensor as fs_module
     with patch.object(fs_module, 'parse_daten', return_value=[]):
-        mock_feiertag_sensor.verarbeite_feiertags_daten({"feiertage": []}, datetime.now().date())
+        mock_feiertag_sensor.verarbeite_feiertags_daten(
+            {"feiertage": []}, datetime.now().date()
+        )
         assert mock_feiertag_sensor._feiertags_info["feiertage_liste"] == []
 
 
@@ -624,7 +625,7 @@ def test_verarbeite_feiertags_daten_keine_daten_with_mock_parse(hass, config_heu
     with patch.object(fs_module, 'parse_daten', return_value=[]):
         sensor = FeiertagSensor(hass, config_heute)
         sensor.verarbeite_feiertags_daten({"feiertage": []}, datetime.now().date())
-        assert sensor._feiertags_info["feiertage_liste"] == []
+        assert not sensor._feiertags_info["feiertage_liste"]
         assert sensor._feiertags_info["heute_feiertag"] is False
 
 
@@ -633,8 +634,9 @@ def test_verarbeite_feiertags_daten_error(mock_feiertag_sensor):
     from custom_components.schulferien import feiertag_sensor as fs_module
     initial_liste = list(mock_feiertag_sensor._feiertags_info["feiertage_liste"])
     with patch.object(fs_module, 'parse_daten', side_effect=Exception("Parse Error")):
-        mock_feiertag_sensor.verarbeite_feiertags_daten({"feiertage": []}, datetime.now().date())
-        # Nach Fehler sollte die Liste unverändert bleiben
+        mock_feiertag_sensor.verarbeite_feiertags_daten(
+            {"feiertage": []}, datetime.now().date()
+        )
         assert mock_feiertag_sensor._feiertags_info["feiertage_liste"] == initial_liste
 
 
@@ -695,7 +697,7 @@ def test_feiertag_morgen_sensor_native_value_empty_list(hass, config_heute):
 
 def test_feiertag_morgen_sensor_native_value_none_list(hass, config_heute):
     """Test native_value wenn feiertage_liste None ist.
-    
+
     Hinweis: Der aktuelle Code in feiertag_sensor.py Zeile 292 verwendet
     .get("feiertage_liste", []) was None zurückgibt wenn der Key auf None gesetzt wurde.
     Dies führt zu TypeError: 'NoneType' object is not iterable.
@@ -704,8 +706,6 @@ def test_feiertag_morgen_sensor_native_value_none_list(hass, config_heute):
     main_sensor = FeiertagSensor(hass, config_heute)
     main_sensor._feiertags_info["feiertage_liste"] = None
     morgen_sensor = FeiertagMorgenSensor(main_sensor)
-    # Bug im Code: .get() mit Default [] funktioniert nicht wenn Key auf None gesetzt
-    # Fix im Code: .get("feiertage_liste") or [] statt .get("feiertage_liste", [])
     try:
         result = morgen_sensor.native_value
         assert result == "kein_feiertag"
@@ -732,7 +732,6 @@ async def test_feiertag_morgen_sensor_async_update_pass(hass, config_heute):
     """Test dass async_update beim MorgenSensor nichts tut."""
     main_sensor = FeiertagSensor(hass, config_heute)
     morgen_sensor = FeiertagMorgenSensor(main_sensor)
-    # async_update soll pass sein
     await morgen_sensor.async_update()
 
 
@@ -742,24 +741,20 @@ async def test_feiertag_morgen_sensor_async_update_pass(hass, config_heute):
 
 def test_load_bridge_days_file_not_found():
     """Test dass leere Liste zurückgegeben wird wenn Datei nicht gefunden.
-    
+
     Hinweis: Scheitert weil aiofiles nicht als Modul-Attribut importiert ist.
     Der Code verwendet aiofiles.open aber aiofiles wird nicht oben importiert.
     """
     pytest.importorskip("aiofiles")
-    import asyncio
-    
-    # Direkter Patch auf den Import im Modul-Code
+
     with patch.dict('sys.modules', {'aiofiles': MagicMock()}):
-        # Da aiofiles nicht im Modul importiert ist, wird FileNotFoundError nicht abgefangen
-        # Der Test dokumentiert das erwartete Verhalten
         pass
 
 
 @pytest.mark.asyncio
 async def test_load_bridge_days_empty_file(tmp_path):
     """Test dass leere Liste bei leerer Datei zurückgegeben wird.
-    
+
     Hinweis: Scheitert weil aiofiles und yaml nicht als Modul-Importe vorhanden sind.
     """
     pytest.importorskip("aiofiles")
@@ -776,7 +771,7 @@ async def test_load_bridge_days_empty_file(tmp_path):
 @pytest.mark.asyncio
 async def test_load_bridge_days_valid_content(tmp_path):
     """Test das Laden mit gültigem Inhalt.
-    
+
     Hinweis: Scheitert weil aiofiles nicht als Modul-Import vorhanden ist.
     """
     pytest.importorskip("aiofiles")
@@ -796,7 +791,7 @@ async def test_load_bridge_days_valid_content(tmp_path):
 @pytest.mark.asyncio
 async def test_load_bridge_days_yaml_error(tmp_path):
     """Test Fehlerbehandlung bei ungültigem YAML.
-    
+
     Hinweis: Scheitert weil yaml nicht als Modul-Import vorhanden ist.
     """
     pytest.importorskip("aiofiles")

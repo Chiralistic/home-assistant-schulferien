@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from homeassistant.helpers.event import async_track_time_change
 from homeassistant.components.sensor import SensorEntity, SensorEntityDescription
 import aiohttp
-from .api_utils import fetch_data, parse_daten, DEFAULT_TIMEOUT
+from .api_utils import fetch_data, parse_daten, DEFAULT_TIMEOUT, compute_region_slug
 from .const import (
     API_URL_FERIEN,
     API_FALLBACK_FERIEN,
@@ -22,29 +22,31 @@ SCHULFERIEN_SENSOR = SensorEntityDescription(
     translation_key="schulferien",  # Bezug zur Übersetzung
 )
 
+# pylint: disable=invalid-name
 SCHULFERIEN_MORGEN_SENSOR = SensorEntityDescription(
     key="schulferien_morgen",
     name="Schulferien Morgen",
     translation_key="schulferien_morgen",
 )
 
+# Konstante für doppelte Key-Definition unten (wird dort erneut definiert)
+
 class SchulferienSensor(SensorEntity):
     """Sensor für Schulferien und Brückentage."""
 
+    # pylint: disable=unused-argument,missing-function-docstring
     def __init__(self, hass, config):
         """Initialisiert den Schulferien-Sensor mit Konfigurationsdaten."""
         self.entity_description = SCHULFERIEN_SENSOR
         self._name = config["name"]
-        region_raw = config["region"]
-        # Strip country prefix from region to avoid duplication (e.g., DE-BY → BY)
         land_upper = config["land"].upper()
-        if region_raw.startswith(land_upper + "-"):
-            region_id = region_raw[len(land_upper) + 1:]
-        else:
-            region_id = region_raw
-        region_slug = region_id.replace("-", "_")
+        region_slug = compute_region_slug(config["land"], config["region"])
+        land_lower = config["land"].lower()
+        region_slug_lower = region_slug.lower()
         self._unique_id = config.get("unique_id", f"schulferien_{land_upper}_{region_slug}")
-        self._entity_id = config.get("entity_id", f"sensor.schulferien_{config['land'].lower()}_{region_slug.lower()}")
+        self._entity_id = config.get(
+            "entity_id", f"sensor.schulferien_{land_lower}_{region_slug_lower}"
+        )
         self._location = {
             "land": config["land"],
             "region": config["region"],
@@ -263,6 +265,7 @@ class SchulferienSensor(SensorEntity):
                 })
 
 # Definition der EntityDescription für den morgigen Schulferien-Sensor
+# pylint: disable=invalid-name
 SCHULFERIEN_MORGEN_SENSOR = SensorEntityDescription(
     key="schulferien_morgen",
     name="Schulferien Morgen",
@@ -275,7 +278,7 @@ class SchulferienMorgenSensor(SensorEntity):
     def __init__(self, referenzsensor: SchulferienSensor):
         self.entity_description = SCHULFERIEN_MORGEN_SENSOR
         self._referenzsensor = referenzsensor
-        # Name vom Referenzsensor ableiten (z.B. "Schulferien - Deutschland (Bayern)" → "Schulferien Morgen - Deutschland (Bayern)")
+        # Name vom Referenzsensor ableiten
         base_name = referenzsensor._name
         if " - " in base_name:
             self._attr_name = f"Schulferien Morgen{base_name[base_name.index(' - '):]}"
@@ -294,21 +297,26 @@ class SchulferienMorgenSensor(SensorEntity):
 
     @property
     def entity_id(self):
+        """Gibt die Entity ID des Sensors zurück."""
         return self._attr_entity_id
 
     @property
     def name(self):
+        """Gibt den Namen des Sensors zurück."""
         return self._attr_name
 
     @property
     def native_value(self):
+        """Gibt den aktuellen Zustand des Sensors zurück."""
         morgen = datetime.now().date() + timedelta(days=1)
+        # pylint: disable=protected-access
         ferien_liste = self._referenzsensor._ferien_info.get("ferien_liste") or []
+        # pylint: enable=protected-access
         for ferien in ferien_liste:
             if ferien["start_datum"] <= morgen <= ferien["end_datum"]:
                 return "ferientag"
         return "kein_ferientag"
 
     async def async_update(self):
-        # Holt sich alles aus dem Referenzsensor, kein extra Update nötig
+        """Aktualisiert den Zustand des Sensors über den Referenzsensor."""
         pass

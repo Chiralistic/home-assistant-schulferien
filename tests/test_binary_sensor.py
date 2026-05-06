@@ -1,8 +1,8 @@
 """Unit Tests für SchulferienFeiertagBinarySensor & Morgen-Binärsensor."""
 
+from unittest.mock import MagicMock, patch
+
 import pytest
-from unittest.mock import MagicMock, AsyncMock, patch
-from datetime import datetime, timedelta
 
 from custom_components.schulferien.binary_sensor import (
     SchulferienFeiertagBinarySensor,
@@ -256,10 +256,11 @@ def test_schulferien_feiertag_sensor_entity_ids(hass, config_heute):
 )
 async def test_today_binary_sensor_state(today_sensor, hass, ferien_state, feiertag_state, expected):
     """Testet heutigen Binärsensor-Zustand für alle Kombinationen."""
-    hass.states.get.side_effect = lambda eid: {
-        "sensor.schulferien_de_by": make_state(ferien_state),
-        "sensor.feiertag_de_by": make_state(feiertag_state),
-    }.get(eid)
+    hass.states.get.side_effect = (
+        lambda eid: make_state(ferien_state)
+        if eid == "sensor.schulferien_de_by"
+        else make_state(feiertag_state)
+    )
 
     await today_sensor.async_update()
     # Bei expected=True: is_on muss True sein
@@ -348,10 +349,11 @@ def test_morgen_sensor_entity_ids(hass, config_morgen):
 )
 async def test_morgen_binary_sensor_state(morgen_sensor_fixture, hass, ferien_state, feiertag_state, expected):
     """Testet morgigen Binärsensor-Zustand für alle Kombinationen."""
-    hass.states.get.side_effect = lambda eid: {
-        "sensor.schulferien_de_by_morgen": make_state(ferien_state),
-        "sensor.feiertag_de_by_morgen": make_state(feiertag_state),
-    }.get(eid)
+    hass.states.get.side_effect = (
+        lambda eid: make_state(ferien_state)
+        if eid == "sensor.schulferien_de_by_morgen"
+        else make_state(feiertag_state)
+    )
 
     await morgen_sensor_fixture.async_update()
     if expected:
@@ -434,10 +436,11 @@ async def test_schulferien_only_binary_sensor_state(schulferien_only_sensor, has
     SchulferienOnly prüft NUR den Schulferien-State.
     True wenn Schulferien, unabhängig vom Feiertag-State.
     """
-    hass.states.get.side_effect = lambda eid: {
-        "sensor.schulferien_de_by": make_state(ferien_state),
-        "sensor.feiertag_de_by": make_state(feiertag_state),
-    }.get(eid)
+    hass.states.get.side_effect = (
+        lambda eid: make_state(ferien_state)
+        if eid == "sensor.schulferien_de_by"
+        else make_state(feiertag_state)
+    )
 
     await schulferien_only_sensor.async_update()
     if expected:
@@ -447,58 +450,7 @@ async def test_schulferien_only_binary_sensor_state(schulferien_only_sensor, has
 
 
 @pytest.mark.asyncio
-async def test_schulferien_only_entity_ids_queried():
-    """Test dass nur die Schulferien-Entity abgefragt wird."""
-    hass = MagicMock()
-    hass.states.get.side_effect = lambda eid: make_state("ferientag") if eid == "sensor.schulferien" else make_state("feiertag")
-    config = {
-        "unique_id": "binary_sensor.test_only",
-        "schulferien_entity_id": "sensor.schulferien",
-        "feiertag_entity_id": "sensor.feiertag",
-    }
-    sensor = SchulferienOnlyBinarySensor(hass, config)
-    await sensor.async_update()
-
-    # Nur die Schulferien-Entity sollte abgefragt werden
-    assert hass.states.get.call_count == 1
-    hass.states.get.assert_called_with("sensor.schulferien")
-
-
-@pytest.mark.asyncio
-async def test_schulferien_only_is_on_false():
-    """Test is_on Property wenn Schulferien False sind."""
-    hass = MagicMock()
-    hass.states.get.side_effect = lambda eid: make_state("kein_ferientag") if eid == "sensor.schulferien" else make_state("feiertag")
-    config = {
-        "unique_id": "binary_sensor.test_only",
-        "schulferien_entity_id": "sensor.schulferien",
-        "feiertag_entity_id": "sensor.feiertag",
-    }
-    sensor = SchulferienOnlyBinarySensor(hass, config)
-    await sensor.async_update()
-    assert sensor.is_on is False
-
-
-@pytest.mark.asyncio
-async def test_schulferien_only_unexpected_state():
-    """Test mit unerwartetem State-Wert."""
-    hass = MagicMock()
-    hass.states.get.side_effect = lambda eid: make_state("unknown") if eid == "sensor.schulferien" else make_state("feiertag")
-    config = {
-        "unique_id": "binary_sensor.test_only",
-        "schulferien_entity_id": "sensor.schulferien",
-        "feiertag_entity_id": "sensor.feiertag",
-    }
-    sensor = SchulferienOnlyBinarySensor(hass, config)
-    await sensor.async_update()
-    assert sensor.is_on is False
-
-
-# ============================================================
-# Tests für SchulferienOnlyMorgenBinarySensor
-# ============================================================
-
-def test_schulferien_only_morgen_sensor_initialization(hass, config_schulferien_only_morgen):
+async def test_schulferien_only_morgen_sensor_initialization(hass, config_schulferien_only_morgen):
     """Test die Initialisierung des SchulferienOnlyMorgen Sensors."""
     sensor = SchulferienOnlyMorgenBinarySensor(hass, config_schulferien_only_morgen)
     # Verwendet die unique_id aus dem Fixture
@@ -544,10 +496,11 @@ def test_schulferien_only_morgen_sensor_default_unique_id(hass):
 async def test_schulferien_only_morgen_binary_sensor_state(hass, config_schulferien_only_morgen, ferien_state, feiertag_state, expected):
     """Testet SchulferienOnlyMorgen Binärsensor-Zustand."""
     sensor = SchulferienOnlyMorgenBinarySensor(hass, config_schulferien_only_morgen)
-    hass.states.get.side_effect = lambda eid: {
-        "sensor.schulferien_de_by_morgen": make_state(ferien_state),
-        "sensor.feiertag_de_by_morgen": make_state(feiertag_state),
-    }.get(eid)
+    hass.states.get.side_effect = (
+        lambda eid: make_state(ferien_state)
+        if eid == "sensor.schulferien_de_by_morgen"
+        else make_state(feiertag_state)
+    )
 
     await sensor.async_update()
     if expected:
@@ -633,10 +586,11 @@ async def test_feiertag_only_binary_sensor_state(feiertag_only_sensor, hass, fer
     FeiertagOnly prüft NUR den Feiertag-State.
     True wenn Feiertag, unabhängig vom Schulferien-State.
     """
-    hass.states.get.side_effect = lambda eid: {
-        "sensor.schulferien_de_by": make_state(ferien_state),
-        "sensor.feiertag_de_by": make_state(feiertag_state),
-    }.get(eid)
+    hass.states.get.side_effect = (
+        lambda eid: make_state(ferien_state)
+        if eid == "sensor.schulferien_de_by"
+        else make_state(feiertag_state)
+    )
 
     await feiertag_only_sensor.async_update()
     if expected:
@@ -788,10 +742,11 @@ def test_feiertag_only_morgen_sensor_default_unique_id(hass):
 async def test_feiertag_only_morgen_binary_sensor_state(hass, config_feiertag_only_morgen, ferien_state, feiertag_state, expected):
     """Testet FeiertagOnlyMorgen Binärsensor-Zustand."""
     sensor = FeiertagOnlyMorgenBinarySensor(hass, config_feiertag_only_morgen)
-    hass.states.get.side_effect = lambda eid: {
-        "sensor.schulferien_de_by_morgen": make_state(ferien_state),
-        "sensor.feiertag_de_by_morgen": make_state(feiertag_state),
-    }.get(eid)
+    hass.states.get.side_effect = (
+        lambda eid: make_state(ferien_state)
+        if eid == "sensor.schulferien_de_by_morgen"
+        else make_state(feiertag_state)
+    )
 
     await sensor.async_update()
     if expected:

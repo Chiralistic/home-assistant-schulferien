@@ -4,6 +4,8 @@ import asyncio
 import logging
 from datetime import datetime
 import aiohttp
+import aiofiles
+import yaml
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -36,11 +38,11 @@ async def fetch_data(
         async with session.get(
             api_url,
             params=api_parameter,
-            headers={"Accept": "application/json"}
+            headers={"Accept": "application/json"},
         ) as response:
             response.raise_for_status()
             return await response.json()
-    
+
     except aiohttp.ClientResponseError as error:
         _LOGGER.error(
             "API Fehler: Status %s, URL: %s, Nachricht: %s",
@@ -60,6 +62,53 @@ async def fetch_data(
             _LOGGER.debug("Die API-Session wurde geschlossen.")
 
     return {}
+
+
+def compute_region_slug(land: str, region: str) -> str:
+    """Compute a normalized region slug by stripping the country prefix.
+
+    Strips the country prefix from region to avoid duplication
+    (e.g., DE-BY -> BY) and replaces hyphens with underscores.
+
+    Args:
+        land: Country code, e.g. "DE".
+        region: Region code, e.g. "DE-BY" or "BY".
+
+    Returns:
+        str: Normalized region slug, e.g. "BY".
+    """
+    land_upper = land.upper()
+    region_raw = region
+    if region_raw.startswith(land_upper + "-"):
+        region_id = region_raw[len(land_upper) + 1:]
+    else:
+        region_id = region_raw
+    return region_id.replace("-", "_")
+
+
+async def load_bridge_days(bridge_days_path: str) -> list:
+    """Load bridge days from a bridge_days.yaml file asynchronously.
+
+    Args:
+        bridge_days_path: Path to the YAML file.
+
+    Returns:
+        list: List of bridge days as strings (DD.MM.YYYY), empty list on error.
+    """
+    try:
+        async with aiofiles.open(str(bridge_days_path), "r", encoding="utf-8") as file:
+            content = await file.read()
+            if not content:
+                return []
+            bridge_days_config = yaml.safe_load(content)
+            return bridge_days_config.get("bridge_days", [])
+    except FileNotFoundError:
+        _LOGGER.warning("Die Datei bridge_days.yaml wurde nicht gefunden.")
+        return []
+    except yaml.YAMLError as error:
+        _LOGGER.error("Fehler beim Laden der Brückentage: %s", error)
+        return []
+
 
 def parse_daten(json_daten, brueckentage=None, typ="ferien"):
     """

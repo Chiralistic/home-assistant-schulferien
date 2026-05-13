@@ -21,7 +21,7 @@ SCHULFERIEN_FEIERTAG_MORGEN_BINARY_SENSOR = BinarySensorEntityDescription(
     translation_key="schulferien_feiertag_morgen",
 )
 
-# NEU: Nur Schulferien
+# EntityDescription für "Nur Schulferien"-Sensoren
 SCHULFERIEN_ONLY_BINARY_SENSOR = BinarySensorEntityDescription(
     key="schulferien_only",
     name="Nur Schulferien",
@@ -34,7 +34,7 @@ SCHULFERIEN_ONLY_MORGEN_BINARY_SENSOR = BinarySensorEntityDescription(
     translation_key="schulferien_only_morgen",
 )
 
-# NEU: Nur Feiertag
+# EntityDescription für "Nur Feiertag"-Sensoren
 FEIERTAG_ONLY_BINARY_SENSOR = BinarySensorEntityDescription(
     key="feiertag_only",
     name="Nur Feiertage",
@@ -324,18 +324,19 @@ async def async_setup_entry(hass, entry, async_add_entities):
     """
     _LOGGER.debug("Initialisiere alle Binärsensoren für Entry: %s", entry.title)
 
-    # Eindeutiges Präfix aus Land und Region generieren (z.B. "_DE_BY")
+    # Eindeutiges Präfix aus Land und Region (z.B. "_DE_BY")
     land = entry.data.get("land", "DE")
     region = entry.data.get("region", "BY")
     instance_prefix = f"{land}_{region}".upper()
+    region_slug = compute_region_slug(land, region)
 
-    # Entity IDs mit Präfix
-    schulferien_entity_id = f"sensor.schulferien_{instance_prefix.lower()}"
-    feiertag_entity_id = f"sensor.feiertag_{instance_prefix.lower()}"
-    schulferien_morgen_entity_id = f"sensor.schulferien_{instance_prefix.lower()}_morgen"
-    feiertag_morgen_entity_id = f"sensor.feiertag_{instance_prefix.lower()}_morgen"
+    # Entity IDs mit slugified region für Konsistenz zu Sensor-Klassen
+    schulferien_entity_id = f"sensor.schulferien_{land.lower()}_{region_slug.lower()}"
+    feiertag_entity_id = f"sensor.feiertag_{land.lower()}_{region_slug.lower()}"
+    schulferien_morgen_entity_id = f"sensor.schulferien_{land.lower()}_{region_slug.lower()}_morgen"
+    feiertag_morgen_entity_id = f"sensor.feiertag_{land.lower()}_{region_slug.lower()}_morgen"
 
-    # Base unique_id prefix für binary sensors
+    # Prefix für unique_ids der Binärsensoren
     binary_unique_prefix = f"binary_sensor.schulferien_feiertage_{instance_prefix}"
 
     config_base = {
@@ -357,7 +358,7 @@ async def async_setup_entry(hass, entry, async_add_entities):
         "unique_id": f"{binary_unique_prefix}_morgen",
     }
 
-    # NEU: eigene Configs mit eigenen unique_ids
+    # Configs für die separaten Nur-Schulferien- und Nur-Feiertag-Sensoren
     config_schulferien_only_heute = {
         **config_base,
         **config_heute,
@@ -383,11 +384,11 @@ async def async_setup_entry(hass, entry, async_add_entities):
     }
 
     sensors = [
-        # bestehende (unverändert!)
+        # Kombinierte Sensoren (Schulferien + Feiertage)
         SchulferienFeiertagBinarySensor(hass, config_heute),
         SchulferienFeiertagMorgenBinarySensor(hass, config_morgen),
 
-        # neue
+        # Separate Sensoren pro Typ
         SchulferienOnlyBinarySensor(hass, config_schulferien_only_heute),
         SchulferienOnlyMorgenBinarySensor(
             hass, config_schulferien_only_morgen

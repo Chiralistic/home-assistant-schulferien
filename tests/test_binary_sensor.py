@@ -876,28 +876,28 @@ async def test_async_setup_entry_default_entity_ids():
     await async_setup_entry(hass, entry, mock_add_entities)
 
     # Erster Sensor (SchulferienFeiertagBinarySensor) sollte die Default-IDs haben
-    assert added_entities[0]._entity_ids["schulferien"] == "sensor.schulferien_de_de-by"
-    assert added_entities[0]._entity_ids["feiertag"] == "sensor.feiertag_de_de-by"
+    assert added_entities[0]._entity_ids["schulferien"] == "sensor.schulferien_de_by"
+    assert added_entities[0]._entity_ids["feiertag"] == "sensor.feiertag_de_by"
 
     # Zweiter Sensor (SchulferienFeiertagMorgenBinarySensor) sollte die Morgen-IDs haben
-    assert added_entities[1]._entity_ids["schulferien"] == "sensor.schulferien_de_de-by_morgen"
-    assert added_entities[1]._entity_ids["feiertag"] == "sensor.feiertag_de_de-by_morgen"
+    assert added_entities[1]._entity_ids["schulferien"] == "sensor.schulferien_de_by_morgen"
+    assert added_entities[1]._entity_ids["feiertag"] == "sensor.feiertag_de_by_morgen"
 
     # Dritter Sensor (SchulferienOnlyBinarySensor)
-    assert added_entities[2]._entity_ids["schulferien"] == "sensor.schulferien_de_de-by"
-    assert added_entities[2]._entity_ids["feiertag"] == "sensor.feiertag_de_de-by"
+    assert added_entities[2]._entity_ids["schulferien"] == "sensor.schulferien_de_by"
+    assert added_entities[2]._entity_ids["feiertag"] == "sensor.feiertag_de_by"
 
     # Vierter Sensor (SchulferienOnlyMorgenBinarySensor)
-    assert added_entities[3]._entity_ids["schulferien"] == "sensor.schulferien_de_de-by_morgen"
-    assert added_entities[3]._entity_ids["feiertag"] == "sensor.feiertag_de_de-by_morgen"
+    assert added_entities[3]._entity_ids["schulferien"] == "sensor.schulferien_de_by_morgen"
+    assert added_entities[3]._entity_ids["feiertag"] == "sensor.feiertag_de_by_morgen"
 
     # Fünfter Sensor (FeiertagOnlyBinarySensor)
-    assert added_entities[4]._entity_ids["schulferien"] == "sensor.schulferien_de_de-by"
-    assert added_entities[4]._entity_ids["feiertag"] == "sensor.feiertag_de_de-by"
+    assert added_entities[4]._entity_ids["schulferien"] == "sensor.schulferien_de_by"
+    assert added_entities[4]._entity_ids["feiertag"] == "sensor.feiertag_de_by"
 
     # Sechster Sensor (FeiertagOnlyMorgenBinarySensor)
-    assert added_entities[5]._entity_ids["schulferien"] == "sensor.schulferien_de_de-by_morgen"
-    assert added_entities[5]._entity_ids["feiertag"] == "sensor.feiertag_de_de-by_morgen"
+    assert added_entities[5]._entity_ids["schulferien"] == "sensor.schulferien_de_by_morgen"
+    assert added_entities[5]._entity_ids["feiertag"] == "sensor.feiertag_de_by_morgen"
 
 
 # ============================================================

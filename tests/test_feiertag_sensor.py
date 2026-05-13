@@ -696,21 +696,11 @@ def test_feiertag_morgen_sensor_native_value_empty_list(hass, config_heute):
 
 
 def test_feiertag_morgen_sensor_native_value_none_list(hass, config_heute):
-    """Test native_value wenn feiertage_liste None ist.
-
-    Hinweis: Der aktuelle Code in feiertag_sensor.py Zeile 292 verwendet
-    .get("feiertage_liste", []) was None zurückgibt wenn der Key auf None gesetzt wurde.
-    Dies führt zu TypeError: 'NoneType' object is not iterable.
-    Der Test erwartet korrektes Verhalten (Return "kein_feiertag").
-    """
+    """Test native_value wenn feiertage_liste None ist."""
     main_sensor = FeiertagSensor(hass, config_heute)
     main_sensor._feiertags_info["feiertage_liste"] = None
     morgen_sensor = FeiertagMorgenSensor(main_sensor)
-    try:
-        result = morgen_sensor.native_value
-        assert result == "kein_feiertag"
-    except TypeError:
-        pytest.skip("Bekannter Bug im Code: .get() mit Default [] bei None-Wert")
+    assert morgen_sensor.native_value == "kein_feiertag"
 
 
 def test_feiertag_morgen_sensor_unique_id(hass, config_heute):
@@ -740,11 +730,7 @@ async def test_feiertag_morgen_sensor_async_update_pass(hass, config_heute):
 # ============================================================
 
 def test_load_bridge_days_file_not_found():
-    """Test dass leere Liste zurückgegeben wird wenn Datei nicht gefunden.
-
-    Hinweis: Scheitert weil aiofiles nicht als Modul-Attribut importiert ist.
-    Der Code verwendet aiofiles.open aber aiofiles wird nicht oben importiert.
-    """
+    """Test dass leere Liste zurückgegeben wird wenn Datei nicht gefunden."""
     pytest.importorskip("aiofiles")
 
     with patch.dict('sys.modules', {'aiofiles': MagicMock()}):
@@ -753,56 +739,35 @@ def test_load_bridge_days_file_not_found():
 
 @pytest.mark.asyncio
 async def test_load_bridge_days_empty_file(tmp_path):
-    """Test dass leere Liste bei leerer Datei zurückgegeben wird.
-
-    Hinweis: Scheitert weil aiofiles und yaml nicht als Modul-Importe vorhanden sind.
-    """
-    pytest.importorskip("aiofiles")
+    """Test dass leere Liste bei leerer Datei zurückgegeben wird."""
     test_file = tmp_path / "bridge_days.yaml"
     test_file.write_text("", encoding="utf-8")
 
-    try:
-        result = await load_bridge_days(str(test_file))
-        assert result == []
-    except (NameError, AttributeError):
-        pytest.skip("Bekannter Bug: aiofiles/yaml nicht im Modul importiert")
+    result = await load_bridge_days(str(test_file))
+    assert result == []
 
 
 @pytest.mark.asyncio
 async def test_load_bridge_days_valid_content(tmp_path):
-    """Test das Laden mit gültigem Inhalt.
-
-    Hinweis: Scheitert weil aiofiles nicht als Modul-Import vorhanden ist.
-    """
-    pytest.importorskip("aiofiles")
+    """Test das Laden mit gültigem Inhalt."""
     test_file = tmp_path / "bridge_days.yaml"
     content = "bridge_days:\n  - date: '2024-04-22'\n    name: 'Brücktag'\n"
     test_file.write_text(content, encoding="utf-8")
 
-    try:
-        result = await load_bridge_days(str(test_file))
-        assert isinstance(result, list)
-        assert len(result) == 1
-        assert result[0]["name"] == "Brücktag"
-    except (NameError, AttributeError):
-        pytest.skip("Bekannter Bug: aiofiles/yaml nicht im Modul importiert")
+    result = await load_bridge_days(str(test_file))
+    assert isinstance(result, list)
+    assert len(result) == 1
+    assert result[0]["name"] == "Brücktag"
 
 
 @pytest.mark.asyncio
 async def test_load_bridge_days_yaml_error(tmp_path):
-    """Test Fehlerbehandlung bei ungültigem YAML.
-
-    Hinweis: Scheitert weil yaml nicht als Modul-Import vorhanden ist.
-    """
-    pytest.importorskip("aiofiles")
+    """Test Fehlerbehandlung bei ungültigem YAML."""
     test_file = tmp_path / "bridge_days.yaml"
     test_file.write_text("{invalid: yaml: content:", encoding="utf-8")
 
-    try:
-        result = await load_bridge_days(str(test_file))
-        assert result == []
-    except (NameError, AttributeError):
-        pytest.skip("Bekannter Bug: yaml nicht im Modul importiert")
+    result = await load_bridge_days(str(test_file))
+    assert result == []
 
 
 # ============================================================

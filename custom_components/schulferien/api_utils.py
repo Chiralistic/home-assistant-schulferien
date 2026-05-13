@@ -78,7 +78,7 @@ def compute_region_slug(land: str, region: str) -> str:
         str: Normalized region slug, e.g. "BY".
     """
     land_upper = land.upper()
-    region_raw = region
+    region_raw = region if region is not None else ""
     if region_raw.startswith(land_upper + "-"):
         region_id = region_raw[len(land_upper) + 1:]
     else:
@@ -100,7 +100,7 @@ async def load_bridge_days(bridge_days_path: str) -> list:
             content = await file.read()
             if not content:
                 return []
-            bridge_days_config = yaml.safe_load(content)
+            bridge_days_config = yaml.safe_load(content) or {}
             return bridge_days_config.get("bridge_days", [])
     except FileNotFoundError:
         _LOGGER.warning("Die Datei bridge_days.yaml wurde nicht gefunden.")

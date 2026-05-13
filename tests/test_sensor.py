@@ -292,7 +292,7 @@ async def test_async_setup_entry_config_data_passed():
     assert schulferien_config["brueckentage"] == []
     assert schulferien_config["name"] == "Schulferien - Deutschland (Hessen)"
     assert schulferien_config["unique_id"] == "schulferien_DE_DE-HE"
-    assert schulferien_config["entity_id"] == "sensor.schulferien_de_de-he"
+    assert schulferien_config["entity_id"] == "sensor.schulferien_de_he"
 
     # Prüfen dass FeiertagSensor mit korrekten Config erstellt wurde
     mock_feiertag.assert_called_once()
@@ -303,7 +303,7 @@ async def test_async_setup_entry_config_data_passed():
     assert feiertag_config["region_name"] == "Hessen"
     assert feiertag_config["name"] == "Feiertag - Deutschland (Hessen)"
     assert feiertag_config["unique_id"] == "feiertag_DE_DE-HE"
-    assert feiertag_config["entity_id"] == "sensor.feiertag_de_de-he"
+    assert feiertag_config["entity_id"] == "sensor.feiertag_de_he"
 
 
 @pytest.mark.asyncio
@@ -861,15 +861,14 @@ async def test_load_bridge_days_whitespace_only_file():
 
     # whitespace-only wird von yaml.safe_load als None geparst
     # content ist nicht leer (whitespace), also geht es zu yaml.safe_load
-    # yaml.safe_load("   \n  \n  ") gibt None -> bridge_days_config ist None
-    # None.get("bridge_days", []) wirft AttributeError
-    # Der Code wirft AttributeError wenn bridge_days_config None ist
+    # yaml.safe_load("   \n  \n  ") gibt None -> or {} macht daraus {}
+    # {}.get("bridge_days", []) gibt []
     with patch(
         "custom_components.schulferien.api_utils.aiofiles.open",
         return_value=mock_aiofile,
     ), patch("custom_components.schulferien.api_utils.yaml.safe_load", return_value=None):
-        with pytest.raises(AttributeError):
-            await load_bridge_days("whitespace.yaml")
+        result = await load_bridge_days("whitespace.yaml")
+        assert result == []
 
 
 @pytest.mark.asyncio

@@ -6,7 +6,7 @@ from .const import DOMAIN
 _LOGGER = logging.getLogger(__name__)
 
 async def async_setup_entry(hass, entry):
-    """Set up Schulferien from a config entry."""
+    """Setup der Schulferien-Integration aus einem Config Entry."""
     _LOGGER.debug("Setting up Schulferien entry: %s", entry.title)
 
     # Registriere den Binary Sensor zusätzlich

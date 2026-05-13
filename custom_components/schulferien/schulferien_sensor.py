@@ -15,11 +15,11 @@ from .const import (
 
 _LOGGER = logging.getLogger(__name__)
 
-# Definition der EntityDescription mit Übersetzungsschlüssel
+# EntityDescriptions mit Übersetzungsschlüssel für HA-Integration
 SCHULFERIEN_SENSOR = SensorEntityDescription(
     key="schulferien",
     name="Schulferien",
-    translation_key="schulferien",  # Bezug zur Übersetzung
+    translation_key="schulferien",
 )
 
 # pylint: disable=invalid-name
@@ -28,8 +28,6 @@ SCHULFERIEN_MORGEN_SENSOR = SensorEntityDescription(
     name="Schulferien Morgen",
     translation_key="schulferien_morgen",
 )
-
-# Konstante für doppelte Key-Definition unten (wird dort erneut definiert)
 
 class SchulferienSensor(SensorEntity):
     """Sensor für Schulferien und Brückentage."""
@@ -50,9 +48,9 @@ class SchulferienSensor(SensorEntity):
         self._location = {
             "land": config["land"],
             "region": config["region"],
-            "land_name": config["land_name"],  # Ausgeschriebener Name des Landes
-            "region_name": config["region_name"],  # Ausgeschriebener Name der Region
-            "iso_code": "DE",  # Wird dynamisch aus der Spracheinstellung übernommen
+            "land_name": config["land_name"],
+            "region_name": config["region_name"],
+            "iso_code": "DE",
         }
         self._brueckentage = config.get("brueckentage", [])
         self._ferien_info = {
@@ -61,7 +59,7 @@ class SchulferienSensor(SensorEntity):
             "naechste_ferien_beginn": None,
             "naechste_ferien_ende": None,
             "ferien_liste": [],
-            "letztes_update": None,  # Neuer Schlüssel
+            "letztes_update": None,
         }
         _LOGGER.debug("Sensor für %s mit Land: %s, Region: %s, Brückentagen: %s",
             self._name, self._location["land"], self._location["region"],
@@ -75,17 +73,15 @@ class SchulferienSensor(SensorEntity):
         if self.hass and self.hass.config:
             self._location["iso_code"] = self.hass.config.language[:2].upper()
         else:
-            self._location["iso_code"] = "DE"  # Standardwert
+            self._location["iso_code"] = "DE"
             _LOGGER.warning("Schulferien-Sensor: Fallback auf Standard 'DE'.")
 
-        # Debug-Ausgabe des Sprachcodes im Log
         _LOGGER.debug("Schulferien-Sensor: Verwendeter Sprachcode: %s", self._location["iso_code"])
 
-        # Holen des letzten Updates
         letztes_update = self._ferien_info.get("letztes_update")
         jetzt = datetime.now()
 
-        # Update nur, wenn noch kein Update vorhanden oder wenn der Tag gewechselt hat
+        # Update nur bei fehlendem oder abgelaufenem (Tag gewechselt)
         if not letztes_update or letztes_update.date() != jetzt.date():
             await self.async_update()
             self.async_write_ha_state()
@@ -139,7 +135,7 @@ class SchulferienSensor(SensorEntity):
         beginn = None
         ende = None
 
-        # Nutze eine leere Liste, falls 'ferien_liste' fehlt
+        # Leere Liste als Fallback falls 'ferien_liste' fehlt
         ferien_liste = self._ferien_info.get("ferien_liste", [])
 
         for ferien in ferien_liste:
@@ -264,7 +260,7 @@ class SchulferienSensor(SensorEntity):
                     "naechste_ferien_ende": naechste_ferien["end_datum"].strftime("%d.%m.%Y"),
                 })
 
-# Definition der EntityDescription für den morgigen Schulferien-Sensor
+# Zweite Definition der EntityDescription (oben als Konstante, hier für Klassen-Referenz)
 # pylint: disable=invalid-name
 SCHULFERIEN_MORGEN_SENSOR = SensorEntityDescription(
     key="schulferien_morgen",
@@ -319,4 +315,3 @@ class SchulferienMorgenSensor(SensorEntity):
 
     async def async_update(self):
         """Aktualisiert den Zustand des Sensors über den Referenzsensor."""
-        pass

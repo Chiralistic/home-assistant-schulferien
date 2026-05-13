@@ -15,11 +15,11 @@ from .const import (
 
 _LOGGER = logging.getLogger(__name__)
 
-# Definition der EntityDescription mit Übersetzungsschlüssel
+# EntityDescription mit Übersetzungsschlüssel für HA-Integration
 FEIERTAG_SENSOR = SensorEntityDescription(
     key="feiertag",
     name="Feiertag",
-    translation_key="feiertag",  # Bezug zur Übersetzung
+    translation_key="feiertag",
 )
 
 FEIERTAG_MORGEN_SENSOR = SensorEntityDescription(
@@ -31,10 +31,8 @@ FEIERTAG_MORGEN_SENSOR = SensorEntityDescription(
 class FeiertagSensor(SensorEntity):
     """Sensor für Feiertage."""
 
-    # pylint: disable=unused-argument
-    def __init__(self, hass, config):
+    def __init__(self, _hass, config):
         """Initialisiert den Feiertag-Sensor mit Konfigurationsdaten."""
-    # pylint: enable=unused-argument
         self.entity_description = FEIERTAG_SENSOR
         self._name = config["name"]
         land_upper = config["land"].upper()
@@ -46,26 +44,25 @@ class FeiertagSensor(SensorEntity):
             "entity_id",
             f"sensor.feiertag_{land_upper.lower()}_{region_slug.lower()}",
         )
-        # Hier verwenden wir die über die Konfiguration erhaltenen Länder und Regionen
         self._location = {
-            "land": config["land"],  # Wird aus dem ConfigFlow übernommen
-            "region": config["region"],  # Wird aus dem ConfigFlow übernommen
-            "land_name": config["land_name"],  # Ausgeschriebener Name des Landes
-            "region_name": config["region_name"],  # Ausgeschriebener Name der Region
-            "iso_code": "DE",  # Wird dynamisch aus der Spracheinstellung übernommen
+            "land": config["land"],
+            "region": config["region"],
+            "land_name": config["land_name"],
+            "region_name": config["region_name"],
+            "iso_code": "DE",
         }
         self._feiertags_info = {
             "heute_feiertag": None,
             "naechster_feiertag_name": None,
             "naechster_feiertag_datum": None,
             "feiertage_liste": [],
-            "letztes_update": None,  # Neuer Schlüssel
+            "letztes_update": None,
         }
 
-        # Debugging der Konfigurationswerte
-        _LOGGER.debug("FeiertagSensor initialisiert mit folgenden Konfigurationsdaten:")
-        _LOGGER.debug("Land: %s", self._location["land"])
-        _LOGGER.debug("Region: %s", self._location["region"])
+        _LOGGER.debug(
+            "FeiertagSensor initialisiert: Land=%s, Region=%s",
+            self._location["land"], self._location["region"]
+        )
 
     async def async_added_to_hass(self):
         """Wird aufgerufen, wenn die Entität zu Home Assistant hinzugefügt wird."""
@@ -76,14 +73,12 @@ class FeiertagSensor(SensorEntity):
             self._location["iso_code"] = "DE"  # Standardwert
             _LOGGER.warning("Feiertag-Sensor: Fallback auf Standard 'DE'.")
 
-        # Debug-Ausgabe des Sprachcodes im Log
         _LOGGER.debug("Feiertag-Sensor: Verwendeter Sprachcode: %s", self._location["iso_code"])
 
-        # Holen des letzten Updates
         letztes_update = self._feiertags_info.get("letztes_update")
         jetzt = datetime.now()
 
-        # Update nur, wenn noch kein Update vorhanden oder wenn der Tag gewechselt hat
+        # Update nur bei fehlendem oder abgelaufenem (Tag gewechselt)
         if not letztes_update or letztes_update.date() != jetzt.date():
             await self.async_update()
             self.async_write_ha_state()
@@ -131,7 +126,7 @@ class FeiertagSensor(SensorEntity):
         aktueller_feiertag = None
         datum = None
 
-        # Nutze eine leere Liste, falls 'feiertage_liste' fehlt
+        # Leere Liste als Fallback falls 'feiertage_liste' fehlt
         feiertage_liste = self._feiertags_info.get("feiertage_liste", [])
         for feiertag in feiertage_liste:
             if feiertag["start_datum"] == heute:
@@ -146,8 +141,8 @@ class FeiertagSensor(SensorEntity):
         return {
             "Name Feiertag": aktueller_feiertag,
             "Datum": datum,
-            "Land": self._location["land_name"],  # Dynamisch aus der Konfiguration übernommen
-            "Region": self._location["region_name"],  # Dynamisch aus der Konfiguration übernommen
+            "Land": self._location["land_name"],
+            "Region": self._location["region_name"],
         }
 
     async def async_update(self, session=None):
@@ -230,8 +225,7 @@ class FeiertagSensor(SensorEntity):
         try:
             feiertage_liste = parse_daten(feiertage_daten, typ="feiertage")
 
-            # Workaround: Ostersonntag ergänzen
-            # Iterate over a copy to avoid modifying the list during iteration
+            # Workaround: Ostersonntag ergänzen wenn Ostermontag vorhanden
             for feiertag in list(feiertage_liste):
                 name = feiertag["name"].lower()
                 if "ostermontag" in name or "easter monday" in name:
@@ -320,7 +314,7 @@ class FeiertagMorgenSensor(SensorEntity):
         """Gibt den aktuellen Zustand des Sensors zurück."""
         morgen = datetime.now().date() + timedelta(days=1)
         # pylint: disable=protected-access
-        for feiertag in self._referenzsensor._feiertags_info.get("feiertage_liste", []):
+        for feiertag in self._referenzsensor._feiertags_info.get("feiertage_liste") or []:
         # pylint: enable=protected-access
             if feiertag["start_datum"] == morgen:
                 return "feiertag"

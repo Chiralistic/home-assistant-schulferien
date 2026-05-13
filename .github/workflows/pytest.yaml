@@ -7,6 +7,12 @@ jobs:
     name: Run Tests with Pytest
     runs-on: ubuntu-latest
 
+    # Hinweis: Node.js 24 wird ab 2. Juni 2026 standardmäßig verwendet.
+    # Node.js 20 wird am 16. September 2026 vom Runner entfernt.
+    # Siehe: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4

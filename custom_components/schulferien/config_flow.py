@@ -18,17 +18,17 @@ class SchulferienFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
     """Konfigurations-Flow für die Schulferien-Integration."""
 
     def __init__(self):
-        """Initialisierung."""
+        """Initialisierung des Config-Flows."""
         # pylint: disable=invalid-name
-        self.language_iso_code = "DE"  # Fallback-Sprache auf "DE" setzen.
+        self.language_iso_code = "DE"
         self.supported_countries = {}
         self.supported_regions = {}
         self.selected_country = None
         self.selected_region = None
 
     def _get_hass_language(self, hass: HomeAssistant) -> str:
-        """Holt den aktuellen Sprachcode aus der Home Assistant-Konfiguration und formatiert ihn."""
-        language = hass.config.language[:2].upper()  # Ersten zwei Buchstaben groß, z.B. "DE"
+        """Holt den Sprachcode aus der Home Assistant-Konfiguration (2-stellig, Großbuchstaben)."""
+        language = hass.config.language[:2].upper()
         _LOGGER.debug("Ermittelte Sprache aus Home Assistant: %s", language)
         return language
 
@@ -44,7 +44,7 @@ class SchulferienFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
                             country["isoCode"]: next(
                                 (name_entry["text"] for name_entry in country["name"]
                                  if name_entry["language"] == self.language_iso_code),
-                                country["isoCode"]  # Fallback
+                                country["isoCode"]
                             )
                             for country in countries_data if "name" in country
                         }
@@ -65,7 +65,6 @@ class SchulferienFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         async with aiohttp.ClientSession() as session:
             async with session.get(url) as response:
                 if response.status == 200:
-                    # Debugging: API-Antwort prüfen
                     _LOGGER.debug("API-Antwort für Regionen: %s", await response.text())
                     try:
                         subdivisions_data = await response.json()
@@ -80,26 +79,23 @@ class SchulferienFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
                         return self.supported_regions[country_code]
                     except (KeyError, ValueError, TypeError) as e:
                         _LOGGER.error("Fehler beim Verarbeiten der API-Antwort für Regionen: %s", e)
-                        return {}  # Fehlerbehandlung, falls die Antwort nicht wie erwartet ist
+                        return {}
                 else:
                     _LOGGER.error("Fehler beim Abrufen der Regionen: HTTP %s", response.status)
-                    return {}  # Rückgabe einer leeren Liste, wenn der HTTP-Status nicht 200 ist
+                    return {}
 
     async def async_step_user(self, user_input=None):
         """Erster Schritt: Auswahl des Landes."""
         errors = {}
 
-        # Sprache von Home Assistant holen
         self.language_iso_code = self._get_hass_language(self.hass)
 
-        # Länder abrufen
         countries = await self._fetch_supported_countries()
         if not countries:
             return self.async_abort(reason="no_countries_available")
 
         if user_input is not None:
-            # Benutzer hat ein Land ausgewählt
-            self.selected_country = user_input["country"]  # Speichern des Landes
+            self.selected_country = user_input["country"]
             return await self.async_step_region()
 
         return self.async_show_form(
@@ -116,15 +112,12 @@ class SchulferienFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         """Zweiter Schritt: Auswahl der Region basierend auf dem Land."""
         errors = {}
 
-        # Sicherstellen, dass ein Land ausgewählt wurde
         if not hasattr(self, "selected_country") or not self.selected_country:
             return self.async_abort(reason="missing_country")
 
-        # Regionen abrufen
         regions = await self._fetch_supported_regions(self.selected_country)
 
         if not regions:
-            # Wenn keine Regionen verfügbar sind, verwende das Land als Fallback-Region
             _LOGGER.warning(
                 "Keine Regionen für Land %s verfügbar, "
                 "verwende Land-Code als Region.",
@@ -138,7 +131,6 @@ class SchulferienFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
             }
 
         if user_input is not None:
-            # Benutzer hat eine Region ausgewählt
             self.selected_region = user_input["region"]
             return await self.async_step_finish()
 
@@ -154,12 +146,10 @@ class SchulferienFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
 
     async def async_step_finish(self):
         """Prüft die Konfiguration und erstellt den Eintrag."""
-        # Sicherstellen, dass Land und Region gesetzt sind
         if not hasattr(self, "selected_country") or self.selected_country is None or \
            not hasattr(self, "selected_region") or self.selected_region is None:
             return self.async_abort(reason="incomplete_configuration")
 
-        # Daten für den Eintrag vorbereiten
         land_name = self.supported_countries.get(self.selected_country)
         if land_name is None:
             _LOGGER.warning(

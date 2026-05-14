@@ -1219,3 +1219,74 @@ async def test_feiertag_only_queries_one_entity():
     sensor = FeiertagOnlyBinarySensor(hass, config)
     await sensor.async_update()
     assert hass.states.get.call_count == 1
+
+
+@pytest.mark.asyncio
+async def test_binary_sensor_multiple_instances_different_regions():
+    """Testet dass zwei BinarySensor-Instanzen mit verschiedenen Regionen parallel laufen."""
+    from custom_components.schulferien.binary_sensor import async_setup_entry
+
+    added_entities_instance1 = []
+    added_entities_instance2 = []
+
+    config_entry_by = MagicMock()
+    config_entry_by.data = {
+        "land": "DE",
+        "region": "DE-BY",
+        "land_name": "Deutschland",
+        "region_name": "Bayern",
+    }
+
+    config_entry_at = MagicMock()
+    config_entry_at.data = {
+        "land": "AT",
+        "region": "AT-OO",
+        "land_name": "Österreich",
+        "region_name": "Oberösterreich",
+    }
+
+    hass = MagicMock()
+
+    with patch(
+        "custom_components.schulferien.binary_sensor.compute_region_slug"
+    ) as mock_slug:
+        mock_slug.side_effect = lambda land, region: region.split("-")[-1]
+
+        mock_add_entities_by = lambda entities: added_entities_instance1.extend(entities)
+        mock_add_entities_at = lambda entities: added_entities_instance2.extend(entities)
+
+        await async_setup_entry(hass, config_entry_by, mock_add_entities_by)
+        await async_setup_entry(hass, config_entry_at, mock_add_entities_at)
+
+    assert len(added_entities_instance1) == 6
+    assert len(added_entities_instance2) == 6
+
+    entity_ids_instance1 = []
+    for e in added_entities_instance1:
+        entity_ids_instance1.extend(e._entity_ids.values())
+
+    entity_ids_instance2 = []
+    for e in added_entities_instance2:
+        entity_ids_instance2.extend(e._entity_ids.values())
+
+    for eid in entity_ids_instance1:
+        assert "de_by" in eid
+
+    for eid in entity_ids_instance2:
+        assert "at_oo" in eid
+
+    all_entity_ids = set(entity_ids_instance1) | set(entity_ids_instance2)
+
+    de_by_ids = set(entity_ids_instance1)
+    at_oo_ids = set(entity_ids_instance2)
+
+    assert de_by_ids & at_oo_ids == set()
+
+    unique_ids_instance1 = [e.unique_id for e in added_entities_instance1]
+    unique_ids_instance2 = [e.unique_id for e in added_entities_instance2]
+
+    for uid in unique_ids_instance1:
+        assert "DE_DE-BY" in uid
+
+    for uid in unique_ids_instance2:
+        assert "AT_AT-OO" in uid

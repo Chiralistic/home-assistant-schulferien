@@ -982,3 +982,98 @@ async def test_async_setup_entry_multiple_regions():
         assert len(added_entities) == 4
         schulferien_config = mock_schulferien.call_args[0][1]
         assert schulferien_config["region"] == region_data["region"]
+
+
+@pytest.mark.asyncio
+async def test_multiple_instances_different_regions():
+    """Testet dass zwei Instanzen mit verschiedenen Regionen parallel laufen."""
+    added_entities_instance1 = []
+    added_entities_instance2 = []
+
+    config_entry_by = MagicMock()
+    config_entry_by.data = {
+        "land": "DE",
+        "region": "DE-BY",
+        "land_name": "Deutschland",
+        "region_name": "Bayern",
+    }
+
+    config_entry_bw = MagicMock()
+    config_entry_bw.data = {
+        "land": "DE",
+        "region": "DE-BW",
+        "land_name": "Deutschland",
+        "region_name": "Baden-Württemberg",
+    }
+
+    hass = MagicMock()
+    hass.config.path = MagicMock(
+        return_value="custom_components/schulferien/bridge_days.yaml"
+    )
+
+    def make_add_entities(entities):
+        def add(entities_list):
+            entities.extend(entities_list)
+        return add
+
+    def create_sensor_instance(hass, config):
+        region = config["region"]
+        region_slug = region.split("-")[-1].lower()
+        mock_instance = MagicMock()
+        mock_instance.async_update = AsyncMock()
+        mock_instance.unique_id = f"schulferien_DE_{region_slug.upper()}"
+        mock_instance.entity_id = f"sensor.schulferien_de_{region_slug}"
+        return mock_instance
+
+    def create_feiertag_instance(hass, config):
+        region = config["region"]
+        region_slug = region.split("-")[-1].lower()
+        mock_instance = MagicMock()
+        mock_instance.async_update = AsyncMock()
+        mock_instance.unique_id = f"feiertag_DE_{region_slug.upper()}"
+        mock_instance.entity_id = f"sensor.feiertag_de_{region_slug}"
+        return mock_instance
+
+    with patch(
+        "custom_components.schulferien.sensor.load_bridge_days",
+        new=AsyncMock(return_value=[]),
+    ), patch(
+        "custom_components.schulferien.sensor.aiohttp.ClientSession"
+    ) as mock_session_class, patch(
+        "custom_components.schulferien.sensor.SchulferienSensor"
+    ) as mock_schulferien, patch(
+        "custom_components.schulferien.sensor.FeiertagSensor"
+    ) as mock_feiertag:
+
+        mock_session = AsyncMock()
+        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_session.__aexit__ = AsyncMock(return_value=None)
+        mock_session_class.return_value = mock_session
+
+        mock_schulferien.side_effect = create_sensor_instance
+        mock_feiertag.side_effect = create_feiertag_instance
+
+        mock_add_entities_by = make_add_entities(added_entities_instance1)
+        mock_add_entities_bw = make_add_entities(added_entities_instance2)
+
+        await async_setup_entry(hass, config_entry_by, mock_add_entities_by)
+        await async_setup_entry(hass, config_entry_bw, mock_add_entities_bw)
+
+    assert len(added_entities_instance1) == 4
+    assert len(added_entities_instance2) == 4
+
+    schulferien_calls = mock_schulferien.call_args_list
+    assert len(schulferien_calls) == 2
+
+    region_values = [call[0][1]["region"] for call in schulferien_calls]
+    assert "DE-BY" in region_values
+    assert "DE-BW" in region_values
+
+    entity_ids = []
+    for entities in [added_entities_instance1, added_entities_instance2]:
+        for entity in entities:
+            entity_ids.append(entity.entity_id)
+
+    assert "sensor.schulferien_de_by" in entity_ids
+    assert "sensor.schulferien_de_bw" in entity_ids
+    assert len(set(entity_ids)) == len(entity_ids)

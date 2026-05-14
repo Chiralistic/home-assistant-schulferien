@@ -1,4 +1,18 @@
-"""Binary sensors for school holidays and public holidays integration."""
+"""Binärsensoren für Schulferien und Feiertage.
+
+Binärsensoren ergänzen die Sensors um einfache ON/OFF-Zustände,
+die sich ideal für Automatisierungen in Home Assistant eignen.
+Anstatt dass der Nutzer den Sensor-Wert ("ferientag" / "kein_ferientag")
+prüfen muss, liefert ein BinarySensor direkt True/False.
+
+Warum 6 Binärsensoren?
+- Heute + Morgen jeweils: kombiniert (Schulferien ODER Feiertage),
+  nur Schulferien, nur Feiertage = 3 x 2 = 6 Sensoren.
+- Kombiniert: True wenn Ferientag ODER Feiertag → Automatisierungen
+  die an beiden Tagen auslösen sollen (z.B. "Kinder in Schule").
+- Nur Schulferien: True nur bei Ferientag → z.B. "Schule aus"-Benachrichtigung.
+- Nur Feiertage: True nur bei Feiertag → z.B. "Bank geschlossen"-Info.
+"""
 
 import logging
 from homeassistant.components.binary_sensor import (
@@ -9,38 +23,42 @@ from .api_utils import compute_region_slug
 
 _LOGGER = logging.getLogger(__name__)
 
+# Kombiniert: Schulferien ODER Feiertage (heute)
 SCHULFERIEN_FEIERTAG_BINARY_SENSOR = BinarySensorEntityDescription(
     key="schulferien_feiertag",
     name="Schulferien/Feiertage",
     translation_key="schulferien_feiertag",
 )
 
+# Kombiniert: Schulferien ODER Feiertage (morgen)
 SCHULFERIEN_FEIERTAG_MORGEN_BINARY_SENSOR = BinarySensorEntityDescription(
     key="schulferien_feiertag_morgen",
     name="Schulferien/Feiertage Morgen",
     translation_key="schulferien_feiertag_morgen",
 )
 
-# EntityDescription für "Nur Schulferien"-Sensoren
+# Nur Schulferien (heute)
 SCHULFERIEN_ONLY_BINARY_SENSOR = BinarySensorEntityDescription(
     key="schulferien_only",
     name="Nur Schulferien",
     translation_key="schulferien_only",
 )
 
+# Nur Schulferien (morgen)
 SCHULFERIEN_ONLY_MORGEN_BINARY_SENSOR = BinarySensorEntityDescription(
     key="schulferien_only_morgen",
     name="Nur Schulferien Morgen",
     translation_key="schulferien_only_morgen",
 )
 
-# EntityDescription für "Nur Feiertag"-Sensoren
+# Nur Feiertag (heute)
 FEIERTAG_ONLY_BINARY_SENSOR = BinarySensorEntityDescription(
     key="feiertag_only",
     name="Nur Feiertage",
     translation_key="feiertag_only",
 )
 
+# Nur Feiertag (morgen)
 FEIERTAG_ONLY_MORGEN_BINARY_SENSOR = BinarySensorEntityDescription(
     key="feiertag_only_morgen",
     name="Nur Feiertage Morgen",
@@ -49,7 +67,12 @@ FEIERTAG_ONLY_MORGEN_BINARY_SENSOR = BinarySensorEntityDescription(
 
 
 class SchulferienFeiertagBinarySensor(BinarySensorEntity):
-    """Kombinierter Binärsensor für Schulferien und Feiertage."""
+    """Kombinierter Binärsensor: True bei Schulferien ODER Feiertag.
+
+    Warum OR-Logik? Automatisierungen die an beiden Tagen auslösen
+    sollen (z.B. "Kinder müssen in die Schule") müssen nicht zwischen
+    Ferientag und Feiertag unterscheiden — in beiden Fällen ist Schule aus.
+    """
 
     def __init__(self, hass, config):
         """Initialisiere den Sensor.
@@ -66,6 +89,7 @@ class SchulferienFeiertagBinarySensor(BinarySensorEntity):
             "unique_id", f"binary_sensor.schulferien_feiertage_{land_upper}_{region_slug}"
         )
         self._entity_ids = {
+            # Referenz auf die beiden Sensor-Entities deren States wir prüfen
             "schulferien": config["schulferien_entity_id"],
             "feiertag": config["feiertag_entity_id"],
         }
@@ -81,7 +105,12 @@ class SchulferienFeiertagBinarySensor(BinarySensorEntity):
         return self._state
 
     async def async_update(self):
-        """Aktualisiert den Zustand des Sensors."""
+        """Aktualisiert den Zustand des Sensors.
+
+        Liest die States der Schulferien- und Feiertag-Sensoren aus
+        und setzt den BinarySensor auf True wenn einer beide "ferientag"
+        bzw. "feiertag" meldet (OR-Logik).
+        """
         schulferien_state = self._hass.states.get(
             self._entity_ids["schulferien"]
         )
@@ -90,13 +119,18 @@ class SchulferienFeiertagBinarySensor(BinarySensorEntity):
         )
 
         self._state = bool(
+            # OR-Logik: True wenn Ferientag ODER Feiertag
             (schulferien_state and schulferien_state.state == "ferientag")
             or (feiertag_state and feiertag_state.state == "feiertag")
         )
 
 
 class SchulferienFeiertagMorgenBinarySensor(BinarySensorEntity):
-    """Kombinierter Binärsensor für morgen."""
+    """Kombinierter Binärsensor für morgen: True bei Schulferien ODER Feiertag morgen.
+
+    Gleiche OR-Logik wie der heutige Sensor, aber mit den "_morgen" Sensor-Entities.
+    Ermöglicht Abendautomatisierungen wie "Morgen ist Schulferien/Feiertag — Packe das Lunch".
+    """
 
     def __init__(self, hass, config):
         """Initialisiere den Sensor.
@@ -128,7 +162,10 @@ class SchulferienFeiertagMorgenBinarySensor(BinarySensorEntity):
         return self._state
 
     async def async_update(self):
-        """Aktualisiert den Zustand des Sensors."""
+        """Aktualisiert den Zustand des Sensors.
+
+        OR-Logik für morgen: True wenn Schulferien-morgen ODER Feiertag-morgen.
+        """
         schulferien_state = self._hass.states.get(
             self._entity_ids["schulferien"]
         )
@@ -143,7 +180,12 @@ class SchulferienFeiertagMorgenBinarySensor(BinarySensorEntity):
 
 
 class SchulferienOnlyBinarySensor(BinarySensorEntity):
-    """Binärsensor: Nur Schulferien."""
+    """Binärsensor: True nur bei Schulferien (kein Feiertag nötig).
+
+    Warum separater Sensor? Nicht jeder Ferientag ist ein Schulferien-Tag.
+    Ein Feiertag kann auch ein normaler Schul-Tag sein. Dieser Sensor
+    unterscheidet: True nur wenn der Schulferien-Sensor "ferientag" meldet.
+    """
 
     def __init__(self, hass, config):
         """Initialisiere den Sensor.
@@ -175,7 +217,10 @@ class SchulferienOnlyBinarySensor(BinarySensorEntity):
         return self._state
 
     async def async_update(self):
-        """Aktualisiert den Zustand des Sensors."""
+        """Aktualisiert den Zustand des Sensors.
+
+        Prüft nur den Schulferien-Sensor — ignoriert Feiertage.
+        """
         schulferien_state = self._hass.states.get(
             self._entity_ids["schulferien"]
         )
@@ -186,7 +231,11 @@ class SchulferienOnlyBinarySensor(BinarySensorEntity):
 
 
 class SchulferienOnlyMorgenBinarySensor(BinarySensorEntity):
-    """Binärsensor: Nur Schulferien morgen."""
+    """Binärsensor: True nur bei Schulferien morgen.
+
+    Gleiche Logik wie SchulferienOnlyBinarySensor, aber für morgen.
+    Ermöglicht abendliche Automatisierungen wie "Morgen ist Schulferien — Kein Wecker".
+    """
 
     def __init__(self, hass, config):
         """Initialisiere den Sensor.
@@ -218,7 +267,10 @@ class SchulferienOnlyMorgenBinarySensor(BinarySensorEntity):
         return self._state
 
     async def async_update(self):
-        """Aktualisiert den Zustand des Sensors."""
+        """Aktualisiert den Zustand des Sensors.
+
+        Prüft nur den Schulferien-Sensor für morgen.
+        """
         schulferien_state = self._hass.states.get(
             self._entity_ids["schulferien"]
         )
@@ -229,7 +281,12 @@ class SchulferienOnlyMorgenBinarySensor(BinarySensorEntity):
 
 
 class FeiertagOnlyBinarySensor(BinarySensorEntity):
-    """Binärsensor: Nur Feiertag."""
+    """Binärsensor: True nur bei Feiertag (kein Schulferien nötig).
+
+    Warum separater Sensor? Feiertage sind nicht immer Schulfrei.
+    Dieser Sensor meldet True nur wenn der Feiertag-Sensor "feiertag"
+    meldet — unabhängig von Schulferien.
+    """
 
     def __init__(self, hass, config):
         """Initialisiere den Sensor.
@@ -261,7 +318,10 @@ class FeiertagOnlyBinarySensor(BinarySensorEntity):
         return self._state
 
     async def async_update(self):
-        """Aktualisiert den Zustand des Sensors."""
+        """Aktualisiert den Zustand des Sensors.
+
+        Prüft nur den Feiertag-Sensor — ignoriert Schulferien.
+        """
         feiertag_state = self._hass.states.get(
             self._entity_ids["feiertag"]
         )
@@ -272,7 +332,11 @@ class FeiertagOnlyBinarySensor(BinarySensorEntity):
 
 
 class FeiertagOnlyMorgenBinarySensor(BinarySensorEntity):
-    """Binärsensor: Nur Feiertag morgen."""
+    """Binärsensor: True nur bei Feiertag morgen.
+
+    Gleiche Logik wie FeiertagOnlyBinarySensor, aber für morgen.
+    Ermöglicht abendliche Automatisierungen wie "Morgen ist Feiertag — Poststelle zu".
+    """
 
     def __init__(self, hass, config):
         """Initialisiere den Sensor.
@@ -304,7 +368,10 @@ class FeiertagOnlyMorgenBinarySensor(BinarySensorEntity):
         return self._state
 
     async def async_update(self):
-        """Aktualisiert den Zustand des Sensors."""
+        """Aktualisiert den Zustand des Sensors.
+
+        Prüft nur den Feiertag-Sensor für morgen.
+        """
         feiertag_state = self._hass.states.get(
             self._entity_ids["feiertag"]
         )
@@ -317,6 +384,19 @@ class FeiertagOnlyMorgenBinarySensor(BinarySensorEntity):
 async def async_setup_entry(hass, entry, async_add_entities):
     """Setup der Binärsensoren für eine Konfiguration.
 
+    Erstellt 6 Binärsensoren:
+    1. Kombiniert heute (Schulferien ODER Feiertage)
+    2. Kombiniert morgen
+    3. Nur Schulferien heute
+    4. Nur Schulferien morgen
+    5. Nur Feiertag heute
+    6. Nur Feiertag morgen
+
+    Warum entity_id mit region_slug, unique_id mit instance_prefix?
+    - entity_id muss slug-konsistent sein (keine Bindestriche) → compute_region_slug()
+    - unique_id kann den rohen Präfix verwenden (Bindestriche erlaubt in unique_ids)
+    - Beide müssen aber eindeutig pro Land+Region sein → multiple Instanzen supporten
+
     Args:
         hass: Home Assistant Instanz.
         entry: Config entry für die Konfiguration.
@@ -324,13 +404,16 @@ async def async_setup_entry(hass, entry, async_add_entities):
     """
     _LOGGER.debug("Initialisiere alle Binärsensoren für Entry: %s", entry.title)
 
-    # Eindeutiges Präfix aus Land und Region (z.B. "_DE_BY")
+    # Rohes Land+Region für unique_id Prefix (z.B. "DE_DE-BY")
     land = entry.data.get("land", "DE")
     region = entry.data.get("region", "BY")
     instance_prefix = f"{land}_{region}".upper()
+    # Slugified Region für entity_ids (z.B. "BY" statt "DE-BY")
     region_slug = compute_region_slug(land, region)
 
     # Entity IDs mit slugified region für Konsistenz zu Sensor-Klassen
+    # Warum lowercase? Home Assistant entity_ids sind case-insensitive,
+    # lowercase ist die HA-Konvention und vermeidet Verwirrung im UI.
     schulferien_entity_id = f"sensor.schulferien_{land.lower()}_{region_slug.lower()}"
     feiertag_entity_id = f"sensor.feiertag_{land.lower()}_{region_slug.lower()}"
     schulferien_morgen_entity_id = f"sensor.schulferien_{land.lower()}_{region_slug.lower()}_morgen"
@@ -384,7 +467,7 @@ async def async_setup_entry(hass, entry, async_add_entities):
     }
 
     sensors = [
-        # Kombinierte Sensoren (Schulferien + Feiertage)
+        # Kombinierte Sensoren (Schulferien ODER Feiertage)
         SchulferienFeiertagBinarySensor(hass, config_heute),
         SchulferienFeiertagMorgenBinarySensor(hass, config_morgen),
 

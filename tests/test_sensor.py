@@ -1,8 +1,9 @@
 """Unit Tests für sensor.py (async_setup_entry, load_bridge_days)."""
 
+import yaml
+
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
-from datetime import datetime
 
 from custom_components.schulferien.sensor import async_setup_entry
 from custom_components.schulferien.api_utils import load_bridge_days
@@ -92,8 +93,6 @@ async def test_load_bridge_days_file_not_found():
 @pytest.mark.asyncio
 async def test_load_bridge_days_yaml_error():
     """Test Verhalten bei YAML-Parsing-Fehler."""
-    import yaml
-
     mock_aiofile = MagicMock()
     mock_aiofile.__aenter__ = AsyncMock(return_value=mock_aiofile)
     mock_aiofile.__aexit__ = AsyncMock(return_value=None)
@@ -102,7 +101,10 @@ async def test_load_bridge_days_yaml_error():
     with patch(
         "custom_components.schulferien.api_utils.aiofiles.open",
         return_value=mock_aiofile,
-    ), patch("custom_components.schulferien.api_utils.yaml.safe_load", side_effect=yaml.YAMLError("Invalid YAML")):
+    ), patch(
+        "custom_components.schulferien.api_utils.yaml.safe_load",
+        side_effect=yaml.YAMLError("Invalid YAML"),
+    ):
         result = await load_bridge_days("invalid.yaml")
         assert result == []
 
@@ -118,7 +120,10 @@ async def test_load_bridge_days_no_bridge_days_key():
     with patch(
         "custom_components.schulferien.api_utils.aiofiles.open",
         return_value=mock_aiofile,
-    ), patch("custom_components.schulferien.api_utils.yaml.safe_load", return_value={"other_key": "value"}):
+    ), patch(
+        "custom_components.schulferien.api_utils.yaml.safe_load",
+        return_value={"other_key": "value"},
+    ):
         result = await load_bridge_days("no_key.yaml")
         assert result == []
 
@@ -134,7 +139,10 @@ async def test_load_bridge_days_empty_bridge_days_list():
     with patch(
         "custom_components.schulferien.api_utils.aiofiles.open",
         return_value=mock_aiofile,
-    ), patch("custom_components.schulferien.api_utils.yaml.safe_load", return_value={"bridge_days": []}):
+    ), patch(
+        "custom_components.schulferien.api_utils.yaml.safe_load",
+        return_value={"bridge_days": []},
+    ):
         result = await load_bridge_days("empty_list.yaml")
         assert result == []
 
@@ -150,7 +158,10 @@ async def test_load_bridge_days_with_null_bridge_days():
     with patch(
         "custom_components.schulferien.api_utils.aiofiles.open",
         return_value=mock_aiofile,
-    ), patch("custom_components.schulferien.api_utils.yaml.safe_load", return_value={"bridge_days": None}):
+    ), patch(
+        "custom_components.schulferien.api_utils.yaml.safe_load",
+        return_value={"bridge_days": None},
+    ):
         result = await load_bridge_days("null.yaml")
         # bridge_days ist None, .get() gibt None zurück (nicht [])
         assert result is None
@@ -167,7 +178,10 @@ async def test_load_bridge_days_non_list_bridge_days():
     with patch(
         "custom_components.schulferien.api_utils.aiofiles.open",
         return_value=mock_aiofile,
-    ), patch("custom_components.schulferien.api_utils.yaml.safe_load", return_value={"bridge_days": "string"}):
+    ), patch(
+        "custom_components.schulferien.api_utils.yaml.safe_load",
+        return_value={"bridge_days": "string"},
+    ):
         result = await load_bridge_days("string.yaml")
         assert result == "string"
 
@@ -291,7 +305,7 @@ async def test_async_setup_entry_config_data_passed():
     assert schulferien_config["region_name"] == "Hessen"
     assert schulferien_config["brueckentage"] == []
     assert schulferien_config["name"] == "Schulferien - Deutschland (Hessen)"
-    assert schulferien_config["unique_id"] == "schulferien_DE_DE-HE"
+    assert schulferien_config["unique_id"] == "schulferien_DE_HE"
     assert schulferien_config["entity_id"] == "sensor.schulferien_de_he"
 
     # Prüfen dass FeiertagSensor mit korrekten Config erstellt wurde
@@ -302,7 +316,7 @@ async def test_async_setup_entry_config_data_passed():
     assert feiertag_config["land_name"] == "Deutschland"
     assert feiertag_config["region_name"] == "Hessen"
     assert feiertag_config["name"] == "Feiertag - Deutschland (Hessen)"
-    assert feiertag_config["unique_id"] == "feiertag_DE_DE-HE"
+    assert feiertag_config["unique_id"] == "feiertag_DE_HE"
     assert feiertag_config["entity_id"] == "sensor.feiertag_de_he"
 
 
@@ -723,23 +737,23 @@ async def test_async_setup_entry_all_entity_ids():
         mock_session_class.return_value = mock_session
 
         mock_schulferien_instance = MagicMock()
-        mock_schulferien_instance.unique_id = "schulferien_DE_DE-RP"
-        mock_schulferien_instance.entity_id = "sensor.schulferien_de_de-rp"
+        mock_schulferien_instance.unique_id = "schulferien_DE_RP"
+        mock_schulferien_instance.entity_id = "sensor.schulferien_de_rp"
         mock_schulferien_instance.async_update = AsyncMock()
         mock_schulferien.return_value = mock_schulferien_instance
 
         mock_feiertag_instance = MagicMock()
-        mock_feiertag_instance.unique_id = "feiertag_DE_DE-RP"
-        mock_feiertag_instance.entity_id = "sensor.feiertag_de_de-rp"
+        mock_feiertag_instance.unique_id = "feiertag_DE_RP"
+        mock_feiertag_instance.entity_id = "sensor.feiertag_de_rp"
         mock_feiertag_instance.async_update = AsyncMock()
         mock_feiertag.return_value = mock_feiertag_instance
 
         await async_setup_entry(hass, config_entry, mock_add_entities)
 
-    assert added_entities[0].unique_id == "schulferien_DE_DE-RP"
-    assert added_entities[1].unique_id == "feiertag_DE_DE-RP"
-    assert added_entities[2].unique_id == "schulferien_DE_DE-RP_morgen"
-    assert added_entities[3].unique_id == "feiertag_DE_DE-RP_morgen"
+    assert added_entities[0].unique_id == "schulferien_DE_RP"
+    assert added_entities[1].unique_id == "feiertag_DE_RP"
+    assert added_entities[2].unique_id == "schulferien_DE_RP_morgen"
+    assert added_entities[3].unique_id == "feiertag_DE_RP_morgen"
 
 
 @pytest.mark.asyncio
@@ -932,8 +946,12 @@ async def test_async_setup_entry_multiple_regions():
 
         added_entities = []
 
-        def mock_add_entities(entities):
-            added_entities.extend(entities)
+        def make_add_entities(entities):
+            def add(entities_list):
+                entities.extend(entities_list)
+            return add
+
+        mock_add_entities = make_add_entities(added_entities)
 
         with patch(
             "custom_components.schulferien.sensor.load_bridge_days",

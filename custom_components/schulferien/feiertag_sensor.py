@@ -1,4 +1,14 @@
-"""Modul für die Verwaltung und den Abruf von Feiertagen in Deutschland."""
+"""Modul für die Verwaltung und den Abruf von Feiertagen.
+
+Zwei Sensor-Klassen:
+1. FeiertagSensor — Hauptsensor mit API-Abfrage
+2. FeiertagMorgenSensor — Spiegel-Sensor für morgen (liest vom Hauptsensor)
+
+Warum Ostersonntag-Workaround? Die OpenHolidaysAPI liefert Ostermontag,
+aber nicht immer Ostersonntag. Da Ostersonntag ein wichtiger Referenztag
+ist (beginnt das Osterfest), wird er automatisch ergänzt wenn Ostermontag
+gefunden wird (Ostersonntag = Ostermontag - 1 Tag).
+"""
 
 import logging
 from datetime import datetime, timedelta
@@ -15,7 +25,7 @@ from .const import (
 
 _LOGGER = logging.getLogger(__name__)
 
-# EntityDescription mit Übersetzungsschlüssel für HA-Integration
+# EntityDescription mit Übersetzungsschlüssel für Home Assistant UI
 FEIERTAG_SENSOR = SensorEntityDescription(
     key="feiertag",
     name="Feiertag",
@@ -29,7 +39,17 @@ FEIERTAG_MORGEN_SENSOR = SensorEntityDescription(
 )
 
 class FeiertagSensor(SensorEntity):
-    """Sensor für Feiertage."""
+    """Sensor für Feiertage.
+
+    Hauptverantwortlichkeiten:
+    - API-Abfrage der Feiertagsdaten (OpenHolidaysAPI)
+    - Berechnung ob heute ein Feiertag ist
+    - Angabe des nächsten Feiertags (Name, Datum)
+    - Ostersonntag-Workaround: wird automatisch ergänzt wenn Ostermontag gefunden wird
+
+    Warum 30 Tage zurück + 365 Tage vor? Gleiche Strategie wie bei Schulferien:
+    30 Tage Puffer für nachgelieferte Daten, 365 Tage für Vorhersage.
+    """
 
     def __init__(self, _hass, config):
         """Initialisiert den Feiertag-Sensor mit Konfigurationsdaten."""
@@ -49,8 +69,10 @@ class FeiertagSensor(SensorEntity):
             "region": config["region"],
             "land_name": config["land_name"],
             "region_name": config["region_name"],
+            # iso_code wird in async_added_to_hass aus HA konfiguriert
             "iso_code": "DE",
         }
+        # Alle Feiertagsdaten und Berechnungen
         self._feiertags_info = {
             "heute_feiertag": None,
             "naechster_feiertag_name": None,
@@ -221,16 +243,26 @@ class FeiertagSensor(SensorEntity):
         return None
 
     def verarbeite_feiertags_daten(self, feiertage_daten, heute):
-        """Verarbeitet die erhaltenen Feiertags-Daten."""
+        """Verarbeitet die erhaltenen Feiertags-Daten.
+
+        Warum Ostersonntag-Workaround? Die OpenHolidaysAPI liefert
+        Ostermontag, aber nicht immer Ostersonntag. Da Ostersonntag
+        ein wichtiger Referenztag ist (beginnt das Osterfest), wird
+        er automatisch ergänzt — berechnet als Ostermontag - 1 Tag.
+
+        Warum `list(feiertage_liste)` in der for-Schleife? Wir modifizieren
+        die Liste während wir darüber iterieren. `list()` erstellt eine
+        flache Kopie für die Iteration, die Originalliste wird modifiziert.
+        """
         try:
             feiertage_liste = parse_daten(feiertage_daten, typ="feiertage")
 
-            # Workaround: Ostersonntag ergänzen wenn Ostermontag vorhanden
+            # Ostersonntag automatisch ergänzen wenn Ostermontag gefunden
             for feiertag in list(feiertage_liste):
                 name = feiertag["name"].lower()
                 if "ostermontag" in name or "easter monday" in name:
                     ostersonntag_datum = feiertag["start_datum"] - timedelta(days=1)
-                    # Doppelten Eintrag vermeiden
+                    # Doppelten Eintrag vermeiden (API könnte ihn bereits liefern)
                     if not any(
                         f["start_datum"] == ostersonntag_datum
                         for f in feiertage_liste
@@ -283,13 +315,27 @@ class FeiertagSensor(SensorEntity):
                 })
 
 class FeiertagMorgenSensor(SensorEntity):
-    """Sensor für Feiertag morgen."""
+    """Sensor für Feiertag morgen.
+
+    Warum Referenzsensor? Gleiche Strategie wie bei SchulferienMorgenSensor:
+    Der Hauptsensor (FeiertagSensor) hat die Daten bereits von der API.
+    Statt die API zweimal aufzurufen, liest dieser Sensor die bereits
+    geladenen Daten des Hauptsensors aus.
+
+    Warum `feiertage_liste or []`? Verhindert TypeError wenn
+    feiertage_liste None ist (Bug 1 Fix).
+    """
 
     def __init__(self, referenzsensor: FeiertagSensor):
+        """Erstellt den Morgen-Sensor basierend auf dem Hauptsensor.
+
+        Args:
+            referenzsensor: Der Hauptsensor (FeiertagSensor) dessen Daten verwendet werden.
+        """
         self.entity_description = FEIERTAG_MORGEN_SENSOR
         self._referenzsensor = referenzsensor
         self._attr_name = "Feiertag Morgen"
-        # Unique ID und Entity ID vom Referenzsensor ableiten
+        # Unique ID und Entity ID vom Referenzsensor ableiten (_morgen Suffix)
         base_unique_id = referenzsensor.unique_id
         base_entity_id = referenzsensor.entity_id
         self._attr_unique_id = f"{base_unique_id}_morgen"
@@ -311,9 +357,14 @@ class FeiertagMorgenSensor(SensorEntity):
 
     @property
     def native_value(self):
-        """Gibt den aktuellen Zustand des Sensors zurück."""
+        """Gibt den aktuellen Zustand des Sensors zurück.
+
+        Warum morgen = heute + 1 Tag? Dieser Sensor soll anzeigen ob
+        MORGEN ein Feiertag ist.
+        """
         morgen = datetime.now().date() + timedelta(days=1)
         # pylint: disable=protected-access
+        # Oder-Operator verhindert TypeError bei None (Bug 1 Fix)
         for feiertag in self._referenzsensor._feiertags_info.get("feiertage_liste") or []:
         # pylint: enable=protected-access
             if feiertag["start_datum"] == morgen:

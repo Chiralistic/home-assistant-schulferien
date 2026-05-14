@@ -425,7 +425,7 @@ async def test_async_added_to_hass_sets_iso_code(mock_sensor):
     mock_sensor.hass.config.language = "en"
     # Mock async_update und write_ha_state
     with patch.object(mock_sensor, "async_update", new=AsyncMock()), \
-         patch.object(mock_sensor, "async_write_ha_state"):
+            patch.object(mock_sensor, "async_write_ha_state"):
         await mock_sensor.async_added_to_hass()
         assert mock_sensor._location["iso_code"] == "EN"
 
@@ -446,8 +446,8 @@ async def test_async_added_to_hass_fallback_iso_code():
     sensor = SchulferienSensor(hass, config)
     # async_track_time_change benötigt hass.loop, daher mocken
     with patch("custom_components.schulferien.schulferien_sensor.async_track_time_change") as mock_track, \
-         patch.object(sensor, "async_update", new=AsyncMock()), \
-         patch.object(sensor, "async_write_ha_state"):
+            patch.object(sensor, "async_update", new=AsyncMock()), \
+            patch.object(sensor, "async_write_ha_state"):
         await sensor.async_added_to_hass()
         assert sensor._location["iso_code"] == "DE"
 
@@ -470,8 +470,8 @@ async def test_async_added_to_hass_no_hass():
     sensor.hass = None
     # async_track_time_change benötigt hass.loop, daher mocken
     with patch("custom_components.schulferien.schulferien_sensor.async_track_time_change") as mock_track, \
-         patch.object(sensor, "async_update", new=AsyncMock()), \
-         patch.object(sensor, "async_write_ha_state"):
+            patch.object(sensor, "async_update", new=AsyncMock()), \
+            patch.object(sensor, "async_write_ha_state"):
         await sensor.async_added_to_hass()
         assert sensor._location["iso_code"] == "DE"
 
@@ -485,7 +485,7 @@ async def test_async_added_to_hass_calls_update(mock_sensor):
     mock_sensor._ferien_info["letztes_update"] = None
 
     with patch.object(mock_sensor, "async_update", new=AsyncMock()) as mock_update, \
-         patch.object(mock_sensor, "async_write_ha_state"):
+            patch.object(mock_sensor, "async_write_ha_state"):
         await mock_sensor.async_added_to_hass()
         mock_update.assert_called_once()
 
@@ -499,7 +499,7 @@ async def test_async_added_to_hass_skips_update_same_day(mock_sensor):
     mock_sensor._ferien_info["letztes_update"] = datetime.now()
 
     with patch.object(mock_sensor, "async_update", new=AsyncMock()) as mock_update, \
-         patch.object(mock_sensor, "async_write_ha_state"):
+            patch.object(mock_sensor, "async_write_ha_state"):
         await mock_sensor.async_added_to_hass()
         mock_update.assert_not_called()
 
@@ -528,8 +528,8 @@ async def test_update_success(mock_sensor, morgen_sensor):
     ]
 
     with patch("custom_components.schulferien.schulferien_sensor.fetch_data", new=AsyncMock(return_value=mock_api_response)), \
-         patch("custom_components.schulferien.schulferien_sensor.parse_daten", return_value=mock_parsed_data), \
-         patch("custom_components.schulferien.schulferien_sensor.datetime") as mock_dt:
+            patch("custom_components.schulferien.schulferien_sensor.parse_daten", return_value=mock_parsed_data), \
+            patch("custom_components.schulferien.schulferien_sensor.datetime") as mock_dt:
 
         mock_dt.now.return_value = heute
         mock_dt.timedelta = timedelta
@@ -562,8 +562,8 @@ async def test_update_during_ferien(mock_sensor, morgen_sensor):
     ]
 
     with patch("custom_components.schulferien.schulferien_sensor.fetch_data", new=AsyncMock(return_value=mock_api_response)), \
-         patch("custom_components.schulferien.schulferien_sensor.parse_daten", return_value=mock_parsed_data), \
-         patch("custom_components.schulferien.schulferien_sensor.datetime") as mock_dt:
+            patch("custom_components.schulferien.schulferien_sensor.parse_daten", return_value=mock_parsed_data), \
+            patch("custom_components.schulferien.schulferien_sensor.datetime") as mock_dt:
 
         mock_dt.now.return_value = heute
         mock_dt.timedelta = timedelta
@@ -697,8 +697,8 @@ async def test_update_with_brueckentage(mock_sensor, morgen_sensor, mock_config_
     sensor = SchulferienSensor(hass, mock_config_with_brueckentage)
 
     with patch("custom_components.schulferien.schulferien_sensor.fetch_data", new=AsyncMock(return_value=mock_api_response)), \
-         patch("custom_components.schulferien.schulferien_sensor.parse_daten", return_value=mock_parsed_data), \
-         patch("custom_components.schulferien.schulferien_sensor.datetime") as mock_dt:
+            patch("custom_components.schulferien.schulferien_sensor.parse_daten", return_value=mock_parsed_data), \
+            patch("custom_components.schulferien.schulferien_sensor.datetime") as mock_dt:
 
         mock_dt.now.return_value = heute
         mock_dt.timedelta = timedelta
@@ -728,8 +728,8 @@ async def test_update_sets_last_update_time(mock_sensor):
     ]
 
     with patch("custom_components.schulferien.schulferien_sensor.fetch_data", new=AsyncMock(return_value=mock_api_response)), \
-         patch("custom_components.schulferien.schulferien_sensor.parse_daten", return_value=mock_parsed_data), \
-         patch("custom_components.schulferien.schulferien_sensor.datetime") as mock_dt:
+            patch("custom_components.schulferien.schulferien_sensor.parse_daten", return_value=mock_parsed_data), \
+            patch("custom_components.schulferien.schulferien_sensor.datetime") as mock_dt:
 
         mock_dt.now.return_value = heute
         mock_dt.timedelta = timedelta
@@ -749,7 +749,8 @@ async def test_hole_ferien_daten_success_first_url(mock_sensor):
     """Test dass erste URL erfolgreich Daten liefert."""
     api_parameter = {"countryIsoCode": "DE", "subdivisionCode": "DE-BY"}
     mock_session = MagicMock()
-    mock_api_response = [{"name": [{"text": "Test"}], "startDate": "2024-01-01", "endDate": "2024-01-02"}]
+    mock_api_response = [{"name": [{"text": "Test"}],
+                          "startDate": "2024-01-01", "endDate": "2024-01-02"}]
 
     with patch("custom_components.schulferien.schulferien_sensor.fetch_data", new=AsyncMock(return_value=mock_api_response)) as mock_fetch:
         result = await mock_sensor.hole_ferien_daten(api_parameter, mock_session)
@@ -762,7 +763,8 @@ async def test_hole_ferien_daten_fallback_to_second_url(mock_sensor):
     """Test Fallback auf zweite URL bei Fehler."""
     api_parameter = {"countryIsoCode": "DE", "subdivisionCode": "DE-BY"}
     mock_session = MagicMock()
-    mock_api_response = [{"name": [{"text": "Test"}], "startDate": "2024-01-01", "endDate": "2024-01-02"}]
+    mock_api_response = [{"name": [{"text": "Test"}],
+                          "startDate": "2024-01-01", "endDate": "2024-01-02"}]
 
     with patch("custom_components.schulferien.schulferien_sensor.fetch_data",
                new=AsyncMock(side_effect=[None, mock_api_response])) as mock_fetch:
@@ -788,7 +790,8 @@ async def test_hole_ferien_daten_client_error_first_url(mock_sensor):
     """Test Fallback bei ClientError der ersten URL."""
     api_parameter = {"countryIsoCode": "DE", "subdivisionCode": "DE-BY"}
     mock_session = MagicMock()
-    mock_api_response = [{"name": [{"text": "Test"}], "startDate": "2024-01-01", "endDate": "2024-01-02"}]
+    mock_api_response = [{"name": [{"text": "Test"}],
+                          "startDate": "2024-01-01", "endDate": "2024-01-02"}]
 
     with patch("custom_components.schulferien.schulferien_sensor.fetch_data",
                new=AsyncMock(side_effect=[aiohttp.ClientError("Error"), mock_api_response])) as mock_fetch:
@@ -819,7 +822,8 @@ def test_verarbeite_ferien_daten_valid(mock_sensor):
 
     assert len(mock_sensor._ferien_info["ferien_liste"]) == 1
     assert mock_sensor._ferien_info["ferien_liste"][0]["name"] == "Sommerferien"
-    assert mock_sensor._ferien_info["ferien_liste"][0]["start_datum"] == datetime(2024, 6, 25).date()
+    assert mock_sensor._ferien_info["ferien_liste"][0]["start_datum"] == datetime(
+        2024, 6, 25).date()
     assert mock_sensor._ferien_info["ferien_liste"][0]["end_datum"] == datetime(2024, 9, 9).date()
     assert mock_sensor._ferien_info["heute_ferientag"] is False
     assert mock_sensor._ferien_info["naechste_ferien_name"] == "Sommerferien"
@@ -1059,7 +1063,7 @@ def test_morgen_sensor_empty_ferien_list(mock_sensor, morgen_sensor):
 
 def test_morgen_sensor_none_ferien_list(mock_sensor, morgen_sensor):
     """Test Morgen-Sensor mit None Ferien-Liste.
-    
+
     Fix: Der Code verwendet `or []` um None korrekt zu behandeln.
     """
     config = {
@@ -1262,8 +1266,8 @@ async def test_update_parametrized(mock_sensor, morgen_sensor, ferien_data, toda
     ]
 
     with patch("custom_components.schulferien.schulferien_sensor.fetch_data", new=AsyncMock(return_value=ferien_data)), \
-         patch("custom_components.schulferien.schulferien_sensor.parse_daten", return_value=mock_parsed_data), \
-         patch("custom_components.schulferien.schulferien_sensor.datetime") as mock_dt:
+            patch("custom_components.schulferien.schulferien_sensor.parse_daten", return_value=mock_parsed_data), \
+            patch("custom_components.schulferien.schulferien_sensor.datetime") as mock_dt:
 
         mock_dt.now.return_value = today
         mock_dt.timedelta = timedelta
@@ -1349,8 +1353,8 @@ def test_morgen_sensor_with_single_day_ferien(mock_sensor, morgen_sensor):
 async def test_update_with_invalid_api_response(mock_sensor, morgen_sensor):
     """Test Update mit ungültiger API-Antwort."""
     with patch("custom_components.schulferien.schulferien_sensor.fetch_data", new=AsyncMock(return_value=[{"invalid": "data"}])), \
-         patch("custom_components.schulferien.schulferien_sensor.parse_daten", side_effect=ValueError("Ungültige Daten")), \
-         patch("custom_components.schulferien.schulferien_sensor.datetime") as mock_dt:
+            patch("custom_components.schulferien.schulferien_sensor.parse_daten", side_effect=ValueError("Ungültige Daten")), \
+            patch("custom_components.schulferien.schulferien_sensor.datetime") as mock_dt:
 
         mock_dt.now.return_value = datetime(2024, 6, 18)
         mock_dt.timedelta = timedelta

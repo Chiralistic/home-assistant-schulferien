@@ -1,6 +1,6 @@
 """Unit Tests für den __init__.py der Schulferien-Integration."""
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 

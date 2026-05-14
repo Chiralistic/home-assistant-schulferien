@@ -381,6 +381,74 @@ class FeiertagOnlyMorgenBinarySensor(BinarySensorEntity):
         )
 
 
+def _create_binary_sensor_configs(land, region):
+    """Erstellt Konfigurationsdicts für alle 6 Binärsensoren.
+
+    Args:
+        land: Ländercode (z.B. "DE").
+        region: Regionscode (z.B. "DE-BY").
+
+    Returns:
+        Dict mit Configs für alle 6 Binärsensoren.
+    """
+    instance_prefix = f"{land}_{region}".upper()
+    region_slug = compute_region_slug(land, region)
+
+    # Entity IDs mit slugified region für Konsistenz zu Sensor-Klassen
+    # Warum lowercase? Home Assistant entity_ids sind case-insensitive,
+    # lowercase ist die HA-Konvention und vermeidet Verwirrung im UI.
+    schulferien_entity_id = f"sensor.schulferien_{land.lower()}_{region_slug.lower()}"
+    feiertag_entity_id = f"sensor.feiertag_{land.lower()}_{region_slug.lower()}"
+    schulferien_morgen_entity_id = f"sensor.schulferien_{land.lower()}_{region_slug.lower()}_morgen"
+    feiertag_morgen_entity_id = f"sensor.feiertag_{land.lower()}_{region_slug.lower()}_morgen"
+
+    binary_unique_prefix = f"binary_sensor.schulferien_feiertage_{instance_prefix}"
+
+    config_base = {
+        "land": land,
+        "region": region,
+    }
+
+    config_heute = {
+        **config_base,
+        "schulferien_entity_id": schulferien_entity_id,
+        "feiertag_entity_id": feiertag_entity_id,
+        "unique_id": binary_unique_prefix,
+    }
+
+    config_morgen = {
+        **config_base,
+        "schulferien_entity_id": schulferien_morgen_entity_id,
+        "feiertag_entity_id": feiertag_morgen_entity_id,
+        "unique_id": f"{binary_unique_prefix}_morgen",
+    }
+
+    return {
+        "heute": config_heute,
+        "morgen": config_morgen,
+        "schulferien_only_heute": {
+            **config_base,
+            **config_heute,
+            "unique_id": f"binary_sensor.schulferien_only_{instance_prefix}",
+        },
+        "schulferien_only_morgen": {
+            **config_base,
+            **config_morgen,
+            "unique_id": f"binary_sensor.schulferien_only_{instance_prefix}_morgen",
+        },
+        "feiertag_only_heute": {
+            **config_base,
+            **config_heute,
+            "unique_id": f"binary_sensor.feiertag_only_{instance_prefix}",
+        },
+        "feiertag_only_morgen": {
+            **config_base,
+            **config_morgen,
+            "unique_id": f"binary_sensor.feiertag_only_{instance_prefix}_morgen",
+        },
+    }
+
+
 async def async_setup_entry(hass, entry, async_add_entities):
     """Setup der Binärsensoren für eine Konfiguration.
 
@@ -404,81 +472,24 @@ async def async_setup_entry(hass, entry, async_add_entities):
     """
     _LOGGER.debug("Initialisiere alle Binärsensoren für Entry: %s", entry.title)
 
-    # Rohes Land+Region für unique_id Prefix (z.B. "DE_DE-BY")
     land = entry.data.get("land", "DE")
     region = entry.data.get("region", "BY")
-    instance_prefix = f"{land}_{region}".upper()
-    # Slugified Region für entity_ids (z.B. "BY" statt "DE-BY")
-    region_slug = compute_region_slug(land, region)
 
-    # Entity IDs mit slugified region für Konsistenz zu Sensor-Klassen
-    # Warum lowercase? Home Assistant entity_ids sind case-insensitive,
-    # lowercase ist die HA-Konvention und vermeidet Verwirrung im UI.
-    schulferien_entity_id = f"sensor.schulferien_{land.lower()}_{region_slug.lower()}"
-    feiertag_entity_id = f"sensor.feiertag_{land.lower()}_{region_slug.lower()}"
-    schulferien_morgen_entity_id = f"sensor.schulferien_{land.lower()}_{region_slug.lower()}_morgen"
-    feiertag_morgen_entity_id = f"sensor.feiertag_{land.lower()}_{region_slug.lower()}_morgen"
-
-    # Prefix für unique_ids der Binärsensoren
-    binary_unique_prefix = f"binary_sensor.schulferien_feiertage_{instance_prefix}"
-
-    config_base = {
-        "land": land,
-        "region": region,
-    }
-
-    config_heute = {
-        **config_base,
-        "schulferien_entity_id": schulferien_entity_id,
-        "feiertag_entity_id": feiertag_entity_id,
-        "unique_id": binary_unique_prefix,
-    }
-
-    config_morgen = {
-        **config_base,
-        "schulferien_entity_id": schulferien_morgen_entity_id,
-        "feiertag_entity_id": feiertag_morgen_entity_id,
-        "unique_id": f"{binary_unique_prefix}_morgen",
-    }
-
-    # Configs für die separaten Nur-Schulferien- und Nur-Feiertag-Sensoren
-    config_schulferien_only_heute = {
-        **config_base,
-        **config_heute,
-        "unique_id": f"binary_sensor.schulferien_only_{instance_prefix}",
-    }
-
-    config_schulferien_only_morgen = {
-        **config_base,
-        **config_morgen,
-        "unique_id": f"binary_sensor.schulferien_only_{instance_prefix}_morgen",
-    }
-
-    config_feiertag_only_heute = {
-        **config_base,
-        **config_heute,
-        "unique_id": f"binary_sensor.feiertag_only_{instance_prefix}",
-    }
-
-    config_feiertag_only_morgen = {
-        **config_base,
-        **config_morgen,
-        "unique_id": f"binary_sensor.feiertag_only_{instance_prefix}_morgen",
-    }
+    configs = _create_binary_sensor_configs(land, region)
 
     sensors = [
         # Kombinierte Sensoren (Schulferien ODER Feiertage)
-        SchulferienFeiertagBinarySensor(hass, config_heute),
-        SchulferienFeiertagMorgenBinarySensor(hass, config_morgen),
+        SchulferienFeiertagBinarySensor(hass, configs["heute"]),
+        SchulferienFeiertagMorgenBinarySensor(hass, configs["morgen"]),
 
         # Separate Sensoren pro Typ
-        SchulferienOnlyBinarySensor(hass, config_schulferien_only_heute),
+        SchulferienOnlyBinarySensor(hass, configs["schulferien_only_heute"]),
         SchulferienOnlyMorgenBinarySensor(
-            hass, config_schulferien_only_morgen
+            hass, configs["schulferien_only_morgen"]
         ),
-        FeiertagOnlyBinarySensor(hass, config_feiertag_only_heute),
+        FeiertagOnlyBinarySensor(hass, configs["feiertag_only_heute"]),
         FeiertagOnlyMorgenBinarySensor(
-            hass, config_feiertag_only_morgen
+            hass, configs["feiertag_only_morgen"]
         ),
     ]
 

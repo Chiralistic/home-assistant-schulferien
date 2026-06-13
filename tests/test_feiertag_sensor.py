@@ -656,10 +656,14 @@ def test_verarbeite_feiertags_daten_error_with_mock_parse(hass, config_heute):
 
 def test_feiertag_morgen_sensor_initialization(hass, config_heute):
     """Test die Initialisierung des FeiertagMorgenSensors."""
-    main_sensor = FeiertagSensor(hass, config_heute)
+    config_mit_name = {
+        **config_heute,
+        "name": "Feiertag - Deutschland (Bayern)",
+    }
+    main_sensor = FeiertagSensor(hass, config_mit_name)
     morgen_sensor = FeiertagMorgenSensor(main_sensor)
     assert morgen_sensor.unique_id == "feiertag_DE_BY_morgen"
-    assert morgen_sensor.name == "Feiertag Morgen"
+    assert morgen_sensor.name == "Feiertag Morgen - Deutschland (Bayern)"
 
 
 def test_feiertag_morgen_sensor_native_value_feiertag(hass, config_heute):
@@ -711,10 +715,14 @@ def test_feiertag_morgen_sensor_unique_id(hass, config_heute):
 
 
 def test_feiertag_morgen_sensor_name(hass, config_heute):
-    """Test name des MorgenSensors."""
-    main_sensor = FeiertagSensor(hass, config_heute)
+    """Test name des MorgenSensors enthaelt die Region wie der Referenzsensor."""
+    config_mit_name = {
+        **config_heute,
+        "name": "Feiertag - Deutschland (Bayern)",
+    }
+    main_sensor = FeiertagSensor(hass, config_mit_name)
     morgen_sensor = FeiertagMorgenSensor(main_sensor)
-    assert morgen_sensor.name == "Feiertag Morgen"
+    assert morgen_sensor.name == "Feiertag Morgen - Deutschland (Bayern)"
 
 
 @pytest.mark.asyncio
@@ -820,3 +828,106 @@ def test_feiertag_sensor_naechster_feiertag_in_weiter_zukunft(hass, config_heute
 
     attributes = sensor.extra_state_attributes
     assert attributes["Name Feiertag"] == "Neujahr"
+
+
+# ============================================================
+# Tests fuer async_will_remove_from_hass (Listener-Cleanup)
+# ============================================================
+
+def test_feiertag_cancel_timer_initialized_to_none(hass, config_heute):
+    """_cancel_timer muss bei Initialisierung None sein."""
+    sensor = FeiertagSensor(hass, config_heute)
+    assert sensor._cancel_timer is None
+
+
+@pytest.mark.asyncio
+async def test_feiertag_timer_stored_from_track_time_change(hass, config_heute):
+    """Rueckgabewert von async_track_time_change wird in _cancel_timer gespeichert."""
+    mock_cancel = MagicMock()
+    sensor = FeiertagSensor(hass, config_heute)
+
+    with patch(
+        "custom_components.schulferien.feiertag_sensor.async_track_time_change",
+        return_value=mock_cancel,
+    ), patch.object(sensor, "async_update", new=AsyncMock()), patch.object(
+        sensor, "async_write_ha_state"
+    ):
+        await sensor.async_added_to_hass()
+
+    assert sensor._cancel_timer is mock_cancel
+
+
+@pytest.mark.asyncio
+async def test_feiertag_async_will_remove_calls_cancel(hass, config_heute):
+    """async_will_remove_from_hass ruft _cancel_timer auf."""
+    sensor = FeiertagSensor(hass, config_heute)
+    mock_cancel = MagicMock()
+    sensor._cancel_timer = mock_cancel
+
+    await sensor.async_will_remove_from_hass()
+
+    mock_cancel.assert_called_once()
+    assert sensor._cancel_timer is None
+
+
+@pytest.mark.asyncio
+async def test_feiertag_async_will_remove_without_cancel_is_safe(hass, config_heute):
+    """async_will_remove_from_hass ohne _cancel_timer wirft keine Exception."""
+    sensor = FeiertagSensor(hass, config_heute)
+    sensor._cancel_timer = None
+
+    await sensor.async_will_remove_from_hass()
+
+    assert sensor._cancel_timer is None
+
+
+# ============================================================
+# Tests fuer FeiertagMorgenSensor multi-region name
+# ============================================================
+
+def test_feiertag_morgen_sensor_name_multi_region(hass):
+    """Zwei FeiertagMorgenSensoren mit verschiedenen Regionen haben unterschiedliche Namen."""
+    config_by = {
+        "unique_id": "feiertag_DE_BY",
+        "entity_id": "sensor.feiertag_de_by",
+        "name": "Feiertag - Deutschland (Bayern)",
+        "land": "DE",
+        "region": "DE-BY",
+        "land_name": "Deutschland",
+        "region_name": "Bayern",
+    }
+    config_he = {
+        "unique_id": "feiertag_DE_HE",
+        "entity_id": "sensor.feiertag_de_he",
+        "name": "Feiertag - Deutschland (Hessen)",
+        "land": "DE",
+        "region": "DE-HE",
+        "land_name": "Deutschland",
+        "region_name": "Hessen",
+    }
+
+    sensor_by = FeiertagSensor(hass, config_by)
+    sensor_he = FeiertagSensor(hass, config_he)
+
+    morgen_by = FeiertagMorgenSensor(sensor_by)
+    morgen_he = FeiertagMorgenSensor(sensor_he)
+
+    assert morgen_by.name == "Feiertag Morgen - Deutschland (Bayern)"
+    assert morgen_he.name == "Feiertag Morgen - Deutschland (Hessen)"
+    assert morgen_by.name != morgen_he.name
+
+
+def test_feiertag_morgen_sensor_name_no_separator(hass):
+    """FeiertagMorgenSensor Name ohne ' - ' im Referenz-Namen."""
+    config = {
+        "unique_id": "feiertag_DE_BY",
+        "entity_id": "sensor.feiertag_de_by",
+        "name": "TestFeiertag",
+        "land": "DE",
+        "region": "DE-BY",
+        "land_name": "Deutschland",
+        "region_name": "Bayern",
+    }
+    main_sensor = FeiertagSensor(hass, config)
+    morgen_sensor = FeiertagMorgenSensor(main_sensor)
+    assert morgen_sensor.name == "TestFeiertag Morgen"

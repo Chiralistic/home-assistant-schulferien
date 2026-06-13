@@ -72,6 +72,8 @@ class FeiertagSensor(SensorEntity):
             # iso_code wird in async_added_to_hass aus HA konfiguriert
             "iso_code": "DE",
         }
+        # Cancel-Funktion fuer den taeglichen Timer (gesetzt in async_added_to_hass)
+        self._cancel_timer = None
         # Alle Feiertagsdaten und Berechnungen
         self._feiertags_info = {
             "heute_feiertag": None,
@@ -111,7 +113,7 @@ class FeiertagSensor(SensorEntity):
             await self.async_update()
             self.async_write_ha_state()
 
-        async_track_time_change(
+        self._cancel_timer = async_track_time_change(
             self.hass,
             async_daily_update,
             hour=DAILY_UPDATE_HOUR,
@@ -120,6 +122,16 @@ class FeiertagSensor(SensorEntity):
         _LOGGER.debug(
             "Tägliche Abfrage um %02d:%02d eingerichtet.", DAILY_UPDATE_HOUR, DAILY_UPDATE_MINUTE
         )
+
+    async def async_will_remove_from_hass(self):
+        """Cleanup: Entfernt den taeglichen Timer-Listener.
+        Warum wichtig? Ohne Cleanup feuert der Listener weiter,
+        nachdem die Entity aus HA entfernt wurde (z.B. bei Multi-Instance-Unload).
+        """
+        if self._cancel_timer:
+            self._cancel_timer()
+            self._cancel_timer = None
+            _LOGGER.debug("Timer-Cleanup fuer FeiertagSensor durchgefuehrt.")
 
     @property
     def name(self):
@@ -334,7 +346,12 @@ class FeiertagMorgenSensor(SensorEntity):
         """
         self.entity_description = FEIERTAG_MORGEN_SENSOR
         self._referenzsensor = referenzsensor
-        self._attr_name = "Feiertag Morgen"
+        # Name vom Referenzsensor ableiten: "Feiertag - Bayern" → "Feiertag Morgen - Bayern"
+        base_name = referenzsensor._name
+        if " - " in base_name:
+            self._attr_name = f"Feiertag Morgen{base_name[base_name.index(' - '):]}"
+        else:
+            self._attr_name = f"{base_name} Morgen"
         # Unique ID und Entity ID vom Referenzsensor ableiten (_morgen Suffix)
         base_unique_id = referenzsensor.unique_id
         base_entity_id = referenzsensor.entity_id

@@ -1439,3 +1439,59 @@ def test_verarbeite_ferien_daten_next_ferien_not_sorted(mock_sensor):
 
     # Sommerferien sind die nächsten (frühestes start_datum > heute)
     assert mock_sensor._ferien_info["naechste_ferien_name"] == "Sommerferien"
+
+
+# ============================================================
+# Tests für async_will_remove_from_hass (Listenen-Cleanup)
+# ============================================================
+
+def test_cancel_timer_initialized_to_none(mock_config):
+    """_cancel_timer muss bei Initialisierung None sein."""
+    hass = MagicMock()
+    sensor = SchulferienSensor(hass, mock_config)
+    assert sensor._cancel_timer is None
+
+
+@pytest.mark.asyncio
+async def test_timer_stored_from_track_time_change(mock_config):
+    """Rueckgabewert von async_track_time_change wird in _cancel_timer gespeichert."""
+    hass = MagicMock()
+    hass.config.language = "de"
+    mock_cancel = MagicMock()
+    sensor = SchulferienSensor(hass, mock_config)
+
+    with patch(
+        "custom_components.schulferien.schulferien_sensor.async_track_time_change",
+        return_value=mock_cancel,
+    ), patch.object(sensor, "async_update", new=AsyncMock()), patch.object(
+        sensor, "async_write_ha_state"
+    ):
+        await sensor.async_added_to_hass()
+
+    assert sensor._cancel_timer is mock_cancel
+
+
+@pytest.mark.asyncio
+async def test_async_will_remove_calls_cancel(mock_config):
+    """async_will_remove_from_hass ruft _cancel_timer auf."""
+    hass = MagicMock()
+    sensor = SchulferienSensor(hass, mock_config)
+    mock_cancel = MagicMock()
+    sensor._cancel_timer = mock_cancel
+
+    await sensor.async_will_remove_from_hass()
+
+    mock_cancel.assert_called_once()
+    assert sensor._cancel_timer is None
+
+
+@pytest.mark.asyncio
+async def test_async_will_remove_without_cancel_is_safe(mock_config):
+    """async_will_remove_from_hass ohne _cancel_timer wirft keine Exception."""
+    hass = MagicMock()
+    sensor = SchulferienSensor(hass, mock_config)
+    sensor._cancel_timer = None
+
+    await sensor.async_will_remove_from_hass()
+
+    assert sensor._cancel_timer is None

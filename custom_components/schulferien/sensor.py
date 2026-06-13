@@ -102,7 +102,9 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
 
     sensors = _create_sensors(hass, config_schulferien, config_feiertag)
 
+    # Entities zu HA registrieren bevor Updates laufen
+    async_add_entities(sensors)
+
     async with aiohttp.ClientSession() as session:
-        async_add_entities(sensors)
         await sensors[0].async_update(session)
         await sensors[1].async_update(session)

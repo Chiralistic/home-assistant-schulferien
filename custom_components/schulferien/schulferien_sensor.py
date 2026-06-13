@@ -78,6 +78,8 @@ class SchulferienSensor(SensorEntity):
         }
         # Brückentage aus bridge_days.yaml — manuell konfigurierte Daten
         self._brueckentage = config.get("brueckentage", [])
+        # Cancel-Funktion fuer den taeglichen Timer (gesetzt in async_added_to_hass)
+        self._cancel_timer = None
         # Alle Feriendaten und Berechnungen
         self._ferien_info = {
             "heute_ferientag": None,
@@ -125,7 +127,7 @@ class SchulferienSensor(SensorEntity):
             await self.async_update()
             self.async_write_ha_state()
 
-        async_track_time_change(
+        self._cancel_timer = async_track_time_change(
             self.hass,
             async_daily_update,
             hour=DAILY_UPDATE_HOUR,
@@ -134,6 +136,16 @@ class SchulferienSensor(SensorEntity):
         _LOGGER.debug(
             "Tägliche Abfrage um %02d:%02d eingerichtet.", DAILY_UPDATE_HOUR, DAILY_UPDATE_MINUTE
         )
+
+    async def async_will_remove_from_hass(self):
+        """Cleanup: Entfernt den taeglichen Timer-Listener.
+        Warum wichtig? Ohne Cleanup feuert der Listener weiter,
+        nachdem die Entity aus HA entfernt wurde (z.B. bei Multi-Instance-Unload).
+        """
+        if self._cancel_timer:
+            self._cancel_timer()
+            self._cancel_timer = None
+            _LOGGER.debug("Timer-Cleanup fuer SchulferienSensor durchgefuehrt.")
 
     @property
     def name(self):

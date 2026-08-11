@@ -8,6 +8,7 @@ Die Integration kann mehrfach installiert werden, um Schulferien aus verschieden
 
 ```
 sensor.schulferien_de_by   → Deutschland, Bayern
+
 sensor.schulferien_de_bw   → Deutschland, Baden-Württemberg
 sensor.schulferien_at_by   → Österreich, Burgenland
 ```
@@ -17,6 +18,18 @@ Jede Instanz hat eigene Sensoren für:
 - **Schulferien Morgen** (`sensor.schulferien_{land}_{region}_morgen`) – Status für morgen
 - **Feiertage** (`sensor.feiertag_{land}_{region}`) – nächster Feiertag
 - **Binary Sensors** – kombinierte Zustände
+
+### Update von älteren Versionen (vor Multi-Instanz-Unterstützung)
+
+Mit der Multi-Instanz-Unterstützung haben sich die Entity-IDs **breaking** geändert:
+aus `sensor.schulferien` wird z.B. `sensor.schulferien_de_rp` (Land/Region-abhängig),
+analog `sensor.feiertag_*` und die Binary-Sensoren (`binary_sensor.schulferien_feiertage_de_rp`).
+
+Beim Update bitte einmalig:
+
+1. Integration neu einrichten (Einstellungen → Geräte & Dienste → Schulferien → Konfiguration erneut durchlaufen bzw. Instanz neu anlegen).
+2. Alte Entities (z.B. `sensor.schulferien`, `sensor.schulferien_morgen`) unter **Einstellungen → Geräte & Dienste → Entitäten** löschen — sie bleiben sonst als „nicht verfügbar" zurück, da die alten eindeutigen IDs nicht mehr erzeugt werden.
+3. Automatisierungen/Dashboards auf die neuen Entity-IDs umstellen (siehe Beispiele oben).
 
 Disclaimer: Die Tests für die Integration, die nicht mit in Home Assistant installiert werden, sind vollständig von KI gecoded worden.
 

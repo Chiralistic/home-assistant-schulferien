@@ -130,6 +130,28 @@ def test_feiertag_sensor_initialization(hass, config_heute):
     assert sensor._feiertags_info["feiertage_liste"] == []
 
 
+def test_suggested_object_id_und_entity_id_zuweisung(hass, config_heute):
+    """Regression Branch 24: HA-entity_id-Zuweisung darf nicht crashen.
+
+    Warum? HA weist beim Hinzufuegen jeder Entity `entity.entity_id =
+    entry.entity_id` zu (EntityPlatform._async_add_entity). Eine
+    Getter-only-Property ohne Setter warf hier AttributeError -> die Entity
+    wurde nie in die State-Machine aufgenommen -> Status "nicht verfuegbar".
+    Die gewuenschte Entity-ID wird ueber suggested_object_id vorgeschlagen.
+    """
+    sensor = FeiertagSensor(hass, config_heute)
+    morgen_sensor = FeiertagMorgenSensor(sensor)
+
+    assert sensor.suggested_object_id == "feiertag_de_by"
+    assert morgen_sensor.suggested_object_id == "feiertag_de_by_morgen"
+
+    # HA-Zuweisung simulieren — darf nicht mehr crashen
+    sensor.entity_id = "sensor.feiertag_de_by"
+    assert sensor.entity_id == "sensor.feiertag_de_by"
+    morgen_sensor.entity_id = "sensor.feiertag_de_by_morgen"
+    assert morgen_sensor.entity_id == "sensor.feiertag_de_by_morgen"
+
+
 def test_feiertag_sensor_custom_unique_id(hass):
     """Test mit benutzerdefiniertem unique_id."""
     config = {

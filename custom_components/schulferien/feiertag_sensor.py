@@ -57,13 +57,18 @@ class FeiertagSensor(SensorEntity):
         self._name = config["name"]
         land_upper = config["land"].upper()
         region_slug = compute_region_slug(config["land"], config["region"])
+        land_lower = config["land"].lower()
+        region_slug_lower = region_slug.lower()
         self._unique_id = config.get(
             "unique_id", f"feiertag_{land_upper}_{region_slug}"
         )
-        self._entity_id = config.get(
-            "entity_id",
-            f"sensor.feiertag_{land_upper.lower()}_{region_slug.lower()}",
-        )
+        # Vorgeschlagene Entity-ID (ohne Domain-Praefix): HA leitet daraus
+        # z.B. "feiertag_de_rp" -> sensor.feiertag_de_rp ab.
+        # Warum nicht entity_id direkt setzen? HA weist entity_id beim Add
+        # selbst zu (EntityPlatform._async_add_entity). Eine eigene Property
+        # ohne Setter liesse diese Zuweisung mit AttributeError crashen und
+        # die Entity waere permanent "nicht verfuegbar" (Bugfix Branch 24).
+        self._suggested_object_id = f"feiertag_{land_lower}_{region_slug_lower}"
         self._location = {
             "land": config["land"],
             "region": config["region"],
@@ -144,9 +149,16 @@ class FeiertagSensor(SensorEntity):
         return self._unique_id
 
     @property
-    def entity_id(self):
-        """Gibt die Entity ID des Sensors zurück."""
-        return self._entity_id
+    def suggested_object_id(self):
+        """Gibt die vorgeschlagene Entity-ID ohne Domain-Praefix zurück.
+
+        Warum ueberschreiben? HA leitet die Entity-ID aus suggested_object_id
+        ab ("feiertag_de_rp" -> sensor.feiertag_de_rp) und weist entity_id
+        selbst zu. Eine eigene entity_id-Property wuerde diese Zuweisung
+        blockieren (Getter-only-Property ohne Setter -> Entity
+        "nicht verfuegbar").
+        """
+        return self._suggested_object_id
 
     @property
     def native_value(self):
@@ -354,19 +366,25 @@ class FeiertagMorgenSensor(SensorEntity):
             self._attr_name = f"{base_name} Morgen"
         # Unique ID und Entity ID vom Referenzsensor ableiten (_morgen Suffix)
         base_unique_id = referenzsensor.unique_id
-        base_entity_id = referenzsensor.entity_id
         self._attr_unique_id = f"{base_unique_id}_morgen"
-        self._attr_entity_id = f"{base_entity_id}_morgen"
-        self._attr_native_value = None
+        # Suggested Object ID aus der Unique ID ableiten (kleingeschrieben):
+        # "feiertag_DE_RP" -> "feiertag_de_rp_morgen" ->
+        # sensor.feiertag_de_rp_morgen. Warum nicht von der entity_id des
+        # Referenzsensors? Vor dem Add an HA ist entity_id noch nicht gesetzt.
+        self._suggested_object_id = f"{base_unique_id.lower()}_morgen"
 
     @property
     def unique_id(self):
         return self._attr_unique_id
 
     @property
-    def entity_id(self):
-        """Gibt die Entity ID des Sensors zurück."""
-        return self._attr_entity_id
+    def suggested_object_id(self):
+        """Gibt die vorgeschlagene Entity-ID ohne Domain-Praefix zurück.
+
+        Siehe FeiertagSensor.suggested_object_id: HA weist entity_id selbst
+        zu, wir schlagen nur die gewuenschte ID vor.
+        """
+        return self._suggested_object_id
 
     @property
     def name(self):

@@ -82,6 +82,56 @@ def test_sensor_initialization(mock_sensor, mock_config):
     assert mock_sensor._ferien_info["naechste_ferien_name"] is None
 
 
+def test_suggested_object_id_und_entity_id_zuweisung(mock_sensor, morgen_sensor):
+    """Regression Branch 24: HA-entity_id-Zuweisung darf nicht crashen.
+
+    Warum? HA weist beim Hinzufuegen jeder Entity `entity.entity_id =
+    entry.entity_id` zu (EntityPlatform._async_add_entity). Eine
+    Getter-only-Property ohne Setter warf hier AttributeError -> die Entity
+    wurde nie in die State-Machine aufgenommen -> Status "nicht verfuegbar"
+    (Symptom: alle Sensoren nicht verfuegbar nach Multi-Instance-Umbau).
+    Die gewuenschte Entity-ID wird stattdessen ueber suggested_object_id
+    vorgeschlagen, entity_id bleibt im Besitz von HA.
+    """
+    assert mock_sensor.suggested_object_id == "schulferien_de_by"
+    assert morgen_sensor.suggested_object_id == "schulferien_de_by_morgen"
+
+    # HA-Zuweisung simulieren — darf nicht mehr crashen
+    mock_sensor.entity_id = "sensor.schulferien_de_by"
+    assert mock_sensor.entity_id == "sensor.schulferien_de_by"
+    morgen_sensor.entity_id = "sensor.schulferien_de_by_morgen"
+    assert morgen_sensor.entity_id == "sensor.schulferien_de_by_morgen"
+
+
+def test_ha_derive_object_ids_nutzt_suggested_object_id(mock_sensor, morgen_sensor):
+    """HA leitet die object_id aus unserer suggested_object_id ab (echte HA-Funktion).
+
+    Warum? `_async_derive_object_ids` (homeassistant.helpers.entity_platform)
+    entscheidet, welche object_id in die Entity-Registry wandert. Da wir keine
+    entity_id mehr selbst setzen, nutzt HA `entity.suggested_object_id` als
+    object_id_base — daraus wird sensor.schulferien_de_by. Genau dieser Pfad
+    ersetzt die fruehere (crashende) entity_id-Property.
+    """
+    from homeassistant.helpers.entity_platform import _async_derive_object_ids
+
+    # HA setzt dieses Attribut vor dem Ableiten auf None (entity_platform.py)
+    mock_sensor.internal_integration_suggested_object_id = None
+    morgen_sensor.internal_integration_suggested_object_id = None
+
+    # platform wird nur fuer entity_namespace gelesen
+    platform = type("Platform", (), {"entity_namespace": None})()
+
+    suggested, object_id_base = _async_derive_object_ids(mock_sensor, platform)
+    assert suggested is None
+    assert object_id_base == "schulferien_de_by"
+
+    suggested_morgen, object_id_base_morgen = _async_derive_object_ids(
+        morgen_sensor, platform
+    )
+    assert suggested_morgen is None
+    assert object_id_base_morgen == "schulferien_de_by_morgen"
+
+
 def test_sensor_initialization_with_brueckentage(mock_config_with_brueckentage):
     """Test die Initialisierung mit Brückentagen."""
     hass = MagicMock()

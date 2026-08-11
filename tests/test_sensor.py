@@ -305,8 +305,7 @@ async def test_async_setup_entry_config_data_passed():
     assert schulferien_config["region_name"] == "Hessen"
     assert schulferien_config["brueckentage"] == []
     assert schulferien_config["name"] == "Schulferien - Deutschland (Hessen)"
-    assert schulferien_config["unique_id"] == "schulferien_DE_HE"
-    assert schulferien_config["entity_id"] == "sensor.schulferien_de_he"
+    assert schulferien_config["name"] == "Schulferien - Deutschland (Hessen)"
 
     # Prüfen dass FeiertagSensor mit korrekten Config erstellt wurde
     mock_feiertag.assert_called_once()
@@ -317,7 +316,6 @@ async def test_async_setup_entry_config_data_passed():
     assert feiertag_config["region_name"] == "Hessen"
     assert feiertag_config["name"] == "Feiertag - Deutschland (Hessen)"
     assert feiertag_config["unique_id"] == "feiertag_DE_HE"
-    assert feiertag_config["entity_id"] == "sensor.feiertag_de_he"
 
 
 @pytest.mark.asyncio
@@ -738,13 +736,11 @@ async def test_async_setup_entry_all_entity_ids():
 
         mock_schulferien_instance = MagicMock()
         mock_schulferien_instance.unique_id = "schulferien_DE_RP"
-        mock_schulferien_instance.entity_id = "sensor.schulferien_de_rp"
         mock_schulferien_instance.async_update = AsyncMock()
         mock_schulferien.return_value = mock_schulferien_instance
 
         mock_feiertag_instance = MagicMock()
         mock_feiertag_instance.unique_id = "feiertag_DE_RP"
-        mock_feiertag_instance.entity_id = "sensor.feiertag_de_rp"
         mock_feiertag_instance.async_update = AsyncMock()
         mock_feiertag.return_value = mock_feiertag_instance
 
@@ -1022,7 +1018,7 @@ async def test_multiple_instances_different_regions():
         mock_instance = MagicMock()
         mock_instance.async_update = AsyncMock()
         mock_instance.unique_id = f"schulferien_DE_{region_slug.upper()}"
-        mock_instance.entity_id = f"sensor.schulferien_de_{region_slug}"
+        mock_instance.suggested_object_id = f"schulferien_de_{region_slug}"
         return mock_instance
 
     def create_feiertag_instance(hass, config):
@@ -1031,7 +1027,7 @@ async def test_multiple_instances_different_regions():
         mock_instance = MagicMock()
         mock_instance.async_update = AsyncMock()
         mock_instance.unique_id = f"feiertag_DE_{region_slug.upper()}"
-        mock_instance.entity_id = f"sensor.feiertag_de_{region_slug}"
+        mock_instance.suggested_object_id = f"feiertag_de_{region_slug}"
         return mock_instance
 
     with patch(
@@ -1069,11 +1065,11 @@ async def test_multiple_instances_different_regions():
     assert "DE-BY" in region_values
     assert "DE-BW" in region_values
 
-    entity_ids = []
+    suggested_object_ids = []
     for entities in [added_entities_instance1, added_entities_instance2]:
         for entity in entities:
-            entity_ids.append(entity.entity_id)
+            suggested_object_ids.append(entity.suggested_object_id)
 
-    assert "sensor.schulferien_de_by" in entity_ids
-    assert "sensor.schulferien_de_bw" in entity_ids
-    assert len(set(entity_ids)) == len(entity_ids)
+    assert "schulferien_de_by" in suggested_object_ids
+    assert "schulferien_de_bw" in suggested_object_ids
+    assert len(set(suggested_object_ids)) == len(suggested_object_ids)

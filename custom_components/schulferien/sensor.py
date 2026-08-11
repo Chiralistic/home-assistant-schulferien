@@ -28,7 +28,6 @@ def _create_sensor_configs(land, region, land_name, region_name, brueckentage):
     schulferien_config = {
         "name": f"Schulferien - {land_name} ({region_name})",
         "unique_id": f"schulferien_{land.upper()}_{region_slug}",
-        "entity_id": f"sensor.schulferien_{land.lower()}_{region_slug.lower()}",
         "land": land,
         "region": region,
         "land_name": land_name,
@@ -39,7 +38,6 @@ def _create_sensor_configs(land, region, land_name, region_name, brueckentage):
     feiertag_config = {
         "name": f"Feiertag - {land_name} ({region_name})",
         "unique_id": f"feiertag_{land.upper()}_{region_slug}",
-        "entity_id": f"sensor.feiertag_{land.lower()}_{region_slug.lower()}",
         "land": land,
         "region": region,
         "land_name": land_name,

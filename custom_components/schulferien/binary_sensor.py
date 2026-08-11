@@ -226,11 +226,11 @@ class SchulferienOnlyBinarySensor(BinarySensorEntity):
         land_upper = config.get("land", "DE").upper()
         region_slug = compute_region_slug(config.get("land", "DE"), config.get("region", "BY"))
         self._unique_id = config.get(
-            "unique_id", f"binary_sensor.schulferien_only_{land_upper}_{region_slug}"
+            "unique_id", f"binary_sensor.nur_schulferien_{land_upper}_{region_slug}"
         )
 
         self._suggested_object_id = (
-            f"schulferien_only_{land_upper.lower()}_{region_slug.lower()}"
+            f"nur_schulferien_{land_upper.lower()}_{region_slug.lower()}"
         )
         self._entity_ids = {
             "schulferien": config["schulferien_entity_id"],
@@ -285,11 +285,11 @@ class SchulferienOnlyMorgenBinarySensor(BinarySensorEntity):
         land_upper = config.get("land", "DE").upper()
         region_slug = compute_region_slug(config.get("land", "DE"), config.get("region", "BY"))
         self._unique_id = config.get(
-            "unique_id", f"binary_sensor.schulferien_only_{land_upper}_{region_slug}_morgen"
+            "unique_id", f"binary_sensor.nur_schulferien_{land_upper}_{region_slug}_morgen"
         )
 
         self._suggested_object_id = (
-            f"schulferien_only_{land_upper.lower()}_{region_slug.lower()}_morgen"
+            f"nur_schulferien_{land_upper.lower()}_{region_slug.lower()}_morgen"
         )
         self._entity_ids = {
             "schulferien": config["schulferien_entity_id"],
@@ -345,11 +345,11 @@ class FeiertagOnlyBinarySensor(BinarySensorEntity):
         land_upper = config.get("land", "DE").upper()
         region_slug = compute_region_slug(config.get("land", "DE"), config.get("region", "BY"))
         self._unique_id = config.get(
-            "unique_id", f"binary_sensor.feiertag_only_{land_upper}_{region_slug}"
+            "unique_id", f"binary_sensor.nur_feiertage_{land_upper}_{region_slug}"
         )
 
         self._suggested_object_id = (
-            f"feiertag_only_{land_upper.lower()}_{region_slug.lower()}"
+            f"nur_feiertage_{land_upper.lower()}_{region_slug.lower()}"
         )
         self._entity_ids = {
             "schulferien": config["schulferien_entity_id"],
@@ -404,11 +404,11 @@ class FeiertagOnlyMorgenBinarySensor(BinarySensorEntity):
         land_upper = config.get("land", "DE").upper()
         region_slug = compute_region_slug(config.get("land", "DE"), config.get("region", "BY"))
         self._unique_id = config.get(
-            "unique_id", f"binary_sensor.feiertag_only_{land_upper}_{region_slug}_morgen"
+            "unique_id", f"binary_sensor.nur_feiertage_{land_upper}_{region_slug}_morgen"
         )
 
         self._suggested_object_id = (
-            f"feiertag_only_{land_upper.lower()}_{region_slug.lower()}_morgen"
+            f"nur_feiertage_{land_upper.lower()}_{region_slug.lower()}_morgen"
         )
         self._entity_ids = {
             "schulferien": config["schulferien_entity_id"],
@@ -491,25 +491,25 @@ def _create_binary_sensor_configs(land, region):
     return {
         "heute": config_heute,
         "morgen": config_morgen,
-        "schulferien_only_heute": {
+        "nur_schulferien_heute": {
             **config_base,
             **config_heute,
-            "unique_id": f"binary_sensor.schulferien_only_{instance_prefix}",
+            "unique_id": f"binary_sensor.nur_schulferien_{instance_prefix}",
         },
-        "schulferien_only_morgen": {
+        "nur_schulferien_morgen": {
             **config_base,
             **config_morgen,
-            "unique_id": f"binary_sensor.schulferien_only_{instance_prefix}_morgen",
+            "unique_id": f"binary_sensor.nur_schulferien_{instance_prefix}_morgen",
         },
-        "feiertag_only_heute": {
+        "nur_feiertage_heute": {
             **config_base,
             **config_heute,
-            "unique_id": f"binary_sensor.feiertag_only_{instance_prefix}",
+            "unique_id": f"binary_sensor.nur_feiertage_{instance_prefix}",
         },
-        "feiertag_only_morgen": {
+        "nur_feiertage_morgen": {
             **config_base,
             **config_morgen,
-            "unique_id": f"binary_sensor.feiertag_only_{instance_prefix}_morgen",
+            "unique_id": f"binary_sensor.nur_feiertage_{instance_prefix}_morgen",
         },
     }
 
@@ -550,13 +550,13 @@ async def async_setup_entry(hass, entry, async_add_entities):
         SchulferienFeiertagMorgenBinarySensor(hass, configs["morgen"]),
 
         # Separate Sensoren pro Typ
-        SchulferienOnlyBinarySensor(hass, configs["schulferien_only_heute"]),
+        SchulferienOnlyBinarySensor(hass, configs["nur_schulferien_heute"]),
         SchulferienOnlyMorgenBinarySensor(
-            hass, configs["schulferien_only_morgen"]
+            hass, configs["nur_schulferien_morgen"]
         ),
-        FeiertagOnlyBinarySensor(hass, configs["feiertag_only_heute"]),
+        FeiertagOnlyBinarySensor(hass, configs["nur_feiertage_heute"]),
         FeiertagOnlyMorgenBinarySensor(
-            hass, configs["feiertag_only_morgen"]
+            hass, configs["nur_feiertage_morgen"]
         ),
     ]
 

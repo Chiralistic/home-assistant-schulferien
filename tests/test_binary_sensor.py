@@ -129,6 +129,42 @@ def feiertag_only_morgen_sensor(hass, config_feiertag_only_morgen):
     return FeiertagOnlyMorgenBinarySensor(hass, config_feiertag_only_morgen)
 
 
+def test_suggested_object_id_enthaelt_bundesland(
+    today_sensor,
+    morgen_sensor_fixture,
+    schulferien_only_sensor,
+    schulferien_only_morgen_sensor,
+    feiertag_only_sensor,
+    feiertag_only_morgen_sensor,
+):
+    """Regression: Binary-Sensor-Entity-IDs muessen das Bundesland enthalten.
+
+    Warum? HA leitet die Entity-ID aus suggested_object_id ab. Ohne den
+    Override wuerde der regionlose Beschreibungs-Name verwendet
+    (binary_sensor.schulferien_feiertage) — bei mehreren Instanzen haengt
+    HA nur "_2" an und das Bundesland fehlt in der Benennung.
+    """
+    assert today_sensor.suggested_object_id == "schulferien_feiertage_de_by"
+    assert (
+        morgen_sensor_fixture.suggested_object_id
+        == "schulferien_feiertage_de_by_morgen"
+    )
+    assert schulferien_only_sensor.suggested_object_id == "schulferien_only_de_by"
+    assert (
+        schulferien_only_morgen_sensor.suggested_object_id
+        == "schulferien_only_de_by_morgen"
+    )
+    assert feiertag_only_sensor.suggested_object_id == "feiertag_only_de_by"
+    assert (
+        feiertag_only_morgen_sensor.suggested_object_id
+        == "feiertag_only_de_by_morgen"
+    )
+
+    # HA-Zuweisung simulieren — darf nicht crashen (Getter-only-Property-Bug)
+    today_sensor.entity_id = "binary_sensor.schulferien_feiertage_de_by"
+    assert today_sensor.entity_id == "binary_sensor.schulferien_feiertage_de_by"
+
+
 # ============================================================
 # Hilfsfunktionen
 # ============================================================
@@ -860,12 +896,12 @@ async def test_async_setup_entry_sensor_unique_ids():
     await async_setup_entry(hass, entry, mock_add_entities)
 
     expected_ids = [
-        "binary_sensor.schulferien_feiertage_DE_DE-BY",
-        "binary_sensor.schulferien_feiertage_DE_DE-BY_morgen",
-        "binary_sensor.schulferien_only_DE_DE-BY",
-        "binary_sensor.schulferien_only_DE_DE-BY_morgen",
-        "binary_sensor.feiertag_only_DE_DE-BY",
-        "binary_sensor.feiertag_only_DE_DE-BY_morgen",
+        "binary_sensor.schulferien_feiertage_DE_BY",
+        "binary_sensor.schulferien_feiertage_DE_BY_morgen",
+        "binary_sensor.schulferien_only_DE_BY",
+        "binary_sensor.schulferien_only_DE_BY_morgen",
+        "binary_sensor.feiertag_only_DE_BY",
+        "binary_sensor.feiertag_only_DE_BY_morgen",
     ]
     for i, expected_id in enumerate(expected_ids):
         assert added_entities[i].unique_id == expected_id
@@ -1286,7 +1322,7 @@ async def test_binary_sensor_multiple_instances_different_regions():
     unique_ids_instance2 = [e.unique_id for e in added_entities_instance2]
 
     for uid in unique_ids_instance1:
-        assert "DE_DE-BY" in uid
+        assert "DE_BY" in uid
 
     for uid in unique_ids_instance2:
-        assert "AT_AT-OO" in uid
+        assert "AT_OO" in uid

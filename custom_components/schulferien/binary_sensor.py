@@ -88,6 +88,14 @@ class SchulferienFeiertagBinarySensor(BinarySensorEntity):
         self._unique_id = config.get(
             "unique_id", f"binary_sensor.schulferien_feiertage_{land_upper}_{region_slug}"
         )
+
+        # Entity-ID-Vorschlag inkl. Bundesland: HA leitet daraus z.B.
+        # binary_sensor.schulferien_feiertage_de_by ab. Ohne den Override
+        # wuerde HA den regionlosen Beschreibungs-Namen verwenden und das
+        # Bundesland fehlte in der Benennung (Multi-Instanz-Umbau).
+        self._suggested_object_id = (
+            f"schulferien_feiertage_{land_upper.lower()}_{region_slug.lower()}"
+        )
         self._entity_ids = {
             # Referenz auf die beiden Sensor-Entities deren States wir prüfen
             "schulferien": config["schulferien_entity_id"],
@@ -98,6 +106,16 @@ class SchulferienFeiertagBinarySensor(BinarySensorEntity):
     @property
     def unique_id(self):
         return self._unique_id
+
+    @property
+    def suggested_object_id(self):
+        """Vorgeschlagene Entity-ID (ohne Domain-Praefix) inkl. Bundesland.
+
+        HA weist entity_id selbst zu (EntityPlatform), wir schlagen nur die
+        gewuenschte ID vor — ohne Bundesland waeren mehrere Instanzen nicht
+        unterscheidbar (HA haengt sonst nur "_2" an).
+        """
+        return self._suggested_object_id
 
     @property
     def is_on(self):
@@ -146,6 +164,10 @@ class SchulferienFeiertagMorgenBinarySensor(BinarySensorEntity):
         self._unique_id = config.get(
             "unique_id", f"binary_sensor.schulferien_feiertage_{land_upper}_{region_slug}_morgen"
         )
+
+        self._suggested_object_id = (
+            f"schulferien_feiertage_{land_upper.lower()}_{region_slug.lower()}_morgen"
+        )
         self._entity_ids = {
             "schulferien": config["schulferien_entity_id"],
             "feiertag": config["feiertag_entity_id"],
@@ -155,6 +177,11 @@ class SchulferienFeiertagMorgenBinarySensor(BinarySensorEntity):
     @property
     def unique_id(self):
         return self._unique_id
+
+    @property
+    def suggested_object_id(self):
+        """Vorgeschlagene Entity-ID (ohne Domain-Praefix) inkl. Bundesland."""
+        return self._suggested_object_id
 
     @property
     def is_on(self):
@@ -201,6 +228,10 @@ class SchulferienOnlyBinarySensor(BinarySensorEntity):
         self._unique_id = config.get(
             "unique_id", f"binary_sensor.schulferien_only_{land_upper}_{region_slug}"
         )
+
+        self._suggested_object_id = (
+            f"schulferien_only_{land_upper.lower()}_{region_slug.lower()}"
+        )
         self._entity_ids = {
             "schulferien": config["schulferien_entity_id"],
             "feiertag": config["feiertag_entity_id"],
@@ -210,6 +241,11 @@ class SchulferienOnlyBinarySensor(BinarySensorEntity):
     @property
     def unique_id(self):
         return self._unique_id
+
+    @property
+    def suggested_object_id(self):
+        """Vorgeschlagene Entity-ID (ohne Domain-Praefix) inkl. Bundesland."""
+        return self._suggested_object_id
 
     @property
     def is_on(self):
@@ -251,6 +287,10 @@ class SchulferienOnlyMorgenBinarySensor(BinarySensorEntity):
         self._unique_id = config.get(
             "unique_id", f"binary_sensor.schulferien_only_{land_upper}_{region_slug}_morgen"
         )
+
+        self._suggested_object_id = (
+            f"schulferien_only_{land_upper.lower()}_{region_slug.lower()}_morgen"
+        )
         self._entity_ids = {
             "schulferien": config["schulferien_entity_id"],
             "feiertag": config["feiertag_entity_id"],
@@ -260,6 +300,11 @@ class SchulferienOnlyMorgenBinarySensor(BinarySensorEntity):
     @property
     def unique_id(self):
         return self._unique_id
+
+    @property
+    def suggested_object_id(self):
+        """Vorgeschlagene Entity-ID (ohne Domain-Praefix) inkl. Bundesland."""
+        return self._suggested_object_id
 
     @property
     def is_on(self):
@@ -302,6 +347,10 @@ class FeiertagOnlyBinarySensor(BinarySensorEntity):
         self._unique_id = config.get(
             "unique_id", f"binary_sensor.feiertag_only_{land_upper}_{region_slug}"
         )
+
+        self._suggested_object_id = (
+            f"feiertag_only_{land_upper.lower()}_{region_slug.lower()}"
+        )
         self._entity_ids = {
             "schulferien": config["schulferien_entity_id"],
             "feiertag": config["feiertag_entity_id"],
@@ -311,6 +360,11 @@ class FeiertagOnlyBinarySensor(BinarySensorEntity):
     @property
     def unique_id(self):
         return self._unique_id
+
+    @property
+    def suggested_object_id(self):
+        """Vorgeschlagene Entity-ID (ohne Domain-Praefix) inkl. Bundesland."""
+        return self._suggested_object_id
 
     @property
     def is_on(self):
@@ -352,6 +406,10 @@ class FeiertagOnlyMorgenBinarySensor(BinarySensorEntity):
         self._unique_id = config.get(
             "unique_id", f"binary_sensor.feiertag_only_{land_upper}_{region_slug}_morgen"
         )
+
+        self._suggested_object_id = (
+            f"feiertag_only_{land_upper.lower()}_{region_slug.lower()}_morgen"
+        )
         self._entity_ids = {
             "schulferien": config["schulferien_entity_id"],
             "feiertag": config["feiertag_entity_id"],
@@ -361,6 +419,11 @@ class FeiertagOnlyMorgenBinarySensor(BinarySensorEntity):
     @property
     def unique_id(self):
         return self._unique_id
+
+    @property
+    def suggested_object_id(self):
+        """Vorgeschlagene Entity-ID (ohne Domain-Praefix) inkl. Bundesland."""
+        return self._suggested_object_id
 
     @property
     def is_on(self):
@@ -391,8 +454,10 @@ def _create_binary_sensor_configs(land, region):
     Returns:
         Dict mit Configs für alle 6 Binärsensoren.
     """
-    instance_prefix = f"{land}_{region}".upper()
     region_slug = compute_region_slug(land, region)
+    # unique_id-Praefix mit bereinigtem region_slug: Land nur einmal im Namen.
+    # f"{land}_{region}" wuerde "DE_DE-RP" ergeben (Land doppelt + Bindestrich).
+    instance_prefix = f"{land}_{region_slug}".upper()
 
     # Entity IDs mit slugified region für Konsistenz zu Sensor-Klassen
     # Warum lowercase? Home Assistant entity_ids sind case-insensitive,
@@ -460,10 +525,12 @@ async def async_setup_entry(hass, entry, async_add_entities):
     5. Nur Feiertag heute
     6. Nur Feiertag morgen
 
-    Warum entity_id mit region_slug, unique_id mit instance_prefix?
-    - entity_id muss slug-konsistent sein (keine Bindestriche) → compute_region_slug()
-    - unique_id kann den rohen Präfix verwenden (Bindestriche erlaubt in unique_ids)
-    - Beide müssen aber eindeutig pro Land+Region sein → multiple Instanzen supporten
+    Warum ueberall compute_region_slug()?
+    - Das Land darf nur einmal im Namen auftauchen: region ist "DE-RP" (mit
+      Laender-Praefix), der Slug ist "RP" -> "binary_sensor.…_DE_RP".
+    - Keine Bindestriche in entity_ids UND unique_ids -> konsistent zu den
+      Sensor-Klassen (schulferien_DE_RP).
+    - Eindeutig pro Land+Region -> multiple Instanzen supporten.
 
     Args:
         hass: Home Assistant Instanz.

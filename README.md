@@ -17,7 +17,7 @@ Jede Instanz hat eigene Sensoren für:
 - **Schulferien** (`sensor.schulferien_{land}_{region}`) – aktueller Status
 - **Schulferien Morgen** (`sensor.schulferien_{land}_{region}_morgen`) – Status für morgen
 - **Feiertage** (`sensor.feiertag_{land}_{region}`) – nächster Feiertag
-- **Binary Sensors** – kombinierte Zustände
+- **Binary Sensors** (`binary_sensor.schulferien_feiertage_{land}_{region}`, `binary_sensor.schulferien_only_{land}_{region}`, `binary_sensor.feiertag_only_{land}_{region}` — jeweils auch mit `_morgen`-Suffix) – kombinierte Zustände
 
 ### Update von älteren Versionen (vor Multi-Instanz-Unterstützung)
 

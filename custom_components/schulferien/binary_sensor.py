@@ -85,6 +85,13 @@ class SchulferienFeiertagBinarySensor(BinarySensorEntity):
         self._hass = hass
         land_upper = config.get("land", "DE").upper()
         region_slug = compute_region_slug(config.get("land", "DE"), config.get("region", "BY"))
+
+        land_name = config.get("land_name", land_upper)
+        region_name = config.get("region_name", region_slug)
+        # Anzeigename inkl. Bundesland (wie die Sensor-Klassen): z.B.
+        # "Nur Schulferien - Deutschland (Bayern)". Der Basisname kommt aus
+        # der EntityDescription und wird hier nur um Land/Region ergänzt.
+        self._name = f"{self.entity_description.name} - {land_name} ({region_name})"
         self._unique_id = config.get(
             "unique_id", f"binary_sensor.schulferien_feiertage_{land_upper}_{region_slug}"
         )
@@ -106,6 +113,11 @@ class SchulferienFeiertagBinarySensor(BinarySensorEntity):
     @property
     def unique_id(self):
         return self._unique_id
+
+    @property
+    def name(self):
+        """Gibt den Anzeigenamen inkl. Bundesland zurück."""
+        return self._name
 
     @property
     def suggested_object_id(self):
@@ -161,6 +173,10 @@ class SchulferienFeiertagMorgenBinarySensor(BinarySensorEntity):
         self._hass = hass
         land_upper = config.get("land", "DE").upper()
         region_slug = compute_region_slug(config.get("land", "DE"), config.get("region", "BY"))
+
+        land_name = config.get("land_name", land_upper)
+        region_name = config.get("region_name", region_slug)
+        self._name = f"{self.entity_description.name} - {land_name} ({region_name})"
         self._unique_id = config.get(
             "unique_id", f"binary_sensor.schulferien_feiertage_{land_upper}_{region_slug}_morgen"
         )
@@ -177,6 +193,11 @@ class SchulferienFeiertagMorgenBinarySensor(BinarySensorEntity):
     @property
     def unique_id(self):
         return self._unique_id
+
+    @property
+    def name(self):
+        """Gibt den Anzeigenamen inkl. Bundesland zurück."""
+        return self._name
 
     @property
     def suggested_object_id(self):
@@ -225,6 +246,10 @@ class SchulferienOnlyBinarySensor(BinarySensorEntity):
         self._hass = hass
         land_upper = config.get("land", "DE").upper()
         region_slug = compute_region_slug(config.get("land", "DE"), config.get("region", "BY"))
+
+        land_name = config.get("land_name", land_upper)
+        region_name = config.get("region_name", region_slug)
+        self._name = f"{self.entity_description.name} - {land_name} ({region_name})"
         self._unique_id = config.get(
             "unique_id", f"binary_sensor.nur_schulferien_{land_upper}_{region_slug}"
         )
@@ -241,6 +266,11 @@ class SchulferienOnlyBinarySensor(BinarySensorEntity):
     @property
     def unique_id(self):
         return self._unique_id
+
+    @property
+    def name(self):
+        """Gibt den Anzeigenamen inkl. Bundesland zurück."""
+        return self._name
 
     @property
     def suggested_object_id(self):
@@ -284,6 +314,10 @@ class SchulferienOnlyMorgenBinarySensor(BinarySensorEntity):
         self._hass = hass
         land_upper = config.get("land", "DE").upper()
         region_slug = compute_region_slug(config.get("land", "DE"), config.get("region", "BY"))
+
+        land_name = config.get("land_name", land_upper)
+        region_name = config.get("region_name", region_slug)
+        self._name = f"{self.entity_description.name} - {land_name} ({region_name})"
         self._unique_id = config.get(
             "unique_id", f"binary_sensor.nur_schulferien_{land_upper}_{region_slug}_morgen"
         )
@@ -300,6 +334,11 @@ class SchulferienOnlyMorgenBinarySensor(BinarySensorEntity):
     @property
     def unique_id(self):
         return self._unique_id
+
+    @property
+    def name(self):
+        """Gibt den Anzeigenamen inkl. Bundesland zurück."""
+        return self._name
 
     @property
     def suggested_object_id(self):
@@ -344,6 +383,10 @@ class FeiertagOnlyBinarySensor(BinarySensorEntity):
         self._hass = hass
         land_upper = config.get("land", "DE").upper()
         region_slug = compute_region_slug(config.get("land", "DE"), config.get("region", "BY"))
+
+        land_name = config.get("land_name", land_upper)
+        region_name = config.get("region_name", region_slug)
+        self._name = f"{self.entity_description.name} - {land_name} ({region_name})"
         self._unique_id = config.get(
             "unique_id", f"binary_sensor.nur_feiertage_{land_upper}_{region_slug}"
         )
@@ -360,6 +403,11 @@ class FeiertagOnlyBinarySensor(BinarySensorEntity):
     @property
     def unique_id(self):
         return self._unique_id
+
+    @property
+    def name(self):
+        """Gibt den Anzeigenamen inkl. Bundesland zurück."""
+        return self._name
 
     @property
     def suggested_object_id(self):
@@ -403,6 +451,10 @@ class FeiertagOnlyMorgenBinarySensor(BinarySensorEntity):
         self._hass = hass
         land_upper = config.get("land", "DE").upper()
         region_slug = compute_region_slug(config.get("land", "DE"), config.get("region", "BY"))
+
+        land_name = config.get("land_name", land_upper)
+        region_name = config.get("region_name", region_slug)
+        self._name = f"{self.entity_description.name} - {land_name} ({region_name})"
         self._unique_id = config.get(
             "unique_id", f"binary_sensor.nur_feiertage_{land_upper}_{region_slug}_morgen"
         )
@@ -419,6 +471,11 @@ class FeiertagOnlyMorgenBinarySensor(BinarySensorEntity):
     @property
     def unique_id(self):
         return self._unique_id
+
+    @property
+    def name(self):
+        """Gibt den Anzeigenamen inkl. Bundesland zurück."""
+        return self._name
 
     @property
     def suggested_object_id(self):
@@ -444,13 +501,14 @@ class FeiertagOnlyMorgenBinarySensor(BinarySensorEntity):
         )
 
 
-def _create_binary_sensor_configs(land, region):
+def _create_binary_sensor_configs(land, region, land_name, region_name):
     """Erstellt Konfigurationsdicts für alle 6 Binärsensoren.
 
     Args:
         land: Ländercode (z.B. "DE").
         region: Regionscode (z.B. "DE-BY").
-
+        land_name: Anzeigename des Landes (z.B. "Deutschland").
+        region_name: Anzeigename der Region (z.B. "Bayern").
     Returns:
         Dict mit Configs für alle 6 Binärsensoren.
     """
@@ -472,6 +530,8 @@ def _create_binary_sensor_configs(land, region):
     config_base = {
         "land": land,
         "region": region,
+        "land_name": land_name,
+        "region_name": region_name,
     }
 
     config_heute = {
@@ -541,8 +601,10 @@ async def async_setup_entry(hass, entry, async_add_entities):
 
     land = entry.data.get("land", "DE")
     region = entry.data.get("region", "BY")
+    land_name = entry.data.get("land_name", land)
+    region_name = entry.data.get("region_name", region)
 
-    configs = _create_binary_sensor_configs(land, region)
+    configs = _create_binary_sensor_configs(land, region, land_name, region_name)
 
     sensors = [
         # Kombinierte Sensoren (Schulferien ODER Feiertage)

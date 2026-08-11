@@ -40,6 +40,10 @@ def config_heute():
         "unique_id": "binary_sensor.schulferien_feiertage_DE_BY",
         "schulferien_entity_id": "sensor.schulferien_de_by",
         "feiertag_entity_id": "sensor.feiertag_de_by",
+        "land": "DE",
+        "region": "DE-BY",
+        "land_name": "Deutschland",
+        "region_name": "Bayern",
     }
 
 
@@ -50,6 +54,10 @@ def config_morgen():
         "unique_id": "binary_sensor.schulferien_feiertage_DE_BY_morgen",
         "schulferien_entity_id": "sensor.schulferien_de_by_morgen",
         "feiertag_entity_id": "sensor.feiertag_de_by_morgen",
+        "land": "DE",
+        "region": "DE-BY",
+        "land_name": "Deutschland",
+        "region_name": "Bayern",
     }
 
 
@@ -60,6 +68,10 @@ def config_schulferien_only():
         "unique_id": "binary_sensor.nur_schulferien_DE_BY",
         "schulferien_entity_id": "sensor.schulferien_de_by",
         "feiertag_entity_id": "sensor.feiertag_de_by",
+        "land": "DE",
+        "region": "DE-BY",
+        "land_name": "Deutschland",
+        "region_name": "Bayern",
     }
 
 
@@ -70,6 +82,10 @@ def config_feiertag_only():
         "unique_id": "binary_sensor.nur_feiertage_DE_BY",
         "schulferien_entity_id": "sensor.schulferien_de_by",
         "feiertag_entity_id": "sensor.feiertag_de_by",
+        "land": "DE",
+        "region": "DE-BY",
+        "land_name": "Deutschland",
+        "region_name": "Bayern",
     }
 
 
@@ -80,6 +96,10 @@ def config_schulferien_only_morgen():
         "unique_id": "binary_sensor.nur_schulferien_DE_BY_morgen",
         "schulferien_entity_id": "sensor.schulferien_de_by_morgen",
         "feiertag_entity_id": "sensor.feiertag_de_by_morgen",
+        "land": "DE",
+        "region": "DE-BY",
+        "land_name": "Deutschland",
+        "region_name": "Bayern",
     }
 
 
@@ -90,6 +110,10 @@ def config_feiertag_only_morgen():
         "unique_id": "binary_sensor.nur_feiertage_DE_BY_morgen",
         "schulferien_entity_id": "sensor.schulferien_de_by_morgen",
         "feiertag_entity_id": "sensor.feiertag_de_by_morgen",
+        "land": "DE",
+        "region": "DE-BY",
+        "land_name": "Deutschland",
+        "region_name": "Bayern",
     }
 
 
@@ -163,6 +187,23 @@ def test_suggested_object_id_enthaelt_bundesland(
     # HA-Zuweisung simulieren — darf nicht crashen (Getter-only-Property-Bug)
     today_sensor.entity_id = "binary_sensor.schulferien_feiertage_de_by"
     assert today_sensor.entity_id == "binary_sensor.schulferien_feiertage_de_by"
+
+    # Anzeigenamen enthalten Land und Bundesland (wie die Sensor-Klassen)
+    assert today_sensor.name == "Schulferien/Feiertage - Deutschland (Bayern)"
+    assert (
+        morgen_sensor_fixture.name
+        == "Schulferien/Feiertage Morgen - Deutschland (Bayern)"
+    )
+    assert schulferien_only_sensor.name == "Nur Schulferien - Deutschland (Bayern)"
+    assert (
+        schulferien_only_morgen_sensor.name
+        == "Nur Schulferien Morgen - Deutschland (Bayern)"
+    )
+    assert feiertag_only_sensor.name == "Nur Feiertage - Deutschland (Bayern)"
+    assert (
+        feiertag_only_morgen_sensor.name
+        == "Nur Feiertage Morgen - Deutschland (Bayern)"
+    )
 
 
 # ============================================================

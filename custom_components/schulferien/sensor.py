@@ -1,55 +1,33 @@
 """Modul zum Setup der Sensoren für Schulferien und Feiertage."""
 
 import logging
-import aiofiles
 import aiohttp
-import yaml
 
 from .schulferien_sensor import SchulferienSensor, SchulferienMorgenSensor
 from .feiertag_sensor import FeiertagSensor, FeiertagMorgenSensor
+from .api_utils import load_bridge_days, compute_region_slug
 
 _LOGGER = logging.getLogger(__name__)
 
-async def load_bridge_days(bridge_days_path):
-    """Lädt die Brückentage aus der bridge_days.yaml-Datei asynchron."""
-    try:
-        async with aiofiles.open(bridge_days_path, "r", encoding="utf-8") as file:
-            content = await file.read()
-            if not content:
-                return []
-            bridge_days_config = yaml.safe_load(content)
-            return bridge_days_config.get("bridge_days", [])
-    except FileNotFoundError:
-        _LOGGER.warning("Die Datei bridge_days.yaml wurde nicht gefunden.")
-        return []
-    except yaml.YAMLError as error:
-        _LOGGER.error("Fehler beim Laden der Brückentage: %s", error)
-        return []
 
+def _create_sensor_configs(land, region, land_name, region_name, brueckentage):
+    """Erstellt Konfigurationsdicts für Schulferien- und Feiertag-Sensoren.
 
-async def async_setup_entry(hass, config_entry, async_add_entities):
-    """Setup der Sensoren für Schulferien und Feiertage."""
+    Args:
+        land: Ländercode (z.B. "DE").
+        region: Regionscode (z.B. "DE-BY").
+        land_name: Angezeigter Ländername.
+        region_name: Angezeigter Regionsname.
+        brueckentage: Liste der Brückentage.
 
-    # Konfigurationsdaten direkt aus dem Config Entry übernehmen
-    land = config_entry.data.get("land")
-    region = config_entry.data.get("region")
-    land_name = config_entry.data.get("land_name")
-    region_name = config_entry.data.get("region_name")
+    Returns:
+        Tuple von (schulferien_config, feiertag_config).
+    """
+    region_slug = compute_region_slug(land, region)
 
-    # Debugging: Loggen der vollständigen Konfiguration
-    _LOGGER.debug(
-        "Konfigurationsdaten aus Config Entry: Land=%s, Region=%s, Landname=%s, Regionsname=%s",
-        land, region, land_name, region_name
-    )
-
-    # Brückentage asynchron laden
-    bridge_days_path = hass.config.path("custom_components/schulferien/bridge_days.yaml")
-    brueckentage = await load_bridge_days(bridge_days_path)
-
-    # Konfiguration für Schulferien-Sensor
-    config_schulferien = {
-        "name": "Schulferien",
-        "unique_id": "sensor.schulferien",
+    schulferien_config = {
+        "name": f"Schulferien - {land_name} ({region_name})",
+        "unique_id": f"schulferien_{land.upper()}_{region_slug}",
         "land": land,
         "region": region,
         "land_name": land_name,
@@ -57,41 +35,74 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
         "brueckentage": brueckentage,
     }
 
-    # Konfiguration für Feiertag-Sensor
-    config_feiertag = {
-        "name": "Feiertag",
-        "unique_id": "sensor.feiertag",
+    feiertag_config = {
+        "name": f"Feiertag - {land_name} ({region_name})",
+        "unique_id": f"feiertag_{land.upper()}_{region_slug}",
         "land": land,
         "region": region,
         "land_name": land_name,
         "region_name": region_name,
     }
 
+    return schulferien_config, feiertag_config
+
+
+def _create_sensors(hass, config_schulferien, config_feiertag):
+    """Erstellt und registriert alle vier Sensoren.
+
+    Args:
+        hass: Home Assistant Instanz.
+        config_schulferien: Konfig für Schulferien-Sensor.
+        config_feiertag: Konfig für Feiertag-Sensor.
+
+    Returns:
+        Liste der vier Sensor-Instanzen.
+    """
+    schulferien_sensor = SchulferienSensor(hass, config_schulferien)
+    feiertag_sensor = FeiertagSensor(hass, config_feiertag)
+    schulferien_morgen_sensor = SchulferienMorgenSensor(schulferien_sensor)
+    feiertag_morgen_sensor = FeiertagMorgenSensor(feiertag_sensor)
+
+    return [
+        schulferien_sensor,
+        feiertag_sensor,
+        schulferien_morgen_sensor,
+        feiertag_morgen_sensor,
+    ]
+
+
+async def async_setup_entry(hass, config_entry, async_add_entities):
+    """Setup der Sensoren für Schulferien und Feiertage.
+
+    Diese Funktion wird von Home Assistant aufgerufen, wenn die Integration
+    mit einem Config Entry geladen wird. Sie erstellt vier Sensoren:
+    - SchulferienSensor: Zeigt aktuellen Ferientag an
+    - FeiertagSensor: Zeigt aktuellen Feiertag an
+    - SchulferienMorgenSensor: Zeigt Ferientag morgen an
+    - FeiertagMorgenSensor: Zeigt Feiertag morgen an
+
+    Args:
+        hass: Home Assistant Instanz.
+        config_entry: Config Entry mit Land/Region-Konfiguration.
+        async_add_entities: Funktion zum Hinzufügen von Entitäten.
+    """
+    land = config_entry.data.get("land")
+    region = config_entry.data.get("region")
+    land_name = config_entry.data.get("land_name")
+    region_name = config_entry.data.get("region_name")
+
+    bridge_days_path = hass.config.path("custom_components/schulferien/bridge_days.yaml")
+    brueckentage = await load_bridge_days(bridge_days_path)
+
+    config_schulferien, config_feiertag = _create_sensor_configs(
+        land, region, land_name, region_name, brueckentage
+    )
+
+    sensors = _create_sensors(hass, config_schulferien, config_feiertag)
+
+    # Entities zu HA registrieren bevor Updates laufen
+    async_add_entities(sensors)
+
     async with aiohttp.ClientSession() as session:
-        # Erstellen des Schulferien-Sensors
-        schulferien_sensor = SchulferienSensor(hass, config_schulferien)
-
-        # Erstellen des Feiertag-Sensors
-        feiertag_sensor = FeiertagSensor(hass, config_feiertag)
-
-        # Sensor für "Schulferien Morgen"
-        schulferien_morgen_sensor = SchulferienMorgenSensor(schulferien_sensor)
-
-        # Sensor für "Feiertag Morgen"
-        feiertag_morgen_sensor = FeiertagMorgenSensor(feiertag_sensor)
-
-        # Sensoren zu Home Assistant hinzufügen
-        async_add_entities([
-            schulferien_sensor,
-            feiertag_sensor,
-            schulferien_morgen_sensor,
-            feiertag_morgen_sensor
-        ])
-        _LOGGER.debug("Füge Schulferien-Sensor hinzu.")
-        _LOGGER.debug("Füge Feiertag-Sensor hinzu.")
-        _LOGGER.debug("Füge Schulferien-Morgen-Sensor hinzu.")
-        _LOGGER.debug("Füge Feiertag-Morgen-Sensor hinzu.")
-
-        # Initialisiere die Daten für beide Sensoren mit der gemeinsamen Session
-        await schulferien_sensor.async_update(session)
-        await feiertag_sensor.async_update(session)
+        await sensors[0].async_update(session)
+        await sensors[1].async_update(session)

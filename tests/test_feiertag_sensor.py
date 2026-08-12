@@ -1,17 +1,17 @@
 """Unit Tests für SchulferienFeiertagSensor und FeiertagMorgenSensor."""
 
-import pytest
-from unittest.mock import MagicMock, AsyncMock, patch, PropertyMock
+from unittest.mock import MagicMock, AsyncMock, patch
 from datetime import datetime, timedelta
-import yaml
+
+import pytest
 
 from custom_components.schulferien.feiertag_sensor import (
     FeiertagSensor,
     FeiertagMorgenSensor,
     FEIERTAG_SENSOR,
     FEIERTAG_MORGEN_SENSOR,
-    load_bridge_days,
 )
+from custom_components.schulferien.api_utils import load_bridge_days
 
 
 # ============================================================
@@ -21,18 +21,19 @@ from custom_components.schulferien.feiertag_sensor import (
 @pytest.fixture
 def hass():
     """Mock HomeAssistant."""
-    hass = MagicMock()
-    hass.config.language = "de"
-    hass.config.time_zone = MagicMock()
-    hass.config.time_zone.name = "Europe/Berlin"
-    return hass
+    ha = MagicMock()
+    ha.config.language = "de"
+    ha.config.time_zone = MagicMock()
+    ha.config.time_zone.name = "Europe/Berlin"
+    return ha
 
 
 @pytest.fixture
 def config_heute():
     """Standard-Konfiguration für heute-Sensor."""
     return {
-        "unique_id": "sensor.feiertag",
+        "unique_id": "feiertag_DE_BY",
+        "entity_id": "sensor.feiertag_de_by",
         "name": "Feiertag",
         "land": "DE",
         "region": "DE-BY",
@@ -116,7 +117,7 @@ def test_entity_description_feiertag_morgen():
 def test_feiertag_sensor_initialization(hass, config_heute):
     """Test die Initialisierung des FeiertagSensors."""
     sensor = FeiertagSensor(hass, config_heute)
-    assert sensor.unique_id == "sensor.feiertag"
+    assert sensor.unique_id == "feiertag_DE_BY"
     assert sensor.name == "Feiertag"
     assert sensor._location["land"] == "DE"
     assert sensor._location["region"] == "DE-BY"
@@ -129,10 +130,33 @@ def test_feiertag_sensor_initialization(hass, config_heute):
     assert sensor._feiertags_info["feiertage_liste"] == []
 
 
+def test_suggested_object_id_und_entity_id_zuweisung(hass, config_heute):
+    """Regression Branch 24: HA-entity_id-Zuweisung darf nicht crashen.
+
+    Warum? HA weist beim Hinzufuegen jeder Entity `entity.entity_id =
+    entry.entity_id` zu (EntityPlatform._async_add_entity). Eine
+    Getter-only-Property ohne Setter warf hier AttributeError -> die Entity
+    wurde nie in die State-Machine aufgenommen -> Status "nicht verfuegbar".
+    Die gewuenschte Entity-ID wird ueber suggested_object_id vorgeschlagen.
+    """
+    sensor = FeiertagSensor(hass, config_heute)
+    morgen_sensor = FeiertagMorgenSensor(sensor)
+
+    assert sensor.suggested_object_id == "feiertag_de_by"
+    assert morgen_sensor.suggested_object_id == "feiertag_de_by_morgen"
+
+    # HA-Zuweisung simulieren — darf nicht mehr crashen
+    sensor.entity_id = "sensor.feiertag_de_by"
+    assert sensor.entity_id == "sensor.feiertag_de_by"
+    morgen_sensor.entity_id = "sensor.feiertag_de_by_morgen"
+    assert morgen_sensor.entity_id == "sensor.feiertag_de_by_morgen"
+
+
 def test_feiertag_sensor_custom_unique_id(hass):
     """Test mit benutzerdefiniertem unique_id."""
     config = {
-        "unique_id": "sensor.custom_feiertag",
+        "unique_id": "feiertag_DE_BW",
+        "entity_id": "sensor.feiertag_de_bw",
         "name": "Mein Feiertag",
         "land": "DE",
         "region": "DE-BW",
@@ -140,7 +164,7 @@ def test_feiertag_sensor_custom_unique_id(hass):
         "region_name": "Baden-Württemberg",
     }
     sensor = FeiertagSensor(hass, config)
-    assert sensor.unique_id == "sensor.custom_feiertag"
+    assert sensor.unique_id == "feiertag_DE_BW"
     assert sensor.name == "Mein Feiertag"
 
 
@@ -154,7 +178,7 @@ def test_feiertag_sensor_default_unique_id(hass):
         "region_name": "Bayern",
     }
     sensor = FeiertagSensor(hass, config)
-    assert sensor.unique_id == "sensor.feiertag"
+    assert sensor.unique_id == "feiertag_DE_BY"
 
 
 def test_feiertag_sensor_default_iso_code(hass, config_heute):
@@ -238,6 +262,7 @@ def test_extra_state_attributes_kein_feiertag(hass, config_heute):
 
     attributes = sensor.extra_state_attributes
     assert attributes["Name Feiertag"] == "Neujahr"
+
     assert attributes["Land"] == "Deutschland"
     assert attributes["Region"] == "Bayern"
 
@@ -276,7 +301,7 @@ def test_extra_state_attributes_aktueller_feiertag_vorgezogen(mock_feiertag_sens
 def test_extra_state_attributes_fehlt_feiertage_liste(hass, config_heute):
     """Test Attribute wenn feiertage_liste fehlt."""
     sensor = FeiertagSensor(hass, config_heute)
-    # feiertage_liste wird nicht gesetzt (fehlt)
+    sensor._feiertags_info["feiertage_liste"]  # wird nicht gesetzt
     sensor._feiertags_info["heute_feiertag"] = False
     sensor._feiertags_info["naechster_feiertag_name"] = "Test"
     sensor._feiertags_info["naechster_feiertag_datum"] = "01.01.2025"
@@ -299,6 +324,25 @@ def test_get_api_parameter(mock_feiertag_sensor):
     assert params["languageIsoCode"] == "DE"
     assert params["validFrom"] == (heute - timedelta(days=30)).strftime("%Y-%m-%d")
     assert params["validTo"] == (heute + timedelta(days=365)).strftime("%Y-%m-%d")
+
+
+def test_get_api_parameter_different_region(hass):
+    """Test get_api_parameter mit anderer Region."""
+    config = {
+        "unique_id": "feiertag_DE_BW",
+        "entity_id": "sensor.feiertag_de_bw",
+        "name": "Feiertag",
+        "land": "DE",
+        "region": "DE-BW",
+        "land_name": "Deutschland",
+        "region_name": "Baden-Württemberg",
+    }
+    sensor = FeiertagSensor(hass, config)
+    heute = datetime.now().date()
+    params = sensor.get_api_parameter(heute)
+
+    assert params["countryIsoCode"] == "DE"
+    assert params["subdivisionCode"] == "DE-BW"
 
 
 def test_get_api_parameter_with_different_region(hass):
@@ -376,7 +420,6 @@ async def test_async_added_to_hass_skip_if_same_day(mock_feiertag_sensor):
 
     await mock_feiertag_sensor.async_added_to_hass()
 
-    # Update sollte nicht aufgerufen werden, da gleicher Tag
     mock_feiertag_sensor.async_update.assert_not_called()
 
 
@@ -549,7 +592,6 @@ def test_verarbeite_feiertags_daten_ostersonntag(mock_feiertag_sensor):
         "end_datum": ostermontag,
     }]):
         mock_feiertag_sensor.verarbeite_feiertags_daten({"feiertage": []}, heute)
-        # Ostersonntag sollte hinzugefügt worden sein
         feiertage_liste = mock_feiertag_sensor._feiertags_info["feiertage_liste"]
         ostersonntag_found = any(f["name"] == "Ostersonntag" for f in feiertage_liste)
         assert ostersonntag_found is True
@@ -593,7 +635,9 @@ def test_verarbeite_feiertags_daten_keine_daten(mock_feiertag_sensor):
     """Test Verarbeitung bei leeren Daten (parse_daten gemockt)."""
     from custom_components.schulferien import feiertag_sensor as fs_module
     with patch.object(fs_module, 'parse_daten', return_value=[]):
-        mock_feiertag_sensor.verarbeite_feiertags_daten({"feiertage": []}, datetime.now().date())
+        mock_feiertag_sensor.verarbeite_feiertags_daten(
+            {"feiertage": []}, datetime.now().date()
+        )
         assert mock_feiertag_sensor._feiertags_info["feiertage_liste"] == []
 
 
@@ -603,7 +647,7 @@ def test_verarbeite_feiertags_daten_keine_daten_with_mock_parse(hass, config_heu
     with patch.object(fs_module, 'parse_daten', return_value=[]):
         sensor = FeiertagSensor(hass, config_heute)
         sensor.verarbeite_feiertags_daten({"feiertage": []}, datetime.now().date())
-        assert sensor._feiertags_info["feiertage_liste"] == []
+        assert not sensor._feiertags_info["feiertage_liste"]
         assert sensor._feiertags_info["heute_feiertag"] is False
 
 
@@ -612,8 +656,9 @@ def test_verarbeite_feiertags_daten_error(mock_feiertag_sensor):
     from custom_components.schulferien import feiertag_sensor as fs_module
     initial_liste = list(mock_feiertag_sensor._feiertags_info["feiertage_liste"])
     with patch.object(fs_module, 'parse_daten', side_effect=Exception("Parse Error")):
-        mock_feiertag_sensor.verarbeite_feiertags_daten({"feiertage": []}, datetime.now().date())
-        # Nach Fehler sollte die Liste unverändert bleiben
+        mock_feiertag_sensor.verarbeite_feiertags_daten(
+            {"feiertage": []}, datetime.now().date()
+        )
         assert mock_feiertag_sensor._feiertags_info["feiertage_liste"] == initial_liste
 
 
@@ -633,10 +678,14 @@ def test_verarbeite_feiertags_daten_error_with_mock_parse(hass, config_heute):
 
 def test_feiertag_morgen_sensor_initialization(hass, config_heute):
     """Test die Initialisierung des FeiertagMorgenSensors."""
-    main_sensor = FeiertagSensor(hass, config_heute)
+    config_mit_name = {
+        **config_heute,
+        "name": "Feiertag - Deutschland (Bayern)",
+    }
+    main_sensor = FeiertagSensor(hass, config_mit_name)
     morgen_sensor = FeiertagMorgenSensor(main_sensor)
-    assert morgen_sensor.unique_id == "sensor.feiertag_morgen"
-    assert morgen_sensor.name == "Feiertag Morgen"
+    assert morgen_sensor.unique_id == "feiertag_DE_BY_morgen"
+    assert morgen_sensor.name == "Feiertag Morgen - Deutschland (Bayern)"
 
 
 def test_feiertag_morgen_sensor_native_value_feiertag(hass, config_heute):
@@ -673,37 +722,29 @@ def test_feiertag_morgen_sensor_native_value_empty_list(hass, config_heute):
 
 
 def test_feiertag_morgen_sensor_native_value_none_list(hass, config_heute):
-    """Test native_value wenn feiertage_liste None ist.
-    
-    Hinweis: Der aktuelle Code in feiertag_sensor.py Zeile 292 verwendet
-    .get("feiertage_liste", []) was None zurückgibt wenn der Key auf None gesetzt wurde.
-    Dies führt zu TypeError: 'NoneType' object is not iterable.
-    Der Test erwartet korrektes Verhalten (Return "kein_feiertag").
-    """
+    """Test native_value wenn feiertage_liste None ist."""
     main_sensor = FeiertagSensor(hass, config_heute)
     main_sensor._feiertags_info["feiertage_liste"] = None
     morgen_sensor = FeiertagMorgenSensor(main_sensor)
-    # Bug im Code: .get() mit Default [] funktioniert nicht wenn Key auf None gesetzt
-    # Fix im Code: .get("feiertage_liste") or [] statt .get("feiertage_liste", [])
-    try:
-        result = morgen_sensor.native_value
-        assert result == "kein_feiertag"
-    except TypeError:
-        pytest.skip("Bekannter Bug im Code: .get() mit Default [] bei None-Wert")
+    assert morgen_sensor.native_value == "kein_feiertag"
 
 
 def test_feiertag_morgen_sensor_unique_id(hass, config_heute):
     """Test unique_id des MorgenSensors."""
     main_sensor = FeiertagSensor(hass, config_heute)
     morgen_sensor = FeiertagMorgenSensor(main_sensor)
-    assert morgen_sensor.unique_id == "sensor.feiertag_morgen"
+    assert morgen_sensor.unique_id == "feiertag_DE_BY_morgen"
 
 
 def test_feiertag_morgen_sensor_name(hass, config_heute):
-    """Test name des MorgenSensors."""
-    main_sensor = FeiertagSensor(hass, config_heute)
+    """Test name des MorgenSensors enthaelt die Region wie der Referenzsensor."""
+    config_mit_name = {
+        **config_heute,
+        "name": "Feiertag - Deutschland (Bayern)",
+    }
+    main_sensor = FeiertagSensor(hass, config_mit_name)
     morgen_sensor = FeiertagMorgenSensor(main_sensor)
-    assert morgen_sensor.name == "Feiertag Morgen"
+    assert morgen_sensor.name == "Feiertag Morgen - Deutschland (Bayern)"
 
 
 @pytest.mark.asyncio
@@ -711,7 +752,6 @@ async def test_feiertag_morgen_sensor_async_update_pass(hass, config_heute):
     """Test dass async_update beim MorgenSensor nichts tut."""
     main_sensor = FeiertagSensor(hass, config_heute)
     morgen_sensor = FeiertagMorgenSensor(main_sensor)
-    # async_update soll pass sein
     await morgen_sensor.async_update()
 
 
@@ -720,73 +760,44 @@ async def test_feiertag_morgen_sensor_async_update_pass(hass, config_heute):
 # ============================================================
 
 def test_load_bridge_days_file_not_found():
-    """Test dass leere Liste zurückgegeben wird wenn Datei nicht gefunden.
-    
-    Hinweis: Scheitert weil aiofiles nicht als Modul-Attribut importiert ist.
-    Der Code verwendet aiofiles.open aber aiofiles wird nicht oben importiert.
-    """
+    """Test dass leere Liste zurückgegeben wird wenn Datei nicht gefunden."""
     pytest.importorskip("aiofiles")
-    import asyncio
-    
-    # Direkter Patch auf den Import im Modul-Code
+
     with patch.dict('sys.modules', {'aiofiles': MagicMock()}):
-        # Da aiofiles nicht im Modul importiert ist, wird FileNotFoundError nicht abgefangen
-        # Der Test dokumentiert das erwartete Verhalten
         pass
 
 
 @pytest.mark.asyncio
 async def test_load_bridge_days_empty_file(tmp_path):
-    """Test dass leere Liste bei leerer Datei zurückgegeben wird.
-    
-    Hinweis: Scheitert weil aiofiles und yaml nicht als Modul-Importe vorhanden sind.
-    """
-    pytest.importorskip("aiofiles")
+    """Test dass leere Liste bei leerer Datei zurückgegeben wird."""
     test_file = tmp_path / "bridge_days.yaml"
     test_file.write_text("", encoding="utf-8")
 
-    try:
-        result = await load_bridge_days(str(test_file))
-        assert result == []
-    except (NameError, AttributeError):
-        pytest.skip("Bekannter Bug: aiofiles/yaml nicht im Modul importiert")
+    result = await load_bridge_days(str(test_file))
+    assert result == []
 
 
 @pytest.mark.asyncio
 async def test_load_bridge_days_valid_content(tmp_path):
-    """Test das Laden mit gültigem Inhalt.
-    
-    Hinweis: Scheitert weil aiofiles nicht als Modul-Import vorhanden ist.
-    """
-    pytest.importorskip("aiofiles")
+    """Test das Laden mit gültigem Inhalt."""
     test_file = tmp_path / "bridge_days.yaml"
     content = "bridge_days:\n  - date: '2024-04-22'\n    name: 'Brücktag'\n"
     test_file.write_text(content, encoding="utf-8")
 
-    try:
-        result = await load_bridge_days(str(test_file))
-        assert isinstance(result, list)
-        assert len(result) == 1
-        assert result[0]["name"] == "Brücktag"
-    except (NameError, AttributeError):
-        pytest.skip("Bekannter Bug: aiofiles/yaml nicht im Modul importiert")
+    result = await load_bridge_days(str(test_file))
+    assert isinstance(result, list)
+    assert len(result) == 1
+    assert result[0]["name"] == "Brücktag"
 
 
 @pytest.mark.asyncio
 async def test_load_bridge_days_yaml_error(tmp_path):
-    """Test Fehlerbehandlung bei ungültigem YAML.
-    
-    Hinweis: Scheitert weil yaml nicht als Modul-Import vorhanden ist.
-    """
-    pytest.importorskip("aiofiles")
+    """Test Fehlerbehandlung bei ungültigem YAML."""
     test_file = tmp_path / "bridge_days.yaml"
     test_file.write_text("{invalid: yaml: content:", encoding="utf-8")
 
-    try:
-        result = await load_bridge_days(str(test_file))
-        assert result == []
-    except (NameError, AttributeError):
-        pytest.skip("Bekannter Bug: yaml nicht im Modul importiert")
+    result = await load_bridge_days(str(test_file))
+    assert result == []
 
 
 # ============================================================
@@ -839,3 +850,106 @@ def test_feiertag_sensor_naechster_feiertag_in_weiter_zukunft(hass, config_heute
 
     attributes = sensor.extra_state_attributes
     assert attributes["Name Feiertag"] == "Neujahr"
+
+
+# ============================================================
+# Tests fuer async_will_remove_from_hass (Listener-Cleanup)
+# ============================================================
+
+def test_feiertag_cancel_timer_initialized_to_none(hass, config_heute):
+    """_cancel_timer muss bei Initialisierung None sein."""
+    sensor = FeiertagSensor(hass, config_heute)
+    assert sensor._cancel_timer is None
+
+
+@pytest.mark.asyncio
+async def test_feiertag_timer_stored_from_track_time_change(hass, config_heute):
+    """Rueckgabewert von async_track_time_change wird in _cancel_timer gespeichert."""
+    mock_cancel = MagicMock()
+    sensor = FeiertagSensor(hass, config_heute)
+
+    with patch(
+        "custom_components.schulferien.feiertag_sensor.async_track_time_change",
+        return_value=mock_cancel,
+    ), patch.object(sensor, "async_update", new=AsyncMock()), patch.object(
+        sensor, "async_write_ha_state"
+    ):
+        await sensor.async_added_to_hass()
+
+    assert sensor._cancel_timer is mock_cancel
+
+
+@pytest.mark.asyncio
+async def test_feiertag_async_will_remove_calls_cancel(hass, config_heute):
+    """async_will_remove_from_hass ruft _cancel_timer auf."""
+    sensor = FeiertagSensor(hass, config_heute)
+    mock_cancel = MagicMock()
+    sensor._cancel_timer = mock_cancel
+
+    await sensor.async_will_remove_from_hass()
+
+    mock_cancel.assert_called_once()
+    assert sensor._cancel_timer is None
+
+
+@pytest.mark.asyncio
+async def test_feiertag_async_will_remove_without_cancel_is_safe(hass, config_heute):
+    """async_will_remove_from_hass ohne _cancel_timer wirft keine Exception."""
+    sensor = FeiertagSensor(hass, config_heute)
+    sensor._cancel_timer = None
+
+    await sensor.async_will_remove_from_hass()
+
+    assert sensor._cancel_timer is None
+
+
+# ============================================================
+# Tests fuer FeiertagMorgenSensor multi-region name
+# ============================================================
+
+def test_feiertag_morgen_sensor_name_multi_region(hass):
+    """Zwei FeiertagMorgenSensoren mit verschiedenen Regionen haben unterschiedliche Namen."""
+    config_by = {
+        "unique_id": "feiertag_DE_BY",
+        "entity_id": "sensor.feiertag_de_by",
+        "name": "Feiertag - Deutschland (Bayern)",
+        "land": "DE",
+        "region": "DE-BY",
+        "land_name": "Deutschland",
+        "region_name": "Bayern",
+    }
+    config_he = {
+        "unique_id": "feiertag_DE_HE",
+        "entity_id": "sensor.feiertag_de_he",
+        "name": "Feiertag - Deutschland (Hessen)",
+        "land": "DE",
+        "region": "DE-HE",
+        "land_name": "Deutschland",
+        "region_name": "Hessen",
+    }
+
+    sensor_by = FeiertagSensor(hass, config_by)
+    sensor_he = FeiertagSensor(hass, config_he)
+
+    morgen_by = FeiertagMorgenSensor(sensor_by)
+    morgen_he = FeiertagMorgenSensor(sensor_he)
+
+    assert morgen_by.name == "Feiertag Morgen - Deutschland (Bayern)"
+    assert morgen_he.name == "Feiertag Morgen - Deutschland (Hessen)"
+    assert morgen_by.name != morgen_he.name
+
+
+def test_feiertag_morgen_sensor_name_no_separator(hass):
+    """FeiertagMorgenSensor Name ohne ' - ' im Referenz-Namen."""
+    config = {
+        "unique_id": "feiertag_DE_BY",
+        "entity_id": "sensor.feiertag_de_by",
+        "name": "TestFeiertag",
+        "land": "DE",
+        "region": "DE-BY",
+        "land_name": "Deutschland",
+        "region_name": "Bayern",
+    }
+    main_sensor = FeiertagSensor(hass, config)
+    morgen_sensor = FeiertagMorgenSensor(main_sensor)
+    assert morgen_sensor.name == "TestFeiertag Morgen"

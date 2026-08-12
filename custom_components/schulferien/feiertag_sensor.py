@@ -1,11 +1,21 @@
-"""Modul für die Verwaltung und den Abruf von Feiertagen in Deutschland."""
+"""Modul für die Verwaltung und den Abruf von Feiertagen.
+
+Zwei Sensor-Klassen:
+1. FeiertagSensor — Hauptsensor mit API-Abfrage
+2. FeiertagMorgenSensor — Spiegel-Sensor für morgen (liest vom Hauptsensor)
+
+Warum Ostersonntag-Workaround? Die OpenHolidaysAPI liefert Ostermontag,
+aber nicht immer Ostersonntag. Da Ostersonntag ein wichtiger Referenztag
+ist (beginnt das Osterfest), wird er automatisch ergänzt wenn Ostermontag
+gefunden wird (Ostersonntag = Ostermontag - 1 Tag).
+"""
 
 import logging
 from datetime import datetime, timedelta
 from homeassistant.helpers.event import async_track_time_change
 from homeassistant.components.sensor import SensorEntity, SensorEntityDescription
 import aiohttp
-from .api_utils import fetch_data, parse_daten, DEFAULT_TIMEOUT
+from .api_utils import fetch_data, parse_daten, DEFAULT_TIMEOUT, compute_region_slug
 from .const import (
     API_URL_FEIERTAGE,
     API_FALLBACK_FEIERTAGE,
@@ -15,11 +25,11 @@ from .const import (
 
 _LOGGER = logging.getLogger(__name__)
 
-# Definition der EntityDescription mit Übersetzungsschlüssel
+# EntityDescription mit Übersetzungsschlüssel für Home Assistant UI
 FEIERTAG_SENSOR = SensorEntityDescription(
     key="feiertag",
     name="Feiertag",
-    translation_key="feiertag",  # Bezug zur Übersetzung
+    translation_key="feiertag",
 )
 
 FEIERTAG_MORGEN_SENSOR = SensorEntityDescription(
@@ -29,33 +39,59 @@ FEIERTAG_MORGEN_SENSOR = SensorEntityDescription(
 )
 
 class FeiertagSensor(SensorEntity):
-    """Sensor für Feiertage."""
+    """Sensor für Feiertage.
 
-    def __init__(self, hass, config):
+    Hauptverantwortlichkeiten:
+    - API-Abfrage der Feiertagsdaten (OpenHolidaysAPI)
+    - Berechnung ob heute ein Feiertag ist
+    - Angabe des nächsten Feiertags (Name, Datum)
+    - Ostersonntag-Workaround: wird automatisch ergänzt wenn Ostermontag gefunden wird
+
+    Warum 30 Tage zurück + 365 Tage vor? Gleiche Strategie wie bei Schulferien:
+    30 Tage Puffer für nachgelieferte Daten, 365 Tage für Vorhersage.
+    """
+
+    def __init__(self, _hass, config):
         """Initialisiert den Feiertag-Sensor mit Konfigurationsdaten."""
         self.entity_description = FEIERTAG_SENSOR
         self._name = config["name"]
-        self._unique_id = config.get("unique_id", "sensor.feiertag")
-        # Hier verwenden wir die über die Konfiguration erhaltenen Länder und Regionen
+        land_upper = config["land"].upper()
+        region_slug = compute_region_slug(config["land"], config["region"])
+        land_lower = config["land"].lower()
+        region_slug_lower = region_slug.lower()
+        self._unique_id = config.get(
+            "unique_id", f"feiertag_{land_upper}_{region_slug}"
+        )
+        # Vorgeschlagene Entity-ID (ohne Domain-Praefix): HA leitet daraus
+        # z.B. "feiertag_de_rp" -> sensor.feiertag_de_rp ab.
+        # Warum nicht entity_id direkt setzen? HA weist entity_id beim Add
+        # selbst zu (EntityPlatform._async_add_entity). Eine eigene Property
+        # ohne Setter liesse diese Zuweisung mit AttributeError crashen und
+        # die Entity waere permanent "nicht verfuegbar" (Bugfix Branch 24).
+        self._suggested_object_id = f"feiertag_{land_lower}_{region_slug_lower}"
         self._location = {
-            "land": config["land"],  # Wird aus dem ConfigFlow übernommen
-            "region": config["region"],  # Wird aus dem ConfigFlow übernommen
-            "land_name": config["land_name"],  # Ausgeschriebener Name des Landes
-            "region_name": config["region_name"],  # Ausgeschriebener Name der Region
-            "iso_code": "DE",  # Wird dynamisch aus der Spracheinstellung übernommen
+            "land": config["land"],
+            "region": config["region"],
+            "land_name": config["land_name"],
+            "region_name": config["region_name"],
+            # iso_code wird in async_added_to_hass aus HA konfiguriert
+            "iso_code": "DE",
         }
+        # Cancel-Funktion fuer den taeglichen Timer (gesetzt in async_added_to_hass)
+        self._cancel_timer = None
+        # Alle Feiertagsdaten und Berechnungen
         self._feiertags_info = {
             "heute_feiertag": None,
             "naechster_feiertag_name": None,
             "naechster_feiertag_datum": None,
             "feiertage_liste": [],
-            "letztes_update": None,  # Neuer Schlüssel
+            "letztes_update": None,
         }
 
-        # Debugging der Konfigurationswerte
-        _LOGGER.debug("FeiertagSensor initialisiert mit folgenden Konfigurationsdaten:")
-        _LOGGER.debug("Land: %s", self._location["land"])
-        _LOGGER.debug("Region: %s", self._location["region"])
+        _LOGGER.debug(
+            "FeiertagSensor initialisiert: Land=%s, Region=%s",
+            self._location["land"], self._location["region"]
+        )
 
     async def async_added_to_hass(self):
         """Wird aufgerufen, wenn die Entität zu Home Assistant hinzugefügt wird."""
@@ -66,14 +102,12 @@ class FeiertagSensor(SensorEntity):
             self._location["iso_code"] = "DE"  # Standardwert
             _LOGGER.warning("Feiertag-Sensor: Fallback auf Standard 'DE'.")
 
-        # Debug-Ausgabe des Sprachcodes im Log
         _LOGGER.debug("Feiertag-Sensor: Verwendeter Sprachcode: %s", self._location["iso_code"])
 
-        # Holen des letzten Updates
         letztes_update = self._feiertags_info.get("letztes_update")
         jetzt = datetime.now()
 
-        # Update nur, wenn noch kein Update vorhanden oder wenn der Tag gewechselt hat
+        # Update nur bei fehlendem oder abgelaufenem (Tag gewechselt)
         if not letztes_update or letztes_update.date() != jetzt.date():
             await self.async_update()
             self.async_write_ha_state()
@@ -84,7 +118,7 @@ class FeiertagSensor(SensorEntity):
             await self.async_update()
             self.async_write_ha_state()
 
-        async_track_time_change(
+        self._cancel_timer = async_track_time_change(
             self.hass,
             async_daily_update,
             hour=DAILY_UPDATE_HOUR,
@@ -93,6 +127,16 @@ class FeiertagSensor(SensorEntity):
         _LOGGER.debug(
             "Tägliche Abfrage um %02d:%02d eingerichtet.", DAILY_UPDATE_HOUR, DAILY_UPDATE_MINUTE
         )
+
+    async def async_will_remove_from_hass(self):
+        """Cleanup: Entfernt den taeglichen Timer-Listener.
+        Warum wichtig? Ohne Cleanup feuert der Listener weiter,
+        nachdem die Entity aus HA entfernt wurde (z.B. bei Multi-Instance-Unload).
+        """
+        if self._cancel_timer:
+            self._cancel_timer()
+            self._cancel_timer = None
+            _LOGGER.debug("Timer-Cleanup fuer FeiertagSensor durchgefuehrt.")
 
     @property
     def name(self):
@@ -103,6 +147,18 @@ class FeiertagSensor(SensorEntity):
     def unique_id(self):
         """Gibt die eindeutige ID des Sensors zurück."""
         return self._unique_id
+
+    @property
+    def suggested_object_id(self):
+        """Gibt die vorgeschlagene Entity-ID ohne Domain-Praefix zurück.
+
+        Warum ueberschreiben? HA leitet die Entity-ID aus suggested_object_id
+        ab ("feiertag_de_rp" -> sensor.feiertag_de_rp) und weist entity_id
+        selbst zu. Eine eigene entity_id-Property wuerde diese Zuweisung
+        blockieren (Getter-only-Property ohne Setter -> Entity
+        "nicht verfuegbar").
+        """
+        return self._suggested_object_id
 
     @property
     def native_value(self):
@@ -116,7 +172,7 @@ class FeiertagSensor(SensorEntity):
         aktueller_feiertag = None
         datum = None
 
-        # Nutze eine leere Liste, falls 'feiertage_liste' fehlt
+        # Leere Liste als Fallback falls 'feiertage_liste' fehlt
         feiertage_liste = self._feiertags_info.get("feiertage_liste", [])
         for feiertag in feiertage_liste:
             if feiertag["start_datum"] == heute:
@@ -131,8 +187,8 @@ class FeiertagSensor(SensorEntity):
         return {
             "Name Feiertag": aktueller_feiertag,
             "Datum": datum,
-            "Land": self._location["land_name"],  # Dynamisch aus der Konfiguration übernommen
-            "Region": self._location["region_name"],  # Dynamisch aus der Konfiguration übernommen
+            "Land": self._location["land_name"],
+            "Region": self._location["region_name"],
         }
 
     async def async_update(self, session=None):
@@ -174,8 +230,10 @@ class FeiertagSensor(SensorEntity):
                 self._feiertags_info["letztes_update"],
             )
 
+        # pylint: disable=broad-exception-caught
         except Exception as e:
             _LOGGER.error("Unerwarteter Fehler beim Aktualisieren der Feiertagsdaten: %s", e)
+        # pylint: enable=broad-exception-caught
 
         finally:
             if close_session:
@@ -204,21 +262,31 @@ class FeiertagSensor(SensorEntity):
                 feiertage_daten = await fetch_data(url, api_parameter, session)
                 if feiertage_daten:
                     return feiertage_daten
-            except Exception as e:
+            except (aiohttp.ClientError, ValueError) as e:
                 _LOGGER.error("Fehler beim Abrufen der Daten von %s: %s", url, e)
         return None
 
     def verarbeite_feiertags_daten(self, feiertage_daten, heute):
-        """Verarbeitet die erhaltenen Feiertags-Daten."""
+        """Verarbeitet die erhaltenen Feiertags-Daten.
+
+        Warum Ostersonntag-Workaround? Die OpenHolidaysAPI liefert
+        Ostermontag, aber nicht immer Ostersonntag. Da Ostersonntag
+        ein wichtiger Referenztag ist (beginnt das Osterfest), wird
+        er automatisch ergänzt — berechnet als Ostermontag - 1 Tag.
+
+        Warum `list(feiertage_liste)` in der for-Schleife? Wir modifizieren
+        die Liste während wir darüber iterieren. `list()` erstellt eine
+        flache Kopie für die Iteration, die Originalliste wird modifiziert.
+        """
         try:
             feiertage_liste = parse_daten(feiertage_daten, typ="feiertage")
 
-            # Workaround: Ostersonntag ergänzen
-            for feiertag in feiertage_liste:
+            # Ostersonntag automatisch ergänzen wenn Ostermontag gefunden
+            for feiertag in list(feiertage_liste):
                 name = feiertag["name"].lower()
                 if "ostermontag" in name or "easter monday" in name:
                     ostersonntag_datum = feiertag["start_datum"] - timedelta(days=1)
-                    # Doppelten Eintrag vermeiden
+                    # Doppelten Eintrag vermeiden (API könnte ihn bereits liefern)
                     if not any(
                         f["start_datum"] == ostersonntag_datum
                         for f in feiertage_liste
@@ -230,8 +298,10 @@ class FeiertagSensor(SensorEntity):
                         })
                     break
             self._feiertags_info["feiertage_liste"] = feiertage_liste
+        # pylint: disable=broad-exception-caught
         except Exception as e:
             _LOGGER.error("Fehler beim Verarbeiten der Daten: %s", e)
+        # pylint: enable=broad-exception-caught
             return
 
         aktueller_feiertag = next(
@@ -269,18 +339,52 @@ class FeiertagSensor(SensorEntity):
                 })
 
 class FeiertagMorgenSensor(SensorEntity):
-    """Sensor für Feiertag morgen."""
+    """Sensor für Feiertag morgen.
+
+    Warum Referenzsensor? Gleiche Strategie wie bei SchulferienMorgenSensor:
+    Der Hauptsensor (FeiertagSensor) hat die Daten bereits von der API.
+    Statt die API zweimal aufzurufen, liest dieser Sensor die bereits
+    geladenen Daten des Hauptsensors aus.
+
+    Warum `feiertage_liste or []`? Verhindert TypeError wenn
+    feiertage_liste None ist (Bug 1 Fix).
+    """
 
     def __init__(self, referenzsensor: FeiertagSensor):
+        """Erstellt den Morgen-Sensor basierend auf dem Hauptsensor.
+
+        Args:
+            referenzsensor: Der Hauptsensor (FeiertagSensor) dessen Daten verwendet werden.
+        """
         self.entity_description = FEIERTAG_MORGEN_SENSOR
         self._referenzsensor = referenzsensor
-        self._attr_name = "Feiertag Morgen"
-        self._attr_unique_id = "sensor.feiertag_morgen"
-        self._attr_native_value = None
+        # Name vom Referenzsensor ableiten: "Feiertag - Bayern" → "Feiertag Morgen - Bayern"
+        base_name = referenzsensor._name
+        if " - " in base_name:
+            self._attr_name = f"Feiertag Morgen{base_name[base_name.index(' - '):]}"
+        else:
+            self._attr_name = f"{base_name} Morgen"
+        # Unique ID und Entity ID vom Referenzsensor ableiten (_morgen Suffix)
+        base_unique_id = referenzsensor.unique_id
+        self._attr_unique_id = f"{base_unique_id}_morgen"
+        # Suggested Object ID aus der Unique ID ableiten (kleingeschrieben):
+        # "feiertag_DE_RP" -> "feiertag_de_rp_morgen" ->
+        # sensor.feiertag_de_rp_morgen. Warum nicht von der entity_id des
+        # Referenzsensors? Vor dem Add an HA ist entity_id noch nicht gesetzt.
+        self._suggested_object_id = f"{base_unique_id.lower()}_morgen"
 
     @property
     def unique_id(self):
         return self._attr_unique_id
+
+    @property
+    def suggested_object_id(self):
+        """Gibt die vorgeschlagene Entity-ID ohne Domain-Praefix zurück.
+
+        Siehe FeiertagSensor.suggested_object_id: HA weist entity_id selbst
+        zu, wir schlagen nur die gewuenschte ID vor.
+        """
+        return self._suggested_object_id
 
     @property
     def name(self):
@@ -288,28 +392,20 @@ class FeiertagMorgenSensor(SensorEntity):
 
     @property
     def native_value(self):
+        """Gibt den aktuellen Zustand des Sensors zurück.
+
+        Warum morgen = heute + 1 Tag? Dieser Sensor soll anzeigen ob
+        MORGEN ein Feiertag ist.
+        """
         morgen = datetime.now().date() + timedelta(days=1)
-        for feiertag in self._referenzsensor._feiertags_info.get("feiertage_liste", []):
+        # pylint: disable=protected-access
+        # Oder-Operator verhindert TypeError bei None (Bug 1 Fix)
+        for feiertag in self._referenzsensor._feiertags_info.get("feiertage_liste") or []:
+        # pylint: enable=protected-access
             if feiertag["start_datum"] == morgen:
                 return "feiertag"
         return "kein_feiertag"
 
-# Zweites Update ist nicht erforderlich, da der FeiertagSensor bereits täglich aktualisiert wird.
+    # pylint: disable=missing-function-docstring
     async def async_update(self):
         pass
-
-async def load_bridge_days(bridge_days_path):
-    """Lädt die Brückentage aus der bridge_days.yaml-Datei asynchron."""
-    try:
-        async with aiofiles.open(bridge_days_path, "r", encoding="utf-8") as file:
-            content = await file.read()
-            if not content:
-                return []
-            bridge_days_config = yaml.safe_load(content)
-            return bridge_days_config.get("bridge_days", [])
-    except FileNotFoundError:
-        _LOGGER.warning("Die Datei bridge_days.yaml wurde nicht gefunden.")
-        return []
-    except yaml.YAMLError as error:
-        _LOGGER.error("Fehler beim Laden der Brückentage: %s", error)
-        return []

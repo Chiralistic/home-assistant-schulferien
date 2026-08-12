@@ -1,10 +1,12 @@
 """Unit tests for API utility functions."""
 
 import asyncio
-import pytest
-from unittest.mock import patch, AsyncMock, MagicMock
+import unittest.mock
 from datetime import datetime
+from unittest.mock import AsyncMock
+
 import aiohttp
+import pytest
 from custom_components.schulferien.api_utils import fetch_data, parse_daten
 
 
@@ -15,15 +17,15 @@ from custom_components.schulferien.api_utils import fetch_data, parse_daten
 @pytest.mark.asyncio
 async def test_fetch_data_success():
     """Test API fetch with HTTP success."""
-    mock_response = MagicMock()
+    mock_response = unittest.mock.MagicMock()
     mock_response.status = 200
-    mock_response.raise_for_status = MagicMock()
+    mock_response.raise_for_status = unittest.mock.MagicMock()
     mock_response.json = AsyncMock(return_value={"key": "value"})
     mock_response.__aenter__ = AsyncMock(return_value=mock_response)
     mock_response.__aexit__ = AsyncMock(return_value=None)
 
-    mock_session = MagicMock()
-    mock_session.get = MagicMock(return_value=mock_response)
+    mock_session = unittest.mock.MagicMock()
+    mock_session.get = unittest.mock.MagicMock(return_value=mock_response)
 
     result = await fetch_data("https://example.com/api", {"param": "value"}, mock_session)
     assert result == {"key": "value"}
@@ -32,15 +34,15 @@ async def test_fetch_data_success():
 @pytest.mark.asyncio
 async def test_fetch_data_success_with_headers():
     """Test API fetch verifies correct headers are sent."""
-    mock_response = MagicMock()
+    mock_response = unittest.mock.MagicMock()
     mock_response.status = 200
-    mock_response.raise_for_status = MagicMock()
+    mock_response.raise_for_status = unittest.mock.MagicMock()
     mock_response.json = AsyncMock(return_value={"data": "test"})
     mock_response.__aenter__ = AsyncMock(return_value=mock_response)
     mock_response.__aexit__ = AsyncMock(return_value=None)
 
-    mock_session = MagicMock()
-    mock_session.get = MagicMock(return_value=mock_response)
+    mock_session = unittest.mock.MagicMock()
+    mock_session.get = unittest.mock.MagicMock(return_value=mock_response)
 
     result = await fetch_data("https://example.com/api", {"param": "value"}, mock_session)
     assert result == {"data": "test"}
@@ -54,37 +56,37 @@ async def test_fetch_data_success_with_headers():
 @pytest.mark.asyncio
 async def test_fetch_data_creates_session_when_none():
     """Test fetch_data creates its own session when none provided."""
-    mock_response = MagicMock()
+    mock_response = unittest.mock.MagicMock()
     mock_response.status = 200
-    mock_response.raise_for_status = MagicMock()
+    mock_response.raise_for_status = unittest.mock.MagicMock()
     mock_response.json = AsyncMock(return_value={"created": "session"})
     mock_response.__aenter__ = AsyncMock(return_value=mock_response)
     mock_response.__aexit__ = AsyncMock(return_value=None)
 
-    with patch("aiohttp.ClientSession") as MockSession:
-        mock_session_instance = MagicMock()
-        mock_session_instance.get = MagicMock(return_value=mock_response)
+    with unittest.mock.patch("aiohttp.ClientSession") as mock_session_class:
+        mock_session_instance = unittest.mock.MagicMock()
+        mock_session_instance.get = unittest.mock.MagicMock(return_value=mock_response)
         mock_session_instance.close = AsyncMock()
-        MockSession.return_value = mock_session_instance
+        mock_session_class.return_value = mock_session_instance
 
         result = await fetch_data("https://example.com/api", {"param": "value"})
         assert result == {"created": "session"}
-        MockSession.assert_called_once()
+        mock_session_class.assert_called_once()
         mock_session_instance.close.assert_called_once()
 
 
 @pytest.mark.asyncio
 async def test_fetch_data_timeout():
     """Test API fetch with timeout error."""
-    mock_response = MagicMock()
+    mock_response = unittest.mock.MagicMock()
     mock_response.status = 200
-    mock_response.raise_for_status = MagicMock()
+    mock_response.raise_for_status = unittest.mock.MagicMock()
     mock_response.json = AsyncMock(return_value={})
     mock_response.__aenter__ = AsyncMock(side_effect=asyncio.TimeoutError("Request timed out"))
     mock_response.__aexit__ = AsyncMock(return_value=None)
 
-    mock_session = MagicMock()
-    mock_session.get = MagicMock(return_value=mock_response)
+    mock_session = unittest.mock.MagicMock()
+    mock_session.get = unittest.mock.MagicMock(return_value=mock_response)
 
     result = await fetch_data("https://example.com/api", {"param": "value"}, mock_session)
     assert result == {}
@@ -93,9 +95,9 @@ async def test_fetch_data_timeout():
 @pytest.mark.asyncio
 async def test_fetch_data_http_404():
     """Test API fetch with HTTP 404 error."""
-    mock_response = MagicMock()
+    mock_response = unittest.mock.MagicMock()
     mock_response.status = 404
-    mock_response.request_info = MagicMock()
+    mock_response.request_info = unittest.mock.MagicMock()
     mock_response.request_info.url = "https://example.com/api"
     mock_response.raise_for_status.side_effect = aiohttp.ClientResponseError(
         request_info=mock_response.request_info,
@@ -106,8 +108,8 @@ async def test_fetch_data_http_404():
     mock_response.__aenter__ = AsyncMock(return_value=mock_response)
     mock_response.__aexit__ = AsyncMock(return_value=None)
 
-    mock_session = MagicMock()
-    mock_session.get = MagicMock(return_value=mock_response)
+    mock_session = unittest.mock.MagicMock()
+    mock_session.get = unittest.mock.MagicMock(return_value=mock_response)
 
     result = await fetch_data("https://example.com/api", {"param": "value"}, mock_session)
     assert result == {}
@@ -116,9 +118,9 @@ async def test_fetch_data_http_404():
 @pytest.mark.asyncio
 async def test_fetch_data_http_500():
     """Test API fetch with HTTP 500 error."""
-    mock_response = MagicMock()
+    mock_response = unittest.mock.MagicMock()
     mock_response.status = 500
-    mock_response.request_info = MagicMock()
+    mock_response.request_info = unittest.mock.MagicMock()
     mock_response.request_info.url = "https://example.com/api"
     mock_response.raise_for_status.side_effect = aiohttp.ClientResponseError(
         request_info=mock_response.request_info,
@@ -129,8 +131,8 @@ async def test_fetch_data_http_500():
     mock_response.__aenter__ = AsyncMock(return_value=mock_response)
     mock_response.__aexit__ = AsyncMock(return_value=None)
 
-    mock_session = MagicMock()
-    mock_session.get = MagicMock(return_value=mock_response)
+    mock_session = unittest.mock.MagicMock()
+    mock_session.get = unittest.mock.MagicMock(return_value=mock_response)
 
     result = await fetch_data("https://example.com/api", {"param": "value"}, mock_session)
     assert result == {}
@@ -139,9 +141,9 @@ async def test_fetch_data_http_500():
 @pytest.mark.asyncio
 async def test_fetch_data_http_503():
     """Test API fetch with HTTP 503 error."""
-    mock_response = MagicMock()
+    mock_response = unittest.mock.MagicMock()
     mock_response.status = 503
-    mock_response.request_info = MagicMock()
+    mock_response.request_info = unittest.mock.MagicMock()
     mock_response.request_info.url = "https://example.com/api"
     mock_response.raise_for_status.side_effect = aiohttp.ClientResponseError(
         request_info=mock_response.request_info,
@@ -152,8 +154,8 @@ async def test_fetch_data_http_503():
     mock_response.__aenter__ = AsyncMock(return_value=mock_response)
     mock_response.__aexit__ = AsyncMock(return_value=None)
 
-    mock_session = MagicMock()
-    mock_session.get = MagicMock(return_value=mock_response)
+    mock_session = unittest.mock.MagicMock()
+    mock_session.get = unittest.mock.MagicMock(return_value=mock_response)
 
     result = await fetch_data("https://example.com/api", {"param": "value"}, mock_session)
     assert result == {}
@@ -162,7 +164,7 @@ async def test_fetch_data_http_503():
 @pytest.mark.asyncio
 async def test_fetch_data_connection_error():
     """Test API fetch with connection error."""
-    mock_session = MagicMock()
+    mock_session = unittest.mock.MagicMock()
     mock_session.get.side_effect = aiohttp.ClientConnectionError("Connection failed")
 
     result = await fetch_data(
@@ -174,7 +176,7 @@ async def test_fetch_data_connection_error():
 @pytest.mark.asyncio
 async def test_fetch_data_general_client_error():
     """Test API fetch with general client error."""
-    mock_session = MagicMock()
+    mock_session = unittest.mock.MagicMock()
     mock_session.get.side_effect = aiohttp.ClientError("General client error")
 
     result = await fetch_data(
@@ -186,15 +188,15 @@ async def test_fetch_data_general_client_error():
 @pytest.mark.asyncio
 async def test_fetch_data_invalid_json_response():
     """Test API fetch with invalid JSON response."""
-    mock_response = MagicMock()
+    mock_response = unittest.mock.MagicMock()
     mock_response.status = 200
-    mock_response.raise_for_status = MagicMock()
+    mock_response.raise_for_status = unittest.mock.MagicMock()
     mock_response.json = AsyncMock(side_effect=ValueError("Invalid JSON"))
     mock_response.__aenter__ = AsyncMock(return_value=mock_response)
     mock_response.__aexit__ = AsyncMock(return_value=None)
 
-    mock_session = MagicMock()
-    mock_session.get = MagicMock(return_value=mock_response)
+    mock_session = unittest.mock.MagicMock()
+    mock_session.get = unittest.mock.MagicMock(return_value=mock_response)
 
     result = await fetch_data(
         "https://example.com/api", {"param": "value"}, mock_session
@@ -215,15 +217,15 @@ async def test_fetch_data_invalid_url():
 @pytest.mark.asyncio
 async def test_fetch_data_passes_params_correctly():
     """Test that API parameters are passed correctly to the request."""
-    mock_response = MagicMock()
+    mock_response = unittest.mock.MagicMock()
     mock_response.status = 200
-    mock_response.raise_for_status = MagicMock()
+    mock_response.raise_for_status = unittest.mock.MagicMock()
     mock_response.json = AsyncMock(return_value={"received": "params"})
     mock_response.__aenter__ = AsyncMock(return_value=mock_response)
     mock_response.__aexit__ = AsyncMock(return_value=None)
 
-    mock_session = MagicMock()
-    mock_session.get = MagicMock(return_value=mock_response)
+    mock_session = unittest.mock.MagicMock()
+    mock_session.get = unittest.mock.MagicMock(return_value=mock_response)
 
     params = {"land": "DE", "region": "DE-BY", "validFrom": "2024-01-01"}
     await fetch_data("https://example.com/api", params, mock_session)
@@ -236,15 +238,15 @@ async def test_fetch_data_passes_params_correctly():
 @pytest.mark.asyncio
 async def test_fetch_data_session_not_closed_when_provided():
     """Test that provided session is not closed by fetch_data."""
-    mock_response = MagicMock()
+    mock_response = unittest.mock.MagicMock()
     mock_response.status = 200
-    mock_response.raise_for_status = MagicMock()
+    mock_response.raise_for_status = unittest.mock.MagicMock()
     mock_response.json = AsyncMock(return_value={"data": "test"})
     mock_response.__aenter__ = AsyncMock(return_value=mock_response)
     mock_response.__aexit__ = AsyncMock(return_value=None)
 
-    mock_session = MagicMock()
-    mock_session.get = MagicMock(return_value=mock_response)
+    mock_session = unittest.mock.MagicMock()
+    mock_session.get = unittest.mock.MagicMock(return_value=mock_response)
 
     await fetch_data("https://example.com/api", {"param": "value"}, mock_session)
 
@@ -255,9 +257,9 @@ async def test_fetch_data_session_not_closed_when_provided():
 @pytest.mark.asyncio
 async def test_fetch_data_http_401():
     """Test API fetch with HTTP 401 Unauthorized error."""
-    mock_response = MagicMock()
+    mock_response = unittest.mock.MagicMock()
     mock_response.status = 401
-    mock_response.request_info = MagicMock()
+    mock_response.request_info = unittest.mock.MagicMock()
     mock_response.request_info.url = "https://example.com/api"
     mock_response.raise_for_status.side_effect = aiohttp.ClientResponseError(
         request_info=mock_response.request_info,
@@ -268,8 +270,8 @@ async def test_fetch_data_http_401():
     mock_response.__aenter__ = AsyncMock(return_value=mock_response)
     mock_response.__aexit__ = AsyncMock(return_value=None)
 
-    mock_session = MagicMock()
-    mock_session.get = MagicMock(return_value=mock_response)
+    mock_session = unittest.mock.MagicMock()
+    mock_session.get = unittest.mock.MagicMock(return_value=mock_response)
 
     result = await fetch_data("https://example.com/api", {"param": "value"}, mock_session)
     assert result == {}
@@ -278,9 +280,9 @@ async def test_fetch_data_http_401():
 @pytest.mark.asyncio
 async def test_fetch_data_http_403():
     """Test API fetch with HTTP 403 Forbidden error."""
-    mock_response = MagicMock()
+    mock_response = unittest.mock.MagicMock()
     mock_response.status = 403
-    mock_response.request_info = MagicMock()
+    mock_response.request_info = unittest.mock.MagicMock()
     mock_response.request_info.url = "https://example.com/api"
     mock_response.raise_for_status.side_effect = aiohttp.ClientResponseError(
         request_info=mock_response.request_info,
@@ -291,8 +293,8 @@ async def test_fetch_data_http_403():
     mock_response.__aenter__ = AsyncMock(return_value=mock_response)
     mock_response.__aexit__ = AsyncMock(return_value=None)
 
-    mock_session = MagicMock()
-    mock_session.get = MagicMock(return_value=mock_response)
+    mock_session = unittest.mock.MagicMock()
+    mock_session.get = unittest.mock.MagicMock(return_value=mock_response)
 
     result = await fetch_data("https://example.com/api", {"param": "value"}, mock_session)
     assert result == {}
@@ -376,7 +378,7 @@ def test_parse_daten_with_feiertage_typ():
 def test_parse_daten_empty_list():
     """Test parsing an empty list."""
     result = parse_daten([])
-    assert result == []
+    assert not result
 
 
 def test_parse_daten_multiple_entries():
@@ -399,7 +401,7 @@ def test_parse_daten_multiple_entries():
     assert result[1]["name"] == "Osterferien"
 
 
-def test_parse_daten_missing_startDate_skips_entry():
+def test_parse_daten_missing_startdate_skips_entry():
     """Test that entries without startDate are skipped, not raising error."""
     json_data = [
         {"endDate": "2024-06-15"},
@@ -414,7 +416,7 @@ def test_parse_daten_missing_startDate_skips_entry():
     assert result[0]["name"] == "Gültige Ferien"
 
 
-def test_parse_daten_missing_endDate_skips_entry():
+def test_parse_daten_missing_enddate_skips_entry():
     """Test that entries without endDate are skipped, not raising error."""
     json_data = [
         {"startDate": "2024-06-01"},

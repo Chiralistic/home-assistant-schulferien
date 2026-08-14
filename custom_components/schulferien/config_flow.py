@@ -22,6 +22,7 @@ from homeassistant import config_entries
 from homeassistant.core import HomeAssistant
 
 from .const import DOMAIN
+from .api_utils import DEFAULT_TIMEOUT
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -72,7 +73,7 @@ class SchulferienFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
             Dict {isoCode: lokalerName} oder leeres Dict bei Fehler.
         """
         url = f"https://openholidaysapi.org/Countries?languageIsoCode={self.language_iso_code}"
-        async with aiohttp.ClientSession() as session:
+        async with aiohttp.ClientSession(timeout=DEFAULT_TIMEOUT) as session:
             async with session.get(url) as response:
                 if response.status == 200:
                     try:
@@ -110,10 +111,9 @@ class SchulferienFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
             f"?countryIsoCode={country_code}"
             f"&languageIsoCode={self.language_iso_code}"
         )
-        async with aiohttp.ClientSession() as session:
+        async with aiohttp.ClientSession(timeout=DEFAULT_TIMEOUT) as session:
             async with session.get(url) as response:
                 if response.status == 200:
-                    _LOGGER.debug("API-Antwort für Regionen: %s", await response.text())
                     try:
                         subdivisions_data = await response.json()
                         # Lokalierte Namen extrahieren — fallback auf region code

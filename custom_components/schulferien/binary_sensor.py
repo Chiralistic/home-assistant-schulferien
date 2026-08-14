@@ -112,6 +112,9 @@ class SchulferienBinarySensorBase(BinarySensorEntity):
         # Anzeigename inkl. Bundesland: Basisname aus der EntityDescription
         self._name = f"{self.entity_description.name} - {land_name} ({region_name})"
         morgen_suffix = "_morgen" if self._morgen_variante else ""
+        # unique_id enthält den Domain-Präfix "binary_sensor." — Altbestand seit
+        # v1.0 (Commit 9cc7388), bewusst NICHT geändert: Ein Fix wäre ein Breaking
+        # Change für Bestandsinstallationen (Entities würden als neu registriert).
         self._unique_id = config.get(
             "unique_id",
             f"binary_sensor.{self._id_prefix}_{land_upper}_{region_slug}{morgen_suffix}",

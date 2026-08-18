@@ -1,3 +1,5 @@
+
+
 # home-assistant-schulferien
 
 Home Assistant-Integration, um Schulferien mithilfe der OpenHolidays-API als Entität für Automationen verfügbar zu machen. Zur Zeit noch auf eigene Gefahr verwenden, da ich hier auch viel über Home Assistant und Integrationen lerne. Die Releases sind getestet und funktionieren.
@@ -122,6 +124,8 @@ cards:
       - entity: binary_sensor.nur_feiertage_de_ni_morgen
         name: Nur Feiertage Morgen (binary)
 ```
+
+Brückentage kannst du in `custom_components/schulferien/bridge_days.yaml` im Format `DD.MM.YYYY` eintragen.
 
 ### Mehrere Bundesländer gleichzeitig anzeigen
 

@@ -161,7 +161,10 @@ class SchulferienBinarySensorBase(BinarySensorEntity):
 
         Liest die States der in _state_keys referenzierten Sensoren und
         kombiniert sie mit any(): kombiniert = OR ueber beide Keys, only-*
-        = Single-Check. None-States (Sensor noch nicht registriert) werden
+        = Single-Check. Die only-* Sensoren pruefen bewusst einseitig
+        (kein Exklusiv-Check): ein Feiertag in den Ferien ist weiterhin
+        Feiertag UND Ferien — an beides-Tagen sind beide only-* Sensoren an.
+        None-States (Sensor noch nicht registriert) werden
         als falsy behandelt — kein Crash, konsistent zum Bestandsverhalten.
         """
         states = {

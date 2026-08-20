@@ -22,5 +22,6 @@ jobs:
         pip install -r requirements.txt
 
     - name: Run Pylint
+      # Pylint-Check auf custom_components/schulferien beschränkt (entwickelt von dhaucke)
       run: |
-        pylint $(find . -name "*.py") --max-line-length=100
+        pylint custom_components/schulferien --max-line-length=100

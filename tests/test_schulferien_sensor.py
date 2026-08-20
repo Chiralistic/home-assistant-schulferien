@@ -579,10 +579,9 @@ async def test_update_success(mock_sensor, morgen_sensor):
 
     with patch("custom_components.schulferien.schulferien_sensor.fetch_data", new=AsyncMock(return_value=mock_api_response)), \
             patch("custom_components.schulferien.schulferien_sensor.parse_daten", return_value=mock_parsed_data), \
-            patch("custom_components.schulferien.schulferien_sensor.datetime") as mock_dt:
+            patch("custom_components.schulferien.schulferien_sensor.dt_util") as mock_dt_util:
 
-        mock_dt.now.return_value = heute
-        mock_dt.timedelta = timedelta
+        mock_dt_util.now.return_value = heute
 
         await mock_sensor.async_update()
 
@@ -613,10 +612,9 @@ async def test_update_during_ferien(mock_sensor, morgen_sensor):
 
     with patch("custom_components.schulferien.schulferien_sensor.fetch_data", new=AsyncMock(return_value=mock_api_response)), \
             patch("custom_components.schulferien.schulferien_sensor.parse_daten", return_value=mock_parsed_data), \
-            patch("custom_components.schulferien.schulferien_sensor.datetime") as mock_dt:
+            patch("custom_components.schulferien.schulferien_sensor.dt_util") as mock_dt_util:
 
-        mock_dt.now.return_value = heute
-        mock_dt.timedelta = timedelta
+        mock_dt_util.now.return_value = heute
 
         await mock_sensor.async_update()
 
@@ -701,16 +699,164 @@ async def test_update_skips_if_already_updated_today(mock_sensor):
 
 
 @pytest.mark.asyncio
-async def test_update_skips_if_same_day(mock_sensor):
-    """Test dass Update übersprungen wird wenn letztes Update vom selben Tag."""
+async def test_update_skips_if_yesterday_success(mock_sensor):
+    """Test dass Update nach gestrigem Erfolg übersprungen wird.
+
+    Warum nicht mehr "same day"? Der neue Guard (Regel b) blockt nicht nur
+    gleich-, sondern auch gestrige Erfolge: woechentlicher Rhythmus, < 7 Tage
+    ist kein Abruf faellig — der alte Test erwartete hier einen Fetch.
+    """
     gestern = datetime.now() - timedelta(days=1)
     mock_sensor._ferien_info["letztes_update"] = gestern.replace(hour=5)
 
-    # Letztes Update von gestern -> sollte aktualisiert werden
     with patch("custom_components.schulferien.schulferien_sensor.fetch_data", new=AsyncMock()) as mock_fetch:
         await mock_sensor.async_update()
-        mock_fetch.assert_called_once()
+        mock_fetch.assert_not_called()
 
+# ============================================================
+# Tests für den 3-Regel-Guard (_update_faellig)
+# ============================================================
+
+def test_guard_rule_a_never_fetched_no_attempt(mock_sensor):
+    """Regel (a): nie gefetcht + kein Versuch heute -> Abruf faellig.
+
+    Warum? Nach Neustart/Setup sind beide Marker None — der erste Abruf
+    muss durchgehen (Inbetriebnahme), sonst kaeme der Sensor nie zu Daten.
+    """
+    jetzt = datetime(2024, 6, 18, 3, 0)
+    mock_sensor._ferien_info["letztes_update"] = None
+    mock_sensor._ferien_info["letzter_versuch"] = None
+    assert mock_sensor._update_faellig(jetzt) is True
+
+
+def test_guard_rule_a_blocks_after_todays_attempt(mock_sensor):
+    """Regel (a): Versuch heute -> Abruf gesperrt (Anti-Hammering-Kern).
+
+    Warum? Genau dieser Fall war der Bug: ein Fehlschlag liess letztes_update
+    alt, jeder 30s-Poll fetchte neu. letzter_versuch=heute blockt alle
+    weiteren Aufrufe desselben Tages.
+    """
+    jetzt = datetime(2024, 6, 18, 10, 0)
+    mock_sensor._ferien_info["letztes_update"] = None
+    mock_sensor._ferien_info["letzter_versuch"] = datetime(2024, 6, 18, 3, 5)
+    assert mock_sensor._update_faellig(jetzt) is False
+
+
+def test_guard_rule_b_weekly_before_3am(mock_sensor):
+    """Regel (b): 7 Tage nach Erfolg, aber vor 03:00 -> gesperrt.
+
+    Warum? Das 03:00-Fenster ist lokale Wanduhr — das verhindert den
+    "00:00:30-Durchstich" (UTC vs. lokale Zeit) der FRD.
+    """
+    jetzt = datetime(2024, 6, 18, 2, 59)
+    mock_sensor._ferien_info["letztes_update"] = datetime(2024, 6, 11, 3, 0)
+    mock_sensor._ferien_info["letzter_versuch"] = None
+    assert mock_sensor._update_faellig(jetzt) is False
+
+
+def test_guard_rule_b_weekly_at_3am(mock_sensor):
+    """Regel (b): 7 Tage nach Erfolg ab 03:00 -> Abruf faellig."""
+    jetzt = datetime(2024, 6, 18, 3, 0)
+    mock_sensor._ferien_info["letztes_update"] = datetime(2024, 6, 11, 3, 0)
+    mock_sensor._ferien_info["letzter_versuch"] = None
+    assert mock_sensor._update_faellig(jetzt) is True
+
+
+def test_guard_rule_b_blocks_before_seven_days(mock_sensor):
+    """Regel (b): < 7 Tage seit Erfolg -> gesperrt (auch ab 03:00).
+
+    Warum? Nach einem Erfolg ist ein woechentlicher Rhythmus genug — die API
+    aendert Feriendaten nicht taeglich.
+    """
+    jetzt = datetime(2024, 6, 18, 3, 0)
+    mock_sensor._ferien_info["letztes_update"] = datetime(2024, 6, 17, 3, 0)
+    mock_sensor._ferien_info["letzter_versuch"] = None
+    assert mock_sensor._update_faellig(jetzt) is False
+
+
+def test_guard_rule_c_failed_yesterday_at_3am(mock_sensor):
+    """Regel (c): Fehlschlag gestern -> Retry ab 03:00."""
+    jetzt = datetime(2024, 6, 18, 3, 0)
+    mock_sensor._ferien_info["letztes_update"] = datetime(2024, 6, 15, 3, 0)
+    mock_sensor._ferien_info["letzter_versuch"] = datetime(2024, 6, 17, 3, 5)
+    assert mock_sensor._update_faellig(jetzt) is True
+
+
+def test_guard_rule_c_blocks_before_3am(mock_sensor):
+    """Regel (c): Fehlschlag gestern, aber vor 03:00 -> gesperrt."""
+    jetzt = datetime(2024, 6, 18, 2, 59)
+    mock_sensor._ferien_info["letztes_update"] = datetime(2024, 6, 15, 3, 0)
+    mock_sensor._ferien_info["letzter_versuch"] = datetime(2024, 6, 17, 3, 5)
+    assert mock_sensor._update_faellig(jetzt) is False
+
+
+def test_guard_rule_c_blocks_same_day_attempt(mock_sensor):
+    """Regel (c): Versuch heute -> kein Retry mehr heute.
+
+    Warum? letzter_versuch.date() == heute erfuellt die gestern-Klausel
+    nicht — der taegliche Retry ist auf 1x/Tag begrenzt.
+    """
+    jetzt = datetime(2024, 6, 18, 10, 0)
+    mock_sensor._ferien_info["letztes_update"] = datetime(2024, 6, 15, 3, 0)
+    mock_sensor._ferien_info["letzter_versuch"] = datetime(2024, 6, 18, 3, 5)
+    assert mock_sensor._update_faellig(jetzt) is False
+
+
+def test_guard_rule_c_blocks_when_last_attempt_succeeded(mock_sensor):
+    """Regel (c): letzter_versuch <= letztes_update = Erfolg -> kein Retry.
+
+    Warum? Ein Erfolg ueberschreibt letztes_update mit einem Zeitstempel >=
+    dem Versuch — die Ordnung der beiden Marker ist die Fehlschlags-Anzeige.
+    """
+    jetzt = datetime(2024, 6, 18, 3, 0)
+    mock_sensor._ferien_info["letztes_update"] = datetime(2024, 6, 17, 3, 0)
+    mock_sensor._ferien_info["letzter_versuch"] = datetime(2024, 6, 17, 2, 59)
+    assert mock_sensor._update_faellig(jetzt) is False
+
+
+# ============================================================
+# Tests für letzter_versuch (Setzpunkt + Fehlschlags-Sperre)
+# ============================================================
+
+@pytest.mark.asyncio
+async def test_update_sets_letzter_versuch_before_request(mock_sensor):
+    """letzter_versuch wird VOR dem API-Request gesetzt.
+
+    Warum? Regel (c) braucht den Versuchs-Zeitstempel als Fehlschlags-Beweis -
+    gesetzt in hole_ferien_daten, also vor der URL-Schleife, unabhaengig vom
+    Erfolg.
+    """
+    with patch("custom_components.schulferien.schulferien_sensor.fetch_data",
+               new=AsyncMock(side_effect=aiohttp.ClientError("offline"))):
+        await mock_sensor.async_update()
+    assert mock_sensor._ferien_info["letzter_versuch"] is not None
+    assert mock_sensor._ferien_info["letztes_update"] is None
+
+
+@pytest.mark.asyncio
+async def test_update_failure_blocks_refetch_same_day(mock_sensor):
+    """Nach Fehlschlag sperrt letzter_versuch weitere Abrufe am selben Tag.
+
+    Warum? Das ist die Regression fuer den Hammering-Bug der FRD: vorher
+    passierte jeder 30s-Poll den Guard, weil letztes_update nach einem
+    Fehlschlag alt blieb.
+    """
+    mit = datetime(2024, 6, 18, 10, 0)  # nach 03:00 -> Fenster offen
+    mock_sensor._ferien_info["letztes_update"] = datetime(2024, 6, 13, 3, 0)   # 5 Tage alt
+    mock_sensor._ferien_info["letzter_versuch"] = datetime(2024, 6, 17, 3, 5)  # gestern
+
+    with patch("custom_components.schulferien.schulferien_sensor.dt_util") as mock_dt, \
+            patch("custom_components.schulferien.schulferien_sensor.fetch_data",
+                  new=AsyncMock(side_effect=aiohttp.ClientError("offline"))) as mock_fetch:
+        mock_dt.now.return_value = mit
+        await mock_sensor.async_update()   # Regel (c): Retry heute -> Fehlschlag
+        # 2. Poll am selben Tag: letzter_versuch=heute -> gesperrt (kein Fetch)
+        await mock_sensor.async_update()
+        # hole_ferien_daten probiert 2 URLs pro Versuch; der 2. Poll darf
+        # keine weiteren Aufrufe erzeugen
+        assert mock_fetch.call_count == 2
+    assert mock_sensor._ferien_info["letzter_versuch"] == mit
+    assert mock_sensor._ferien_info["letztes_update"] == datetime(2024, 6, 13, 3, 0)
 
 @pytest.mark.asyncio
 async def test_update_with_brueckentage(mock_sensor, morgen_sensor, mock_config_with_brueckentage):
@@ -748,10 +894,9 @@ async def test_update_with_brueckentage(mock_sensor, morgen_sensor, mock_config_
 
     with patch("custom_components.schulferien.schulferien_sensor.fetch_data", new=AsyncMock(return_value=mock_api_response)), \
             patch("custom_components.schulferien.schulferien_sensor.parse_daten", return_value=mock_parsed_data), \
-            patch("custom_components.schulferien.schulferien_sensor.datetime") as mock_dt:
+            patch("custom_components.schulferien.schulferien_sensor.dt_util") as mock_dt_util:
 
-        mock_dt.now.return_value = heute
-        mock_dt.timedelta = timedelta
+        mock_dt_util.now.return_value = heute
 
         await sensor.async_update()
 
@@ -779,10 +924,9 @@ async def test_update_sets_last_update_time(mock_sensor):
 
     with patch("custom_components.schulferien.schulferien_sensor.fetch_data", new=AsyncMock(return_value=mock_api_response)), \
             patch("custom_components.schulferien.schulferien_sensor.parse_daten", return_value=mock_parsed_data), \
-            patch("custom_components.schulferien.schulferien_sensor.datetime") as mock_dt:
+            patch("custom_components.schulferien.schulferien_sensor.dt_util") as mock_dt_util:
 
-        mock_dt.now.return_value = heute
-        mock_dt.timedelta = timedelta
+        mock_dt_util.now.return_value = heute
 
         await mock_sensor.async_update()
 
@@ -1317,10 +1461,9 @@ async def test_update_parametrized(mock_sensor, morgen_sensor, ferien_data, toda
 
     with patch("custom_components.schulferien.schulferien_sensor.fetch_data", new=AsyncMock(return_value=ferien_data)), \
             patch("custom_components.schulferien.schulferien_sensor.parse_daten", return_value=mock_parsed_data), \
-            patch("custom_components.schulferien.schulferien_sensor.datetime") as mock_dt:
+            patch("custom_components.schulferien.schulferien_sensor.dt_util") as mock_dt_util:
 
-        mock_dt.now.return_value = today
-        mock_dt.timedelta = timedelta
+        mock_dt_util.now.return_value = today
 
         await mock_sensor.async_update()
 
@@ -1404,10 +1547,9 @@ async def test_update_with_invalid_api_response(mock_sensor, morgen_sensor):
     """Test Update mit ungültiger API-Antwort."""
     with patch("custom_components.schulferien.schulferien_sensor.fetch_data", new=AsyncMock(return_value=[{"invalid": "data"}])), \
             patch("custom_components.schulferien.schulferien_sensor.parse_daten", side_effect=ValueError("Ungültige Daten")), \
-            patch("custom_components.schulferien.schulferien_sensor.datetime") as mock_dt:
+            patch("custom_components.schulferien.schulferien_sensor.dt_util") as mock_dt_util:
 
-        mock_dt.now.return_value = datetime(2024, 6, 18)
-        mock_dt.timedelta = timedelta
+        mock_dt_util.now.return_value = datetime(2024, 6, 18)
 
         await mock_sensor.async_update()
         # Sollte keinen Fehler werfen

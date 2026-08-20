@@ -863,6 +863,220 @@ async def test_feiertag_only_morgen_entity_ids_queried():
     assert hass.states.get.call_count == 1
     hass.states.get.assert_called_with("sensor.feiertag_morgen")
 
+# ============================================================
+# SLICE 4: Tests für die Basisklasse + dünne Subklassen
+# ============================================================
+
+def test_base_class_state_keys_deklarationen():
+    """Alle 6 Subklassen deklarieren die korrekten _state_keys.
+
+    Warum? Die Basisklasse leitet die is_on-Berechnung allein aus
+    _state_keys ab — ein falscher Key wuerde still die falschen States
+    lesen (kombiniert vs. only-* vertauschen).
+    """
+    from custom_components.schulferien.binary_sensor import (
+        SchulferienFeiertagBinarySensor,
+        SchulferienFeiertagMorgenBinarySensor,
+        SchulferienOnlyBinarySensor,
+        SchulferienOnlyMorgenBinarySensor,
+        FeiertagOnlyBinarySensor,
+        FeiertagOnlyMorgenBinarySensor,
+    )
+    assert SchulferienFeiertagBinarySensor._state_keys == ("schulferien", "feiertag")
+    assert SchulferienFeiertagMorgenBinarySensor._state_keys == ("schulferien", "feiertag")
+    assert SchulferienOnlyBinarySensor._state_keys == ("schulferien",)
+    assert SchulferienOnlyMorgenBinarySensor._state_keys == ("schulferien",)
+    assert FeiertagOnlyBinarySensor._state_keys == ("feiertag",)
+    assert FeiertagOnlyMorgenBinarySensor._state_keys == ("feiertag",)
+
+
+@pytest.mark.asyncio
+async def test_base_class_reads_only_deklarierte_keys():
+    """nur_schulferien liest ausschliesslich den Schulferien-Key.
+
+    Warum? Der alte nur-*-Sensor las nur den eigenen Key (call_count 1) —
+    die Basisklasse darf das nicht durch uebermaessiges states.get aendern
+    (Regression auf die bestehenden call_count-Assertions).
+    """
+    from custom_components.schulferien.binary_sensor import SchulferienOnlyBinarySensor
+    hass = MagicMock()
+    hass.states.get = MagicMock()
+    config = {"schulferien_entity_id": "sensor.schulferien_de_by",
+              "feiertag_entity_id": "sensor.feiertag_de_by"}
+    sensor = SchulferienOnlyBinarySensor(hass, config)
+    hass.states.get.side_effect = lambda eid: MagicMock(state="ferientag") if eid == "sensor.schulferien_de_by" else MagicMock(state="feiertag")
+
+    await sensor.async_update()
+
+    assert hass.states.get.call_count == 1
+    hass.states.get.assert_called_with("sensor.schulferien_de_by")
+
+
+@pytest.mark.asyncio
+async def test_configs_transport_sensor_unique_ids():
+    """_create_binary_sensor_configs transportiert die vollen Sensor-Unique-IDs.
+
+    Warum? Slice 5 loest die Sensor-Referenzen ueber die Entity-Registry auf
+    — der Lookup-Key ist die volle Sensor-Unique-ID. Ohne Transport im
+    Config-Dict kaeme der Registry-Lookup nie an den richtigen Key.
+    """
+    from custom_components.schulferien.binary_sensor import _create_binary_sensor_configs
+    configs = _create_binary_sensor_configs("DE", "DE-BY", "Deutschland", "Bayern")
+    assert configs["heute"]["schulferien_unique_id"] == "schulferien_DE_BY"
+    assert configs["heute"]["feiertag_unique_id"] == "feiertag_DE_BY"
+    assert configs["morgen"]["schulferien_unique_id"] == "schulferien_DE_BY_morgen"
+    assert configs["morgen"]["feiertag_unique_id"] == "feiertag_DE_BY_morgen"
+    assert configs["nur_schulferien_heute"]["schulferien_unique_id"] == "schulferien_DE_BY"
+
+
+def test_configs_umlaut_region_slugified():
+    """Umlaut-Regionscodes (AT-NÖ/OÖ/KÄ) in den Entity-IDs slugified.
+
+    Warum? HA slugifyt die Sensor-IDs (schulferien_at_nö -> schulferien_at_no).
+    Die BinarySensor-Lookup-IDs wurden roh konstruiert -> states.get() traf
+    eine nicht-existierende ID -> BinarySensor permanent "off" (Issue #29).
+    """
+    from custom_components.schulferien.binary_sensor import _create_binary_sensor_configs
+    configs = _create_binary_sensor_configs("AT", "AT-NÖ", "Österreich", "Niederösterreich")
+    assert configs["heute"]["schulferien_entity_id"] == "sensor.schulferien_at_no"
+    assert configs["heute"]["feiertag_entity_id"] == "sensor.feiertag_at_no"
+    assert configs["morgen"]["schulferien_entity_id"] == "sensor.schulferien_at_no_morgen"
+    assert configs["morgen"]["feiertag_entity_id"] == "sensor.feiertag_at_no_morgen"
+    # Umlaut-freie Codes bleiben unveraendert (DE-BY -> de_by)
+    configs_de = _create_binary_sensor_configs("DE", "DE-BY", "Deutschland", "Bayern")
+    assert configs_de["heute"]["schulferien_entity_id"] == "sensor.schulferien_de_by"
+
+
+@pytest.mark.asyncio
+async def test_binary_sensor_findet_umlaut_sensor_state():
+    """BinarySensor fragt die slugified Sensor-ID ab (Issue #29).
+
+    Warum? Vor dem Fix wurde bei AT-NÖ die nicht-existierende ID
+    sensor.schulferien_at_nö abgefragt -> None -> "off", obwohl der Sensor
+    korrekt als sensor.schulferien_at_no existierte und "ferientag" meldete.
+    """
+    from custom_components.schulferien.binary_sensor import (
+        _create_binary_sensor_configs,
+        SchulferienOnlyBinarySensor,
+    )
+    hass = MagicMock()
+    hass.states.get = MagicMock(return_value=MagicMock(state="ferientag"))
+    configs = _create_binary_sensor_configs("AT", "AT-NÖ", "Österreich", "Niederösterreich")
+    sensor = SchulferienOnlyBinarySensor(hass, configs["nur_schulferien_heute"])
+    await sensor.async_update()
+    hass.states.get.assert_called_with("sensor.schulferien_at_no")
+    assert sensor.is_on is True
+
+# ============================================================
+# SLICE 5: Registry-Lookup + State-Subscription
+# ============================================================
+
+@pytest.mark.asyncio
+async def test_async_added_to_hass_registry_aufloesung():
+    """async_added_to_hass loest Sensor-Referenzen ueber die Registry auf.
+
+    Warum? Konstruierte IDs brechen bei HA-Umbenennung still (States-None
+    -> BinarySensor permanent False). Der Registry-Lookup ueber die volle
+    Sensor-Unique-ID uebersteht Renames.
+    """
+    from custom_components.schulferien import binary_sensor as bs_module
+    hass = MagicMock()
+    registry = MagicMock()
+    registry.async_get_entity_id.return_value = "sensor.schulferien_de_by_umbenannt"
+    config = {
+        "schulferien_entity_id": "sensor.schulferien_de_by",
+        "feiertag_entity_id": "sensor.feiertag_de_by",
+        "schulferien_unique_id": "schulferien_DE_BY",
+        "feiertag_unique_id": "feiertag_DE_BY",
+    }
+    sensor = bs_module.SchulferienFeiertagBinarySensor(hass, config)
+    sensor.hass = hass
+    with patch("custom_components.schulferien.binary_sensor.er.async_get", return_value=registry), \
+            patch("custom_components.schulferien.binary_sensor.async_track_state_change_event", return_value=MagicMock()):
+        await sensor.async_added_to_hass()
+
+    registry.async_get_entity_id.assert_any_call("sensor", "schulferien", "schulferien_DE_BY")
+    registry.async_get_entity_id.assert_any_call("sensor", "schulferien", "feiertag_DE_BY")
+    assert sensor._entity_ids["schulferien"] == "sensor.schulferien_de_by_umbenannt"
+
+
+@pytest.mark.asyncio
+async def test_registry_fallback_konstruierte_id():
+    """Ohne Registry-Eintrag bleibt die konstruierte Entity-ID aktiv.
+
+    Warum? First-Setup-Race und Tests ohne Registry: async_get_entity_id
+    gibt None zurueck — der Lookup darf die konstruierte ID nicht ersetzen.
+    """
+    from custom_components.schulferien import binary_sensor as bs_module
+    hass = MagicMock()
+    registry = MagicMock()
+    registry.async_get_entity_id.return_value = None
+    config = {
+        "schulferien_entity_id": "sensor.schulferien_de_by",
+        "feiertag_entity_id": "sensor.feiertag_de_by",
+        "schulferien_unique_id": "schulferien_DE_BY",
+        "feiertag_unique_id": "feiertag_DE_BY",
+    }
+    sensor = bs_module.SchulferienFeiertagBinarySensor(hass, config)
+    sensor.hass = hass
+    with patch("custom_components.schulferien.binary_sensor.er.async_get", return_value=registry), \
+            patch("custom_components.schulferien.binary_sensor.async_track_state_change_event", return_value=MagicMock()):
+        await sensor.async_added_to_hass()
+    assert sensor._entity_ids["schulferien"] == "sensor.schulferien_de_by"
+
+
+@pytest.mark.asyncio
+async def test_subscription_recomputes_state_on_change():
+    """State-Change-Callback recomputet _state und schreibt den HA-State.
+
+    Warum? Die Subscription macht den BinarySensor frisch, ohne auf den
+    30s-Poll zu warten — aber nur als Recompute (kein Netz), Polling bleibt
+    zusaetzlich aktiv (User-Entscheid).
+    """
+    from custom_components.schulferien import binary_sensor as bs_module
+    hass = MagicMock()
+    hass.states.get = MagicMock(return_value=MagicMock(state="ferientag"))
+    config = {"schulferien_entity_id": "sensor.schulferien_de_by",
+              "feiertag_entity_id": "sensor.feiertag_de_by"}
+    sensor = bs_module.SchulferienOnlyBinarySensor(hass, config)
+    sensor.hass = hass
+    sensor.async_write_ha_state = MagicMock()
+
+    captured = {}
+    def fake_track(hass_, entity_ids, action):
+        captured["entity_ids"] = entity_ids
+        captured["action"] = action
+        return MagicMock()
+
+    with patch("custom_components.schulferien.binary_sensor.er.async_get", return_value=MagicMock()), \
+            patch("custom_components.schulferien.binary_sensor.async_track_state_change_event", side_effect=fake_track):
+        await sensor.async_added_to_hass()
+
+    assert captured["entity_ids"] == ["sensor.schulferien_de_by"]
+    await captured["action"](MagicMock())
+    assert sensor.is_on is True
+    sensor.async_write_ha_state.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_async_will_remove_unsubscribes():
+    """async_will_remove_from_hass entfernt die Subscription.
+
+    Warum? Ohne Cleanup feuert der Listener nach Unload weiter (Leak) —
+    dieselbe Fehlerklasse wie der fehlende Timer-Cancel (Prezedenz 475bacf).
+    """
+    from custom_components.schulferien import binary_sensor as bs_module
+    hass = MagicMock()
+    config = {"schulferien_entity_id": "sensor.schulferien_de_by",
+              "feiertag_entity_id": "sensor.feiertag_de_by"}
+    sensor = bs_module.SchulferienOnlyBinarySensor(hass, config)
+    mock_unsub = MagicMock()
+    sensor._unsub_state_change = mock_unsub
+
+    await sensor.async_will_remove_from_hass()
+
+    mock_unsub.assert_called_once()
+    assert sensor._unsub_state_change is None
 
 # ============================================================
 # Tests für async_setup_entry

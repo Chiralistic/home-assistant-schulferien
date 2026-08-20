@@ -4,16 +4,16 @@ Zwei Sensor-Klassen:
 1. FeiertagSensor — Hauptsensor mit API-Abfrage
 2. FeiertagMorgenSensor — Spiegel-Sensor für morgen (liest vom Hauptsensor)
 
-Warum Ostersonntag-Workaround? Die OpenHolidaysAPI liefert Ostermontag,
+Warum Ostersonntag-Ergaenzung? Die OpenHolidaysAPI liefert Ostermontag,
 aber nicht immer Ostersonntag. Da Ostersonntag ein wichtiger Referenztag
-ist (beginnt das Osterfest), wird er automatisch ergänzt wenn Ostermontag
-gefunden wird (Ostersonntag = Ostermontag - 1 Tag).
-"""
+ist (beginnt das Osterfest), wird er automatisch per Gauss-Formel ergänzt
+— sprachunabhängig, je Jahr im Abruf-Fenster."""
 
 import logging
-from datetime import datetime, timedelta
+from datetime import date, timedelta
 from homeassistant.helpers.event import async_track_time_change
 from homeassistant.components.sensor import SensorEntity, SensorEntityDescription
+from homeassistant.util import dt as dt_util
 import aiohttp
 from .api_utils import fetch_data, parse_daten, DEFAULT_TIMEOUT, compute_region_slug
 from .const import (
@@ -38,6 +38,30 @@ FEIERTAG_MORGEN_SENSOR = SensorEntityDescription(
     translation_key="feiertag_morgen",
 )
 
+
+def berechne_ostersonntag(jahr: int) -> date:
+    """Berechnet Ostersonntag fuer ein Jahr (Gauss'sche Osterformel).
+
+    Warum Gauss statt Namens-Match? Die OpenHolidaysAPI liefert Ostermontag
+    unter beliebigen Sprach-Labels — der fruehere Match erkannte nur
+    DE/EN-Namen und Ostersonntag fehlte bei anderen Sprachen. Gauss ist eine
+    geschlossene Form: sprachunabhaengig, kein Tages-Loop, O(1) pro Jahr.
+
+    Args:
+        jahr: Das Jahr (z.B. 2024).
+
+    Returns:
+        date: Das Osterdatum (Ostersonntag) des Jahres.
+    """
+    a = jahr % 19
+    b = jahr // 100
+    c = jahr % 100
+    d = (19 * a + b - b // 4 - (b - (b + 8) // 25 + 1) // 3 + 15) % 30
+    e = (2 * (b % 4) + 2 * (c // 4) - d - (c % 4) + 32) % 7
+    f = d + e - 7 * ((a + 11 * d + 22 * e) // 451) + 114
+    return date(jahr, f // 31, (f % 31) + 1)
+
+
 class FeiertagSensor(SensorEntity):
     """Sensor für Feiertage.
 
@@ -45,7 +69,7 @@ class FeiertagSensor(SensorEntity):
     - API-Abfrage der Feiertagsdaten (OpenHolidaysAPI)
     - Berechnung ob heute ein Feiertag ist
     - Angabe des nächsten Feiertags (Name, Datum)
-    - Ostersonntag-Workaround: wird automatisch ergänzt wenn Ostermontag gefunden wird
+    - Ostersonntag-Ergaenzung: wird automatisch per Gauss-Formel ergänzt (sprachunabhaengig)
 
     Warum 30 Tage zurück + 365 Tage vor? Gleiche Strategie wie bei Schulferien:
     30 Tage Puffer für nachgelieferte Daten, 365 Tage für Vorhersage.
@@ -86,6 +110,7 @@ class FeiertagSensor(SensorEntity):
             "naechster_feiertag_datum": None,
             "feiertage_liste": [],
             "letztes_update": None,
+            "letzter_versuch": None,
         }
 
         _LOGGER.debug(
@@ -105,7 +130,7 @@ class FeiertagSensor(SensorEntity):
         _LOGGER.debug("Feiertag-Sensor: Verwendeter Sprachcode: %s", self._location["iso_code"])
 
         letztes_update = self._feiertags_info.get("letztes_update")
-        jetzt = datetime.now()
+        jetzt = dt_util.now()
 
         # Update nur bei fehlendem oder abgelaufenem (Tag gewechselt)
         if not letztes_update or letztes_update.date() != jetzt.date():
@@ -168,7 +193,7 @@ class FeiertagSensor(SensorEntity):
     @property
     def extra_state_attributes(self):
         """Gibt zusätzliche Statusattribute des Sensors zurück."""
-        heute = datetime.now().date()
+        heute = dt_util.now().date()
         aktueller_feiertag = None
         datum = None
 
@@ -192,19 +217,18 @@ class FeiertagSensor(SensorEntity):
         }
 
     async def async_update(self, session=None):
-        """
-        Aktualisiert die Feiertagsdaten durch Abfrage der API.
-        """
-        jetzt = datetime.now()
-        heute = jetzt.date()
-        letztes_update = self._feiertags_info.get("letztes_update")
+        """Aktualisiert die Feiertagsdaten durch Abfrage der API.
 
-        # Falls das letzte Update am selben Tag war, wird es übersprungen
-        if letztes_update and letztes_update.date() == heute:
-            _LOGGER.debug(
-                "Update übersprungen. Letztes Update war am: %s",
-                letztes_update.date(),
-            )
+        Der 3-Regel-Guard in _update_faellig begrenzt API-Abrufe auf
+        1x/Tag bei Fehlschlag und 1 Woche nach Erfolg (jeweils ab 03:00).
+        Der session-Parameter bleibt fuer Vertrag + Tests: Ohne uebergebene
+        Session wird eine eigene erstellt und nach dem Aufruf geschlossen.
+        """
+        jetzt = dt_util.now()
+        heute = jetzt.date()
+
+        if not self._update_faellig(jetzt):
+            _LOGGER.debug("Update übersprungen (Guard): kein Abruf fällig.")
             return
 
         _LOGGER.debug("Starte API-Abfrage für Feiertagsdaten.")
@@ -224,7 +248,10 @@ class FeiertagSensor(SensorEntity):
 
             self.verarbeite_feiertags_daten(feiertage_daten, heute)
 
-            self._feiertags_info["letztes_update"] = jetzt
+            # Erfolgs-Zeitstempel NACH der Verarbeitung (Spiegel zu Schulferien):
+            # garantiert letztes_update >= letzter_versuch — die Ordnung ist der
+            # Fehlschlags-Beweis fuer Guard-Regel (c).
+            self._feiertags_info["letztes_update"] = dt_util.now()
             _LOGGER.debug(
                 "Update abgeschlossen. Neues letztes Update: %s",
                 self._feiertags_info["letztes_update"],
@@ -240,6 +267,32 @@ class FeiertagSensor(SensorEntity):
                 await session.close()
                 _LOGGER.debug("API-Session geschlossen.")
 
+    def _update_faellig(self, jetzt):
+        """3-Regel-Guard: entscheidet, ob ein API-Abruf jetzt faellig ist.
+
+        Spiegel von SchulferienSensor._update_faellig — identische Regeln:
+        (a) nie gefetcht + heute kein Versuch, (b) >= 7 Tage + >= 03:00,
+        (c) Fehlschlag gestern + >= 03:00. Fehlschlags-Beweis ist die
+        Ordnung letzter_versuch > letztes_update.
+        """
+        letztes_update = self._feiertags_info.get("letztes_update")
+        letzter_versuch = self._feiertags_info.get("letzter_versuch")
+        heute = jetzt.date()
+        nach_drei_uhr = (jetzt.hour, jetzt.minute) >= (DAILY_UPDATE_HOUR, DAILY_UPDATE_MINUTE)
+
+        if letztes_update is None:
+            return letzter_versuch is None or letzter_versuch.date() != heute
+
+        if (heute - letztes_update.date()).days >= 7:
+            return nach_drei_uhr
+
+        return (
+            letzter_versuch is not None
+            and letzter_versuch.date() == heute - timedelta(days=1)
+            and letzter_versuch > letztes_update
+            and nach_drei_uhr
+        )
+
     def get_api_parameter(self, heute):
         """Erstellt die API-Parameter für die Feiertagsanfrage."""
         return {
@@ -251,7 +304,14 @@ class FeiertagSensor(SensorEntity):
         }
 
     async def hole_feiertags_daten(self, api_parameter, session):
-        """Versucht, die Feiertagsdaten von der API abzurufen."""
+        """Versucht, die Feiertagsdaten von der API abzurufen.
+
+        Warum letzter_versuch hier setzen? Der Versuchs-Zeitstempel muss VOR
+        dem Request stehen (Guard-Regel c): Ein Fehlschlag laesst ihn liegen
+        (letzter_versuch > letztes_update = Fehlschlag), ein Erfolg
+        ueberschreibt letztes_update mit einem Zeitstempel >= dem Versuch.
+        """
+        self._feiertags_info["letzter_versuch"] = dt_util.now()
         for url in [API_URL_FEIERTAGE, API_FALLBACK_FEIERTAGE]:
             _LOGGER.debug("Prüfe URL: %s", url)
             if not isinstance(url, str):
@@ -269,24 +329,34 @@ class FeiertagSensor(SensorEntity):
     def verarbeite_feiertags_daten(self, feiertage_daten, heute):
         """Verarbeitet die erhaltenen Feiertags-Daten.
 
-        Warum Ostersonntag-Workaround? Die OpenHolidaysAPI liefert
-        Ostermontag, aber nicht immer Ostersonntag. Da Ostersonntag
-        ein wichtiger Referenztag ist (beginnt das Osterfest), wird
-        er automatisch ergänzt — berechnet als Ostermontag - 1 Tag.
-
-        Warum `list(feiertage_liste)` in der for-Schleife? Wir modifizieren
-        die Liste während wir darüber iterieren. `list()` erstellt eine
-        flache Kopie für die Iteration, die Originalliste wird modifiziert.
+        Warum Ostersonntag-Ergaenzung? Die OpenHolidaysAPI liefert
+        Ostermontag, aber nicht immer Ostersonntag. Da Ostersonntag ein
+        wichtiger Referenztag ist (beginnt das Osterfest), wird er
+        automatisch ergänzt — per Gauss-Formel je Jahr im Abruf-Fenster,
+        sprachunabhaengig (kein Namens-Match mehr).
         """
         try:
             feiertage_liste = parse_daten(feiertage_daten, typ="feiertage")
 
-            # Ostersonntag automatisch ergänzen wenn Ostermontag gefunden
-            for feiertag in list(feiertage_liste):
-                name = feiertag["name"].lower()
-                if "ostermontag" in name or "easter monday" in name:
-                    ostersonntag_datum = feiertag["start_datum"] - timedelta(days=1)
-                    # Doppelten Eintrag vermeiden (API könnte ihn bereits liefern)
+            # Ostersonntag sprachunabhaengig per Gauss ergaenzen. Warum nicht
+            # mehr Namens-Match? Die API liefert Ostermontag unter beliebigen
+            # Sprach-Labels — der alte Match ("ostermontag"/"easter monday")
+            # brach bei anderen Sprachen (FRD-Bug). Gauss berechnet das
+            # Osterdatum pro Kalenderjahr der Jahre, die das Abruf-Fenster
+            # [heute-30d, heute+365d] beruehrt (Jahr-Set, keine Fenster-Klammer:
+            # ein Osterdatum kann vor dem Fensterstart liegen — unschaedlich,
+            # da datumsbasiert dedupliziert und nur Attribut-Liste).
+            # Nur bei vorhandenen Daten: eine leere API-Antwort bleibt leer
+            # (Bestandsverhalten, "keine Daten" ist keine Teil-Lieferung).
+            if feiertage_liste:
+                fenster_jahre = {
+                    heute.year,
+                    (heute - timedelta(days=30)).year,
+                    (heute + timedelta(days=365)).year,
+                }
+                for jahr in fenster_jahre:
+                    ostersonntag_datum = berechne_ostersonntag(jahr)
+                    # Doppelten Eintrag vermeiden (API koennte ihn bereits liefern)
                     if not any(
                         f["start_datum"] == ostersonntag_datum
                         for f in feiertage_liste
@@ -296,7 +366,6 @@ class FeiertagSensor(SensorEntity):
                             "start_datum": ostersonntag_datum,
                             "end_datum": ostersonntag_datum,
                         })
-                    break
             self._feiertags_info["feiertage_liste"] = feiertage_liste
         # pylint: disable=broad-exception-caught
         except Exception as e:
@@ -397,7 +466,7 @@ class FeiertagMorgenSensor(SensorEntity):
         Warum morgen = heute + 1 Tag? Dieser Sensor soll anzeigen ob
         MORGEN ein Feiertag ist.
         """
-        morgen = datetime.now().date() + timedelta(days=1)
+        morgen = dt_util.now().date() + timedelta(days=1)
         # pylint: disable=protected-access
         # Oder-Operator verhindert TypeError bei None (Bug 1 Fix)
         for feiertag in self._referenzsensor._feiertags_info.get("feiertage_liste") or []:

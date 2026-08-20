@@ -29,11 +29,9 @@ async def fetch_data(
     """
     Ruft Daten von der API ab.
 
-    Warum session-Parameter? sensor.py erstellt alle Sensoren innerhalb
-    eines gemeinsamen aiohttp.ClientSession. Beide Sensoren teilen sich
-    die Session für initiale Updates — spart Ressourcen.
-    Wenn keine Session übergeben wird, wird eine neue erstellt und
-    nach dem Aufruf wieder geschlossen.
+    Warum session-Parameter? Der Aufrufer kann eine bestehende
+    aiohttp.ClientSession durchreichen (spart Ressourcen). Ohne uebergebene
+    Session wird eine neue erstellt und nach dem Aufruf wieder geschlossen.
 
     Args:
         api_url (str): API-URL.

@@ -51,6 +51,8 @@ Disclaimer: Die Tests für die Integration, die nicht mit in Home Assistant inst
 
 Erstelle eine einfache Entitätskarte, die alle Attribute anzeigt in deinem Dashboard mit dem folgenden Code. Bei Bedarf kann der Stack verkleinert werden um nur die Informationen anzuzeigen, die gewünscht sind.
 
+Brückentage kannst du in `custom_components/schulferien/bridge_days.yaml` im Format `DD.MM.YYYY` eintragen.
+
 ### Beispiel: Deutschland (Niedersachsen)
 
 Dieses Beispiel zeigt die Entitäten für Niedersachsen. Passe die Entity-IDs (`sensor.schulferien_de_ni`, `sensor.feiertag_de_ni`, `binary_sensor.schulferien_feiertage_de_ni`) an das gewünschte Land und die Region an. Ersetze dabei `de` durch den Ländercode (z.B. `at` für Österreich, `ch` für die Schweiz) und `ni` durch den Regionscode (z.B. `by` für Bayern, `bw` für Baden-Württemberg).
@@ -124,8 +126,6 @@ cards:
       - entity: binary_sensor.nur_feiertage_de_ni_morgen
         name: Nur Feiertage Morgen (binary)
 ```
-
-Brückentage kannst du in `custom_components/schulferien/bridge_days.yaml` im Format `DD.MM.YYYY` eintragen.
 
 ### Mehrere Bundesländer gleichzeitig anzeigen
 
@@ -303,6 +303,8 @@ Disclaimer: The tests for the integration, which are not installed together with
 5. Wait: After the setup or after a Home Assistant restart, it can take up to 30 seconds until all attributes and states are updated.
 
 Create a simple entity card that shows all attributes in your dashboard using the following code. If needed, the stack can be reduced to display only the information you want.
+
+You can enter bridge days in `custom_components/schulferien/bridge_days.yaml` in the format `DD.MM.YYYY`.
 
 ### Example: Germany (Lower Saxony)
 

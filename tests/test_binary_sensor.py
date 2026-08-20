@@ -928,6 +928,45 @@ async def test_configs_transport_sensor_unique_ids():
     assert configs["morgen"]["feiertag_unique_id"] == "feiertag_DE_BY_morgen"
     assert configs["nur_schulferien_heute"]["schulferien_unique_id"] == "schulferien_DE_BY"
 
+
+def test_configs_umlaut_region_slugified():
+    """Umlaut-Regionscodes (AT-NÖ/OÖ/KÄ) in den Entity-IDs slugified.
+
+    Warum? HA slugifyt die Sensor-IDs (schulferien_at_nö -> schulferien_at_no).
+    Die BinarySensor-Lookup-IDs wurden roh konstruiert -> states.get() traf
+    eine nicht-existierende ID -> BinarySensor permanent "off" (Issue #29).
+    """
+    from custom_components.schulferien.binary_sensor import _create_binary_sensor_configs
+    configs = _create_binary_sensor_configs("AT", "AT-NÖ", "Österreich", "Niederösterreich")
+    assert configs["heute"]["schulferien_entity_id"] == "sensor.schulferien_at_no"
+    assert configs["heute"]["feiertag_entity_id"] == "sensor.feiertag_at_no"
+    assert configs["morgen"]["schulferien_entity_id"] == "sensor.schulferien_at_no_morgen"
+    assert configs["morgen"]["feiertag_entity_id"] == "sensor.feiertag_at_no_morgen"
+    # Umlaut-freie Codes bleiben unveraendert (DE-BY -> de_by)
+    configs_de = _create_binary_sensor_configs("DE", "DE-BY", "Deutschland", "Bayern")
+    assert configs_de["heute"]["schulferien_entity_id"] == "sensor.schulferien_de_by"
+
+
+@pytest.mark.asyncio
+async def test_binary_sensor_findet_umlaut_sensor_state():
+    """BinarySensor fragt die slugified Sensor-ID ab (Issue #29).
+
+    Warum? Vor dem Fix wurde bei AT-NÖ die nicht-existierende ID
+    sensor.schulferien_at_nö abgefragt -> None -> "off", obwohl der Sensor
+    korrekt als sensor.schulferien_at_no existierte und "ferientag" meldete.
+    """
+    from custom_components.schulferien.binary_sensor import (
+        _create_binary_sensor_configs,
+        SchulferienOnlyBinarySensor,
+    )
+    hass = MagicMock()
+    hass.states.get = MagicMock(return_value=MagicMock(state="ferientag"))
+    configs = _create_binary_sensor_configs("AT", "AT-NÖ", "Österreich", "Niederösterreich")
+    sensor = SchulferienOnlyBinarySensor(hass, configs["nur_schulferien_heute"])
+    await sensor.async_update()
+    hass.states.get.assert_called_with("sensor.schulferien_at_no")
+    assert sensor.is_on is True
+
 # ============================================================
 # SLICE 5: Registry-Lookup + State-Subscription
 # ============================================================

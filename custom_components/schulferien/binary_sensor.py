@@ -21,6 +21,7 @@ from homeassistant.components.binary_sensor import (
 )
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.event import async_track_state_change_event
+from homeassistant.util import slugify
 from .api_utils import compute_region_slug
 
 _LOGGER = logging.getLogger(__name__)
@@ -297,13 +298,18 @@ def _create_binary_sensor_configs(land, region, land_name, region_name):
     # f"{land}_{region}" wuerde "DE_DE-RP" ergeben (Land doppelt + Bindestrich).
     instance_prefix = f"{land}_{region_slug}".upper()
 
-    # Entity IDs mit slugified region für Konsistenz zu Sensor-Klassen
+    # Entity IDs exakt so erzeugen, wie HA sie aus der Sensor-suggested_object_id
+    # ableitet: slugify() entfernt Umlaut-Diakritika (AT-NÖ -> at_no). Ohne
+    # slugify wuerde der Lookup bei Umlaut-Codes ins Leere laufen
+    # (states.get -> None -> BinarySensor permanent "off", Issue #29).
     # Warum lowercase? Home Assistant entity_ids sind case-insensitive,
     # lowercase ist die HA-Konvention und vermeidet Verwirrung im UI.
-    schulferien_entity_id = f"sensor.schulferien_{land.lower()}_{region_slug.lower()}"
-    feiertag_entity_id = f"sensor.feiertag_{land.lower()}_{region_slug.lower()}"
-    schulferien_morgen_entity_id = f"sensor.schulferien_{land.lower()}_{region_slug.lower()}_morgen"
-    feiertag_morgen_entity_id = f"sensor.feiertag_{land.lower()}_{region_slug.lower()}_morgen"
+    schulferien_base = f"schulferien_{land.lower()}_{region_slug.lower()}"
+    feiertag_base = f"feiertag_{land.lower()}_{region_slug.lower()}"
+    schulferien_entity_id = f"sensor.{slugify(schulferien_base)}"
+    feiertag_entity_id = f"sensor.{slugify(feiertag_base)}"
+    schulferien_morgen_entity_id = f"sensor.{slugify(f'{schulferien_base}_morgen')}"
+    feiertag_morgen_entity_id = f"sensor.{slugify(f'{feiertag_base}_morgen')}"
 
     # Volle Sensor-Unique-IDs fuer den Registry-Lookup (Slice 5): die
     # Sensor-Registry ist ("sensor", "schulferien", unique_id) — der

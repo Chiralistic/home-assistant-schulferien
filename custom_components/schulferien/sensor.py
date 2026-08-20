@@ -1,7 +1,6 @@
 """Modul zum Setup der Sensoren für Schulferien und Feiertage."""
 
 import logging
-import aiohttp
 
 from .schulferien_sensor import SchulferienSensor, SchulferienMorgenSensor
 from .feiertag_sensor import FeiertagSensor, FeiertagMorgenSensor
@@ -102,7 +101,3 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
 
     # Entities zu HA registrieren bevor Updates laufen
     async_add_entities(sensors)
-
-    async with aiohttp.ClientSession() as session:
-        await sensors[0].async_update(session)
-        await sensors[1].async_update(session)

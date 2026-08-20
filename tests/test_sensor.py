@@ -218,17 +218,11 @@ async def test_async_setup_entry_creates_all_sensors():
         "custom_components.schulferien.sensor.load_bridge_days",
         new=AsyncMock(return_value=mock_bridge_days),
     ), patch(
-        "custom_components.schulferien.sensor.aiohttp.ClientSession"
-    ) as mock_session_class, patch(
         "custom_components.schulferien.sensor.SchulferienSensor"
     ) as mock_schulferien, patch(
         "custom_components.schulferien.sensor.FeiertagSensor"
     ) as mock_feiertag:
 
-        mock_session = AsyncMock()
-        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
-        mock_session.__aexit__ = AsyncMock(return_value=None)
-        mock_session_class.return_value = mock_session
 
         mock_schulferien_instance = MagicMock()
         mock_schulferien_instance.async_update = AsyncMock()
@@ -274,17 +268,11 @@ async def test_async_setup_entry_config_data_passed():
         "custom_components.schulferien.sensor.load_bridge_days",
         new=AsyncMock(return_value=mock_bridge_days),
     ), patch(
-        "custom_components.schulferien.sensor.aiohttp.ClientSession"
-    ) as mock_session_class, patch(
         "custom_components.schulferien.sensor.SchulferienSensor"
     ) as mock_schulferien, patch(
         "custom_components.schulferien.sensor.FeiertagSensor"
     ) as mock_feiertag:
 
-        mock_session = AsyncMock()
-        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
-        mock_session.__aexit__ = AsyncMock(return_value=None)
-        mock_session_class.return_value = mock_session
 
         mock_schulferien_instance = MagicMock()
         mock_schulferien_instance.async_update = AsyncMock()
@@ -319,8 +307,14 @@ async def test_async_setup_entry_config_data_passed():
 
 
 @pytest.mark.asyncio
-async def test_async_setup_entry_initial_updates():
-    """Test dass initiale Updates aufgerufen werden."""
+async def test_async_setup_entry_registers_entities_without_fetch():
+    """async_setup_entry registriert Entities, aber loest KEINEN Fetch aus.
+
+    Warum? Der initiale Fetch laeuft inline in async_added_to_hass (von HA
+    awaited). Der fruehere Session-Block in async_setup_entry war tot im
+    Happy Path und gefaehrlich (Event-Loop-Interleaving, doppelte Fetches)
+    — er ist entfernt.
+    """
     hass = MagicMock()
     hass.config.path = MagicMock(
         return_value="custom_components/schulferien/bridge_days.yaml"
@@ -339,23 +333,14 @@ async def test_async_setup_entry_initial_updates():
     def mock_add_entities(entities):
         added_entities.extend(entities)
 
-    mock_bridge_days = []
-
     with patch(
         "custom_components.schulferien.sensor.load_bridge_days",
-        new=AsyncMock(return_value=mock_bridge_days),
+        new=AsyncMock(return_value=[]),
     ), patch(
-        "custom_components.schulferien.sensor.aiohttp.ClientSession"
-    ) as mock_session_class, patch(
         "custom_components.schulferien.sensor.SchulferienSensor"
     ) as mock_schulferien, patch(
         "custom_components.schulferien.sensor.FeiertagSensor"
     ) as mock_feiertag:
-
-        mock_session = AsyncMock()
-        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
-        mock_session.__aexit__ = AsyncMock(return_value=None)
-        mock_session_class.return_value = mock_session
 
         mock_schulferien_instance = MagicMock()
         mock_schulferien_instance.async_update = AsyncMock()
@@ -367,9 +352,10 @@ async def test_async_setup_entry_initial_updates():
 
         await async_setup_entry(hass, config_entry, mock_add_entities)
 
-    # Initiale Updates sollten mit Session aufgerufen werden
-    mock_schulferien_instance.async_update.assert_called_once_with(mock_session)
-    mock_feiertag_instance.async_update.assert_called_once_with(mock_session)
+    # Kein Update in async_setup_entry — der Fetch kommt aus async_added_to_hass
+    mock_schulferien_instance.async_update.assert_not_called()
+    mock_feiertag_instance.async_update.assert_not_called()
+    assert len(added_entities) == 4
 
 
 @pytest.mark.asyncio
@@ -399,17 +385,11 @@ async def test_async_setup_entry_bridge_days_passed_to_schulferien():
         "custom_components.schulferien.sensor.load_bridge_days",
         new=AsyncMock(return_value=mock_bridge_days),
     ), patch(
-        "custom_components.schulferien.sensor.aiohttp.ClientSession"
-    ) as mock_session_class, patch(
         "custom_components.schulferien.sensor.SchulferienSensor"
     ) as mock_schulferien, patch(
         "custom_components.schulferien.sensor.FeiertagSensor"
     ) as mock_feiertag:
 
-        mock_session = AsyncMock()
-        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
-        mock_session.__aexit__ = AsyncMock(return_value=None)
-        mock_session_class.return_value = mock_session
 
         mock_schulferien_instance = MagicMock()
         mock_schulferien_instance.async_update = AsyncMock()
@@ -452,17 +432,11 @@ async def test_async_setup_entry_morning_sensors_reference_parent():
         "custom_components.schulferien.sensor.load_bridge_days",
         new=AsyncMock(return_value=mock_bridge_days),
     ), patch(
-        "custom_components.schulferien.sensor.aiohttp.ClientSession"
-    ) as mock_session_class, patch(
         "custom_components.schulferien.sensor.SchulferienSensor"
     ) as mock_schulferien, patch(
         "custom_components.schulferien.sensor.FeiertagSensor"
     ) as mock_feiertag:
 
-        mock_session = AsyncMock()
-        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
-        mock_session.__aexit__ = AsyncMock(return_value=None)
-        mock_session_class.return_value = mock_session
 
         mock_schulferien_instance = MagicMock()
         mock_schulferien_instance.async_update = AsyncMock()
@@ -506,17 +480,11 @@ async def test_async_setup_entry_sensor_order():
         "custom_components.schulferien.sensor.load_bridge_days",
         new=AsyncMock(return_value=mock_bridge_days),
     ), patch(
-        "custom_components.schulferien.sensor.aiohttp.ClientSession"
-    ) as mock_session_class, patch(
         "custom_components.schulferien.sensor.SchulferienSensor"
     ) as mock_schulferien, patch(
         "custom_components.schulferien.sensor.FeiertagSensor"
     ) as mock_feiertag:
 
-        mock_session = AsyncMock()
-        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
-        mock_session.__aexit__ = AsyncMock(return_value=None)
-        mock_session_class.return_value = mock_session
 
         mock_schulferien_instance = MagicMock()
         mock_schulferien_instance.async_update = AsyncMock()
@@ -564,17 +532,11 @@ async def test_async_setup_entry_default_paths():
         mock_load.return_value = []
 
         with patch(
-            "custom_components.schulferien.sensor.aiohttp.ClientSession"
-        ) as mock_session_class, patch(
             "custom_components.schulferien.sensor.SchulferienSensor"
         ) as mock_schulferien, patch(
             "custom_components.schulferien.sensor.FeiertagSensor"
         ) as mock_feiertag:
 
-            mock_session = AsyncMock()
-            mock_session.__aenter__ = AsyncMock(return_value=mock_session)
-            mock_session.__aexit__ = AsyncMock(return_value=None)
-            mock_session_class.return_value = mock_session
 
             mock_schulferien_instance = MagicMock()
             mock_schulferien_instance.async_update = AsyncMock()
@@ -617,17 +579,11 @@ async def test_async_setup_entry_schulferien_morgen_references_parent():
         "custom_components.schulferien.sensor.load_bridge_days",
         new=AsyncMock(return_value=[]),
     ), patch(
-        "custom_components.schulferien.sensor.aiohttp.ClientSession"
-    ) as mock_session_class, patch(
         "custom_components.schulferien.sensor.SchulferienSensor"
     ) as mock_schulferien, patch(
         "custom_components.schulferien.sensor.FeiertagSensor"
     ) as mock_feiertag:
 
-        mock_session = AsyncMock()
-        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
-        mock_session.__aexit__ = AsyncMock(return_value=None)
-        mock_session_class.return_value = mock_session
 
         mock_schulferien_instance = MagicMock()
         mock_schulferien_instance.async_update = AsyncMock()
@@ -671,17 +627,11 @@ async def test_async_setup_entry_with_bridge_days_objects():
         "custom_components.schulferien.sensor.load_bridge_days",
         new=AsyncMock(return_value=bridge_days_objects),
     ), patch(
-        "custom_components.schulferien.sensor.aiohttp.ClientSession"
-    ) as mock_session_class, patch(
         "custom_components.schulferien.sensor.SchulferienSensor"
     ) as mock_schulferien, patch(
         "custom_components.schulferien.sensor.FeiertagSensor"
     ) as mock_feiertag:
 
-        mock_session = AsyncMock()
-        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
-        mock_session.__aexit__ = AsyncMock(return_value=None)
-        mock_session_class.return_value = mock_session
 
         mock_schulferien_instance = MagicMock()
         mock_schulferien_instance.async_update = AsyncMock()
@@ -722,17 +672,11 @@ async def test_async_setup_entry_all_entity_ids():
         "custom_components.schulferien.sensor.load_bridge_days",
         new=AsyncMock(return_value=[]),
     ), patch(
-        "custom_components.schulferien.sensor.aiohttp.ClientSession"
-    ) as mock_session_class, patch(
         "custom_components.schulferien.sensor.SchulferienSensor"
     ) as mock_schulferien, patch(
         "custom_components.schulferien.sensor.FeiertagSensor"
     ) as mock_feiertag:
 
-        mock_session = AsyncMock()
-        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
-        mock_session.__aexit__ = AsyncMock(return_value=None)
-        mock_session_class.return_value = mock_session
 
         mock_schulferien_instance = MagicMock()
         mock_schulferien_instance.unique_id = "schulferien_DE_RP"
@@ -750,58 +694,6 @@ async def test_async_setup_entry_all_entity_ids():
     assert added_entities[1].unique_id == "feiertag_DE_RP"
     assert added_entities[2].unique_id == "schulferien_DE_RP_morgen"
     assert added_entities[3].unique_id == "feiertag_DE_RP_morgen"
-
-
-@pytest.mark.asyncio
-async def test_async_setup_entry_session_passed_to_updates():
-    """Test dass die Session an die Update-Methoden übergeben wird."""
-    hass = MagicMock()
-    hass.config.path = MagicMock(
-        return_value="custom_components/schulferien/bridge_days.yaml"
-    )
-
-    config_entry = MagicMock()
-    config_entry.data = {
-        "land": "DE",
-        "region": "DE-TH",
-        "land_name": "Deutschland",
-        "region_name": "Thüringen",
-    }
-
-    added_entities = []
-
-    def mock_add_entities(entities):
-        added_entities.extend(entities)
-
-    with patch(
-        "custom_components.schulferien.sensor.load_bridge_days",
-        new=AsyncMock(return_value=[]),
-    ), patch(
-        "custom_components.schulferien.sensor.aiohttp.ClientSession"
-    ) as mock_session_class, patch(
-        "custom_components.schulferien.sensor.SchulferienSensor"
-    ) as mock_schulferien, patch(
-        "custom_components.schulferien.sensor.FeiertagSensor"
-    ) as mock_feiertag:
-
-        mock_session = AsyncMock()
-        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
-        mock_session.__aexit__ = AsyncMock(return_value=None)
-        mock_session_class.return_value = mock_session
-
-        mock_schulferien_instance = MagicMock()
-        mock_schulferien_instance.async_update = AsyncMock()
-        mock_schulferien.return_value = mock_schulferien_instance
-
-        mock_feiertag_instance = MagicMock()
-        mock_feiertag_instance.async_update = AsyncMock()
-        mock_feiertag.return_value = mock_feiertag_instance
-
-        await async_setup_entry(hass, config_entry, mock_add_entities)
-
-    # async_update sollte mit der Session aufgerufen werden
-    mock_schulferien_instance.async_update.assert_called_once_with(mock_session)
-    mock_feiertag_instance.async_update.assert_called_once_with(mock_session)
 
 
 @pytest.mark.asyncio
@@ -829,17 +721,11 @@ async def test_async_setup_entry_missing_config_values():
         "custom_components.schulferien.sensor.load_bridge_days",
         new=AsyncMock(return_value=[]),
     ), patch(
-        "custom_components.schulferien.sensor.aiohttp.ClientSession"
-    ) as mock_session_class, patch(
         "custom_components.schulferien.sensor.SchulferienSensor"
     ) as mock_schulferien, patch(
         "custom_components.schulferien.sensor.FeiertagSensor"
     ) as mock_feiertag:
 
-        mock_session = AsyncMock()
-        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
-        mock_session.__aexit__ = AsyncMock(return_value=None)
-        mock_session_class.return_value = mock_session
 
         mock_schulferien_instance = MagicMock()
         mock_schulferien_instance.async_update = AsyncMock()
@@ -953,17 +839,11 @@ async def test_async_setup_entry_multiple_regions():
             "custom_components.schulferien.sensor.load_bridge_days",
             new=AsyncMock(return_value=[]),
         ), patch(
-            "custom_components.schulferien.sensor.aiohttp.ClientSession"
-        ) as mock_session_class, patch(
             "custom_components.schulferien.sensor.SchulferienSensor"
         ) as mock_schulferien, patch(
             "custom_components.schulferien.sensor.FeiertagSensor"
         ) as mock_feiertag:
 
-            mock_session = AsyncMock()
-            mock_session.__aenter__ = AsyncMock(return_value=mock_session)
-            mock_session.__aexit__ = AsyncMock(return_value=None)
-            mock_session_class.return_value = mock_session
 
             mock_schulferien_instance = MagicMock()
             mock_schulferien_instance.async_update = AsyncMock()
@@ -1034,17 +914,11 @@ async def test_multiple_instances_different_regions():
         "custom_components.schulferien.sensor.load_bridge_days",
         new=AsyncMock(return_value=[]),
     ), patch(
-        "custom_components.schulferien.sensor.aiohttp.ClientSession"
-    ) as mock_session_class, patch(
         "custom_components.schulferien.sensor.SchulferienSensor"
     ) as mock_schulferien, patch(
         "custom_components.schulferien.sensor.FeiertagSensor"
     ) as mock_feiertag:
 
-        mock_session = AsyncMock()
-        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
-        mock_session.__aexit__ = AsyncMock(return_value=None)
-        mock_session_class.return_value = mock_session
 
         mock_schulferien.side_effect = create_sensor_instance
         mock_feiertag.side_effect = create_feiertag_instance

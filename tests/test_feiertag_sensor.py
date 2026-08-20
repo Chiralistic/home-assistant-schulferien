@@ -1,7 +1,8 @@
 """Unit Tests für SchulferienFeiertagSensor und FeiertagMorgenSensor."""
 
 from unittest.mock import MagicMock, AsyncMock, patch
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
+import aiohttp
 
 import pytest
 
@@ -10,6 +11,7 @@ from custom_components.schulferien.feiertag_sensor import (
     FeiertagMorgenSensor,
     FEIERTAG_SENSOR,
     FEIERTAG_MORGEN_SENSOR,
+    berechne_ostersonntag,
 )
 from custom_components.schulferien.api_utils import load_bridge_days
 
@@ -494,6 +496,150 @@ async def test_async_update_error_handling(mock_feiertag_sensor):
 
     await mock_feiertag_sensor.async_update()
 
+# ============================================================
+# Tests für den 3-Regel-Guard (_update_faellig) — Spiegel von Slice 1
+# ============================================================
+
+def test_guard_rule_a_never_fetched_no_attempt(mock_feiertag_sensor):
+    """Regel (a): nie gefetcht + kein Versuch heute -> Abruf faellig.
+
+    Warum? Nach Neustart/Setup sind beide Marker None — der erste Abruf
+    muss durchgehen (Inbetriebnahme), sonst kaeme der Sensor nie zu Daten.
+    """
+    jetzt = datetime(2024, 6, 18, 3, 0)
+    mock_feiertag_sensor._feiertags_info["letztes_update"] = None
+    mock_feiertag_sensor._feiertags_info["letzter_versuch"] = None
+    assert mock_feiertag_sensor._update_faellig(jetzt) is True
+
+
+def test_guard_rule_a_blocks_after_todays_attempt(mock_feiertag_sensor):
+    """Regel (a): Versuch heute -> Abruf gesperrt (Anti-Hammering-Kern).
+
+    Warum? Genau dieser Fall war der Bug: ein Fehlschlag liess letztes_update
+    alt, jeder 30s-Poll fetchte neu. letzter_versuch=heute blockt alle
+    weiteren Aufrufe desselben Tages.
+    """
+    jetzt = datetime(2024, 6, 18, 10, 0)
+    mock_feiertag_sensor._feiertags_info["letztes_update"] = None
+    mock_feiertag_sensor._feiertags_info["letzter_versuch"] = datetime(2024, 6, 18, 3, 5)
+    assert mock_feiertag_sensor._update_faellig(jetzt) is False
+
+
+def test_guard_rule_b_weekly_before_3am(mock_feiertag_sensor):
+    """Regel (b): 7 Tage nach Erfolg, aber vor 03:00 -> gesperrt.
+
+    Warum? Das 03:00-Fenster ist lokale Wanduhr — das verhindert den
+    "00:00:30-Durchstich" (UTC vs. lokale Zeit) der FRD.
+    """
+    jetzt = datetime(2024, 6, 18, 2, 59)
+    mock_feiertag_sensor._feiertags_info["letztes_update"] = datetime(2024, 6, 11, 3, 0)
+    mock_feiertag_sensor._feiertags_info["letzter_versuch"] = None
+    assert mock_feiertag_sensor._update_faellig(jetzt) is False
+
+
+def test_guard_rule_b_weekly_at_3am(mock_feiertag_sensor):
+    """Regel (b): 7 Tage nach Erfolg ab 03:00 -> Abruf faellig."""
+    jetzt = datetime(2024, 6, 18, 3, 0)
+    mock_feiertag_sensor._feiertags_info["letztes_update"] = datetime(2024, 6, 11, 3, 0)
+    mock_feiertag_sensor._feiertags_info["letzter_versuch"] = None
+    assert mock_feiertag_sensor._update_faellig(jetzt) is True
+
+
+def test_guard_rule_b_blocks_before_seven_days(mock_feiertag_sensor):
+    """Regel (b): < 7 Tage seit Erfolg -> gesperrt (auch ab 03:00).
+
+    Warum? Nach einem Erfolg ist ein woechentlicher Rhythmus genug — die API
+    aendert Feiertagsdaten nicht taeglich.
+    """
+    jetzt = datetime(2024, 6, 18, 3, 0)
+    mock_feiertag_sensor._feiertags_info["letztes_update"] = datetime(2024, 6, 17, 3, 0)
+    mock_feiertag_sensor._feiertags_info["letzter_versuch"] = None
+    assert mock_feiertag_sensor._update_faellig(jetzt) is False
+
+
+def test_guard_rule_c_failed_yesterday_at_3am(mock_feiertag_sensor):
+    """Regel (c): Fehlschlag gestern -> Retry ab 03:00."""
+    jetzt = datetime(2024, 6, 18, 3, 0)
+    mock_feiertag_sensor._feiertags_info["letztes_update"] = datetime(2024, 6, 15, 3, 0)
+    mock_feiertag_sensor._feiertags_info["letzter_versuch"] = datetime(2024, 6, 17, 3, 5)
+    assert mock_feiertag_sensor._update_faellig(jetzt) is True
+
+
+def test_guard_rule_c_blocks_before_3am(mock_feiertag_sensor):
+    """Regel (c): Fehlschlag gestern, aber vor 03:00 -> gesperrt."""
+    jetzt = datetime(2024, 6, 18, 2, 59)
+    mock_feiertag_sensor._feiertags_info["letztes_update"] = datetime(2024, 6, 15, 3, 0)
+    mock_feiertag_sensor._feiertags_info["letzter_versuch"] = datetime(2024, 6, 17, 3, 5)
+    assert mock_feiertag_sensor._update_faellig(jetzt) is False
+
+
+def test_guard_rule_c_blocks_same_day_attempt(mock_feiertag_sensor):
+    """Regel (c): Versuch heute -> kein Retry mehr heute.
+
+    Warum? letzter_versuch.date() == heute erfuellt die gestern-Klausel
+    nicht — der taegliche Retry ist auf 1x/Tag begrenzt.
+    """
+    jetzt = datetime(2024, 6, 18, 10, 0)
+    mock_feiertag_sensor._feiertags_info["letztes_update"] = datetime(2024, 6, 15, 3, 0)
+    mock_feiertag_sensor._feiertags_info["letzter_versuch"] = datetime(2024, 6, 18, 3, 5)
+    assert mock_feiertag_sensor._update_faellig(jetzt) is False
+
+
+def test_guard_rule_c_blocks_when_last_attempt_succeeded(mock_feiertag_sensor):
+    """Regel (c): letzter_versuch <= letztes_update = Erfolg -> kein Retry.
+
+    Warum? Ein Erfolg ueberschreibt letztes_update mit einem Zeitstempel >=
+    dem Versuch — die Ordnung der beiden Marker ist die Fehlschlags-Anzeige.
+    """
+    jetzt = datetime(2024, 6, 18, 3, 0)
+    mock_feiertag_sensor._feiertags_info["letztes_update"] = datetime(2024, 6, 17, 3, 0)
+    mock_feiertag_sensor._feiertags_info["letzter_versuch"] = datetime(2024, 6, 17, 2, 59)
+    assert mock_feiertag_sensor._update_faellig(jetzt) is False
+
+
+# ============================================================
+# Tests für letzter_versuch (Setzpunkt + Fehlschlags-Sperre)
+# ============================================================
+
+@pytest.mark.asyncio
+async def test_update_sets_letzter_versuch_before_request(mock_feiertag_sensor):
+    """letzter_versuch wird VOR dem API-Request gesetzt.
+
+    Warum? Regel (c) braucht den Versuchs-Zeitstempel als Fehlschlags-Beweis -
+    gesetzt in hole_feiertags_daten, also vor der URL-Schleife, unabhaengig
+    vom Erfolg.
+    """
+    with patch("custom_components.schulferien.feiertag_sensor.fetch_data",
+               new=AsyncMock(side_effect=aiohttp.ClientError("offline"))):
+        await mock_feiertag_sensor.async_update()
+    assert mock_feiertag_sensor._feiertags_info["letzter_versuch"] is not None
+    assert mock_feiertag_sensor._feiertags_info["letztes_update"] is None
+
+
+@pytest.mark.asyncio
+async def test_update_failure_blocks_refetch_same_day(mock_feiertag_sensor):
+    """Nach Fehlschlag sperrt letzter_versuch weitere Abrufe am selben Tag.
+
+    Warum? Das ist die Regression fuer den Hammering-Bug der FRD: vorher
+    passierte jeder 30s-Poll den Guard, weil letztes_update nach einem
+    Fehlschlag alt blieb.
+    """
+    mit = datetime(2024, 6, 18, 10, 0)  # nach 03:00 -> Fenster offen
+    mock_feiertag_sensor._feiertags_info["letztes_update"] = datetime(2024, 6, 13, 3, 0)   # 5 Tage alt
+    mock_feiertag_sensor._feiertags_info["letzter_versuch"] = datetime(2024, 6, 17, 3, 5)  # gestern
+
+    with patch("custom_components.schulferien.feiertag_sensor.dt_util") as mock_dt, \
+            patch("custom_components.schulferien.feiertag_sensor.fetch_data",
+                  new=AsyncMock(side_effect=aiohttp.ClientError("offline"))) as mock_fetch:
+        mock_dt.now.return_value = mit
+        await mock_feiertag_sensor.async_update()   # Regel (c): Retry heute -> Fehlschlag
+        # 2. Poll am selben Tag: letzter_versuch=heute -> gesperrt (kein Fetch)
+        await mock_feiertag_sensor.async_update()
+        # hole_feiertags_daten probiert 2 URLs pro Versuch; der 2. Poll darf
+        # keine weiteren Aufrufe erzeugen
+        assert mock_fetch.call_count == 2
+    assert mock_feiertag_sensor._feiertags_info["letzter_versuch"] == mit
+    assert mock_feiertag_sensor._feiertags_info["letztes_update"] == datetime(2024, 6, 13, 3, 0)
 
 # ============================================================
 # Tests für hole_feiertags_daten Method
@@ -552,8 +698,8 @@ def test_verarbeite_feiertags_daten_heute_feiertag_with_mock_parse(hass, config_
 def test_verarbeite_feiertags_daten_kein_heute_feiertag(mock_feiertag_sensor):
     """Test Verarbeitung wenn heute kein Feiertag (parse_daten gemockt)."""
     from custom_components.schulferien import feiertag_sensor as fs_module
-    heute = datetime.now().date()
-    morgen = heute + timedelta(days=1)
+    heute = date(2024, 6, 18)  # fixiert: kein Ostersonntag — Gauss-Ergaenzung darf heute nicht treffen
+    morgen = date(2024, 6, 19)
     with patch.object(fs_module, 'parse_daten', return_value=[{
         "name": "Neujahr",
         "start_datum": morgen,
@@ -563,6 +709,21 @@ def test_verarbeite_feiertags_daten_kein_heute_feiertag(mock_feiertag_sensor):
         assert mock_feiertag_sensor._feiertags_info["heute_feiertag"] is False
         assert mock_feiertag_sensor._feiertags_info["naechster_feiertag_name"] == "Neujahr"
 
+
+def test_verarbeite_feiertags_daten_kein_heute_feiertag_with_mock_parse(hass, config_heute):
+    """Test Verarbeitung wenn heute kein Feiertag mit gemocktem parse_daten."""
+    from custom_components.schulferien import feiertag_sensor as fs_module
+    heute = date(2024, 6, 18)  # fixiert: kein Ostersonntag
+    morgen = date(2024, 6, 19)
+    with patch.object(fs_module, 'parse_daten', return_value=[{
+        "name": "Neujahr",
+        "start_datum": morgen,
+        "end_datum": morgen,
+    }]):
+        sensor = FeiertagSensor(hass, config_heute)
+        sensor.verarbeite_feiertags_daten({"feiertage": []}, heute)
+        assert sensor._feiertags_info["heute_feiertag"] is False
+        assert sensor._feiertags_info["naechster_feiertag_name"] == "Neujahr"
 
 def test_verarbeite_feiertags_daten_kein_heute_feiertag_with_mock_parse(hass, config_heute):
     """Test Verarbeitung wenn heute kein Feiertag mit gemocktem parse_daten."""
@@ -581,11 +742,16 @@ def test_verarbeite_feiertags_daten_kein_heute_feiertag_with_mock_parse(hass, co
         assert sensor._feiertags_info["naechster_feiertag_name"] == "Neujahr"
 
 
-def test_verarbeite_feiertags_daten_ostersonntag(mock_feiertag_sensor):
-    """Test dass Ostersonntag zu Ostermontag ergänzt wird (parse_daten gemockt)."""
+def test_ostersonntag_ergaenzung_fixiertes_datum(mock_feiertag_sensor):
+    """Ostersonntag wird mit korrektem Datum ergaenzt (fixiert statt naiv-heute).
+
+    Warum? Die alten Tests rechneten heute+1d und prueften nur Namens-Praesenz
+    — am Ostersonntag selbst flaky, und ohne Datums-Verankerung. Fixiert auf
+    Ostermontag 2024-04-01 => Gauss ergaenzt Ostersonntag 2024-03-31.
+    """
     from custom_components.schulferien import feiertag_sensor as fs_module
-    heute = datetime.now().date()
-    ostermontag = heute + timedelta(days=1)
+    heute = date(2024, 6, 18)  # fixiert: kein Ostersonntag — Ergaenzung kommt aus Gauss
+    ostermontag = date(2024, 4, 1)
     with patch.object(fs_module, 'parse_daten', return_value=[{
         "name": "Ostermontag",
         "start_datum": ostermontag,
@@ -593,42 +759,89 @@ def test_verarbeite_feiertags_daten_ostersonntag(mock_feiertag_sensor):
     }]):
         mock_feiertag_sensor.verarbeite_feiertags_daten({"feiertage": []}, heute)
         feiertage_liste = mock_feiertag_sensor._feiertags_info["feiertage_liste"]
-        ostersonntag_found = any(f["name"] == "Ostersonntag" for f in feiertage_liste)
-        assert ostersonntag_found is True
+        assert any(
+            f["name"] == "Ostersonntag" and f["start_datum"] == date(2024, 3, 31)
+            for f in feiertage_liste
+        )
 
 
-def test_verarbeite_feiertags_daten_easter_monday(mock_feiertag_sensor):
-    """Test dass Ostersonntag auch bei 'easter monday' ergänzt wird (parse_daten gemockt)."""
+# ============================================================
+# SLICE 3: Ostersonntag per Gauss (sprachunabhaengig)
+# ============================================================
+
+def test_berechne_ostersonntag_bekannte_daten():
+    """Gauss liefert korrekte Osterdaten (Referenzwerte).
+
+    Warum? Bekannte Osterdaten verankern die Formel — 2024 war Ostersonntag
+    am 31.03., 2025 am 20.04. Fehler in der geschlossenen Form wuerden hier
+    sofort sichtbar.
+    """
+    assert berechne_ostersonntag(2023) == date(2023, 4, 9)
+    assert berechne_ostersonntag(2024) == date(2024, 3, 31)
+    assert berechne_ostersonntag(2025) == date(2025, 4, 20)
+
+
+def test_verarbeite_feiertags_daten_ergaenzt_ostersonntag(hass, config_heute):
+    """Ostersonntag wird per Gauss ergaenzt, wenn die API ihn nicht liefert.
+
+    Warum? Die OpenHolidaysAPI liefert Ostermontag, aber nicht immer
+    Ostersonntag — Gauss ergaenzt das Osterdatum je Jahr im Fenster.
+    """
     from custom_components.schulferien import feiertag_sensor as fs_module
-    heute = datetime.now().date()
-    easter_monday = heute + timedelta(days=1)
+    ostermontag_2024 = date(2024, 4, 1)
     with patch.object(fs_module, 'parse_daten', return_value=[{
-        "name": "Easter Monday",
-        "start_datum": easter_monday,
-        "end_datum": easter_monday,
-    }]):
-        mock_feiertag_sensor.verarbeite_feiertags_daten({"feiertage": []}, heute)
-        feiertage_liste = mock_feiertag_sensor._feiertags_info["feiertage_liste"]
-        ostersonntag_found = any(f["name"] == "Ostersonntag" for f in feiertage_liste)
-        assert ostersonntag_found is True
-
-
-def test_verarbeite_feiertags_daten_easter_monday_with_mock_parse(hass, config_heute):
-    """Test dass Ostersonntag bei 'Easter Monday' mit gemocktem parse_daten ergänzt wird."""
-    from custom_components.schulferien import feiertag_sensor as fs_module
-    heute = datetime.now().date()
-    easter_monday = heute + timedelta(days=1)
-    with patch.object(fs_module, 'parse_daten', return_value=[{
-        "name": "Easter Monday",
-        "start_datum": easter_monday,
-        "end_datum": easter_monday,
+        "name": "Ostermontag",
+        "start_datum": ostermontag_2024,
+        "end_datum": ostermontag_2024,
     }]):
         sensor = FeiertagSensor(hass, config_heute)
-        daten = {"feiertage": [{"name": "test"}]}
-        sensor.verarbeite_feiertags_daten(daten, heute)
+        sensor.verarbeite_feiertags_daten({"feiertage": []}, date(2024, 6, 18))
         feiertage_liste = sensor._feiertags_info["feiertage_liste"]
-        ostersonntag_found = any(f["name"] == "Ostersonntag" for f in feiertage_liste)
-        assert ostersonntag_found is True
+        assert any(
+            f["name"] == "Ostersonntag" and f["start_datum"] == date(2024, 3, 31)
+            for f in feiertage_liste
+        )
+
+
+def test_verarbeite_feiertags_daten_ostersonntag_sprachunabhaengig(hass, config_heute):
+    """Ostersonntag wird auch bei nicht-DE/EN-API-Sprache ergaenzt.
+
+    Warum? Das ist der FRD-Acceptance-Bug: der alte Namens-Match erkannte
+    nur "Ostermontag"/"Easter Monday" — bei anderen Sprach-Labels fehlte
+    Ostersonntag komplett. Gauss haengt nicht von der Sprache ab.
+    """
+    from custom_components.schulferien import feiertag_sensor as fs_module
+    ostermontag_2025 = date(2025, 4, 21)
+    with patch.object(fs_module, 'parse_daten', return_value=[{
+        "name": "Lundi de Pâques",  # franzoesisch — alter Match wuerde scheitern
+        "start_datum": ostermontag_2025,
+        "end_datum": ostermontag_2025,
+    }]):
+        sensor = FeiertagSensor(hass, config_heute)
+        sensor.verarbeite_feiertags_daten({"feiertage": []}, date(2025, 6, 18))
+        feiertage_liste = sensor._feiertags_info["feiertage_liste"]
+        assert any(
+            f["name"] == "Ostersonntag" and f["start_datum"] == date(2025, 4, 20)
+            for f in feiertage_liste
+        )
+
+
+def test_verarbeite_feiertags_daten_kein_doppelter_ostersonntag(hass, config_heute):
+    """Ostersonntag wird nicht doppelt ergaenzt, wenn die API ihn liefert.
+
+    Warum? Der datumsbasierte Dedup-Guard verhindert Dopplung — die API
+    kann Ostersonntag in beliebiger Sprache bereits liefern.
+    """
+    from custom_components.schulferien import feiertag_sensor as fs_module
+    with patch.object(fs_module, 'parse_daten', return_value=[
+        {"name": "Easter Sunday", "start_datum": date(2024, 3, 31), "end_datum": date(2024, 3, 31)},
+        {"name": "Ostermontag", "start_datum": date(2024, 4, 1), "end_datum": date(2024, 4, 1)},
+    ]):
+        sensor = FeiertagSensor(hass, config_heute)
+        sensor.verarbeite_feiertags_daten({"feiertage": []}, date(2024, 6, 18))
+        feiertage_liste = sensor._feiertags_info["feiertage_liste"]
+        ostersonntage = [f for f in feiertage_liste if f["name"] == "Ostersonntag"]
+        assert len(ostersonntage) == 1
 
 
 def test_verarbeite_feiertags_daten_keine_daten(mock_feiertag_sensor):

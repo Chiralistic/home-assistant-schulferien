@@ -51,7 +51,7 @@ Disclaimer: Die Tests für die Integration, die nicht mit in Home Assistant inst
 
 Erstelle eine einfache Entitätskarte, die alle Attribute anzeigt in deinem Dashboard mit dem folgenden Code. Bei Bedarf kann der Stack verkleinert werden um nur die Informationen anzuzeigen, die gewünscht sind.
 
-Brückentage kannst du in `custom_components/schulferien/bridge_days.yaml` im Format `DD.MM.YYYY` eintragen.
+Brückentage kannst du in `custom_components/schulferien/bridge_days.yaml` im Format `DD.MM.YYYY` eintragen. Nach Änderungen an der Datei ist ein Neustart von Home Assistant erforderlich, da die Brückentage nur beim Start geladen werden.
 
 ### Beispiel: Deutschland (Niedersachsen)
 
@@ -304,7 +304,7 @@ Disclaimer: The tests for the integration, which are not installed together with
 
 Create a simple entity card that shows all attributes in your dashboard using the following code. If needed, the stack can be reduced to display only the information you want.
 
-You can enter bridge days in `custom_components/schulferien/bridge_days.yaml` in the format `DD.MM.YYYY`.
+You can add bridge days to `custom_components/schulferien/bridge_days.yaml` in the format `DD.MM.YYYY`. After changing the file, a restart of Home Assistant is required, as bridge days are only loaded at startup.
 
 ### Example: Germany (Lower Saxony)
 

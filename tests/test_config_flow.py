@@ -4,6 +4,7 @@ from unittest.mock import patch, MagicMock, AsyncMock
 
 import pytest
 import voluptuous as vol
+from homeassistant.data_entry_flow import AbortFlow
 from custom_components.schulferien.config_flow import SchulferienFlowHandler
 
 
@@ -75,6 +76,9 @@ def config_flow(hass):
     """Fixture für die Erstellung eines ConfigFlow-Handlers."""
     flow = SchulferienFlowHandler()
     flow.hass = hass
+    flow._async_abort_entries_match = MagicMock()
+    flow.async_set_unique_id = AsyncMock()
+    flow._abort_if_unique_id_configured = MagicMock()
     return flow
 
 
@@ -608,7 +612,10 @@ async def test_finish_step_success_creates_entry(config_flow):
     config_flow.supported_countries = {"DE": "Deutschland"}
     config_flow.supported_regions = {"DE": {"DE-BY": "Bayern"}}
 
-    with patch.object(config_flow, 'async_create_entry') as mock_create:
+    with patch.object(config_flow, '_async_abort_entries_match'), \
+         patch.object(config_flow, 'async_set_unique_id', new=AsyncMock()), \
+         patch.object(config_flow, '_abort_if_unique_id_configured'), \
+         patch.object(config_flow, 'async_create_entry') as mock_create:
         mock_create.return_value = {"type": "create_entry"}
         result = await config_flow.async_step_finish()
 
@@ -616,6 +623,42 @@ async def test_finish_step_success_creates_entry(config_flow):
     call_kwargs = mock_create.call_args[1]
     assert "Deutschland" in call_kwargs["title"]
     assert "Bayern" in call_kwargs["title"]
+
+
+@pytest.mark.asyncio
+async def test_finish_step_rejects_duplicate_region(config_flow):
+    """Identische Regionen müssen abbrechen, da ihre Entity-IDs kollidieren."""
+    config_flow.selected_country = "DE"
+    config_flow.selected_region = "DE-HE"
+    config_flow.supported_countries = {"DE": "Deutschland"}
+    config_flow.supported_regions = {"DE": {"DE-HE": "Hessen"}}
+
+    with patch.object(
+        config_flow,
+        '_async_abort_entries_match',
+        side_effect=AbortFlow("already_configured"),
+    ):
+        with pytest.raises(AbortFlow) as error:
+            await config_flow.async_step_finish()
+
+    assert error.value.reason == "already_configured"
+
+
+@pytest.mark.asyncio
+async def test_finish_step_sets_stable_unique_id(config_flow):
+    """Neue Entries erhalten eine sprachunabhängige Land/Region-ID."""
+    config_flow.selected_country = "de"
+    config_flow.selected_region = "de-he"
+    config_flow.supported_countries = {"de": "Deutschland"}
+    config_flow.supported_regions = {"de": {"de-he": "Hessen"}}
+
+    with patch.object(config_flow, '_async_abort_entries_match'), \
+         patch.object(config_flow, 'async_set_unique_id', new=AsyncMock()) as set_unique_id, \
+         patch.object(config_flow, '_abort_if_unique_id_configured'), \
+         patch.object(config_flow, 'async_create_entry', return_value={"type": "create_entry"}):
+        await config_flow.async_step_finish()
+
+    set_unique_id.assert_awaited_once_with("DE_DE-HE")
 
 
 @pytest.mark.asyncio

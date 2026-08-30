@@ -38,6 +38,8 @@ class SchulferienFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
     - selected_country/region: Vom Nutzer gewählte Werte
     """
 
+    VERSION = 1
+
     def __init__(self):
         """Initialisierung des Config-Flows."""
         # pylint: disable=invalid-name
@@ -261,6 +263,19 @@ class SchulferienFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
             return self.async_abort(reason="incomplete_configuration")
 
         try:
+            # Eine Region darf nur einmal eingerichtet werden. Alle Entities
+            # verwenden Land+Region als unique_id; ein zweiter identischer
+            # Entry würde deshalb mit dem ersten kollidieren und keine eigenen
+            # Entities bereitstellen. Der Datenvergleich erfasst auch ältere
+            # Config Entries, die noch keine Flow-unique_id besitzen.
+            self._async_abort_entries_match(
+                {"land": config_data["land"], "region": config_data["region"]}
+            )
+            await self.async_set_unique_id(
+                f"{config_data['land'].upper()}_{config_data['region'].upper()}"
+            )
+            self._abort_if_unique_id_configured()
+
             # Eintragstitel für UI: "Schulferien - Deutschland (Bayern)"
             entry_title = f"Schulferien - {config_data['land_name']} ({config_data['region_name']})"
             return self.async_create_entry(

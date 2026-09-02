@@ -22,6 +22,9 @@ from .const import (
     API_FALLBACK_FERIEN,
     DAILY_UPDATE_HOUR,
     DAILY_UPDATE_MINUTE,
+    MIDNIGHT_REFRESH_HOUR,
+    MIDNIGHT_REFRESH_MINUTE,
+    MIDNIGHT_REFRESH_SECOND,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -83,6 +86,8 @@ class SchulferienSensor(SensorEntity):
         self._brueckentage = config.get("brueckentage", [])
         # Cancel-Funktion fuer den taeglichen Timer (gesetzt in async_added_to_hass)
         self._cancel_timer = None
+        # Cancel-Funktion fuer den Mitternachts-State-Recompute (async_added_to_hass)
+        self._cancel_midnight = None
         # Alle Feriendaten und Berechnungen
         self._ferien_info = {
             "heute_ferientag": None,
@@ -141,6 +146,23 @@ class SchulferienSensor(SensorEntity):
             "Tägliche Abfrage um %02d:%02d eingerichtet.", DAILY_UPDATE_HOUR, DAILY_UPDATE_MINUTE
         )
 
+        # Mitternachts-Recompute: publiziert native_value neu, sobald der Tag
+        # wechselt. Kein API-Abruf — der Fetch bleibt beim wöchentlichen Guard.
+        # native_value ist datumssensitiv, deshalb genügt async_write_ha_state().
+        # second=0 -> genau ein Fire pro Tag (siehe MIDNIGHT_REFRESH_* in const).
+        async def async_midnight_refresh(_):
+            """State um Mitternacht neu schreiben, ohne die API anzurufen."""
+            _LOGGER.debug("Mitternachts-Recompute: State wird neu publiziert.")
+            self.async_write_ha_state()
+
+        self._cancel_midnight = async_track_time_change(
+            self.hass,
+            async_midnight_refresh,
+            hour=MIDNIGHT_REFRESH_HOUR,
+            minute=MIDNIGHT_REFRESH_MINUTE,
+            second=MIDNIGHT_REFRESH_SECOND,
+        )
+
     async def async_will_remove_from_hass(self):
         """Cleanup: Entfernt den taeglichen Timer-Listener.
         Warum wichtig? Ohne Cleanup feuert der Listener weiter,
@@ -149,7 +171,10 @@ class SchulferienSensor(SensorEntity):
         if self._cancel_timer:
             self._cancel_timer()
             self._cancel_timer = None
-            _LOGGER.debug("Timer-Cleanup fuer SchulferienSensor durchgefuehrt.")
+        if self._cancel_midnight:
+            self._cancel_midnight()
+            self._cancel_midnight = None
+        _LOGGER.debug("Timer-Cleanup fuer SchulferienSensor durchgefuehrt.")
 
     @property
     def name(self):
@@ -175,8 +200,20 @@ class SchulferienSensor(SensorEntity):
 
     @property
     def native_value(self):
-        """Gibt den aktuellen Zustand des Sensors zurück."""
-        return "ferientag" if self._ferien_info.get("heute_ferientag", False) else "kein_ferientag"
+        """Gibt den aktuellen Zustand des Sensors zurück.
+
+        Warum dynamisch gegen das heutige Datum statt über die beim Fetch
+        gesetzte 'heute_ferientag'-Flag? Der Fetch-Guard begrenzt API-Abrufe
+        auf ~wöchentlich. Enden die Ferien, bliebe die Flag bis zum nächsten
+        Abruf True und der Sensor meldete am ersten Schultag 'ferientag'
+        (Issue: NRW nach den Sommerferien). Die Prüfung gegen ferien_liste
+        stimmt bei jedem Lesen mit dem aktuellen Datum überein — ohne API-Aufruf.
+        """
+        heute = dt_util.now().date()
+        for ferien in self._ferien_info.get("ferien_liste") or []:
+            if ferien["start_datum"] <= heute <= ferien["end_datum"]:
+                return "ferientag"
+        return "kein_ferientag"
 
     @property
     def brueckentage(self):

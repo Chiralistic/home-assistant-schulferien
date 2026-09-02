@@ -8,6 +8,11 @@ from custom_components.schulferien.schulferien_sensor import (
     SchulferienSensor,
     SchulferienMorgenSensor,
 )
+from custom_components.schulferien.const import (
+    MIDNIGHT_REFRESH_HOUR,
+    MIDNIGHT_REFRESH_MINUTE,
+    MIDNIGHT_REFRESH_SECOND,
+)
 
 
 # ============================================================
@@ -219,14 +224,40 @@ def test_native_value_kein_ferientag(mock_sensor):
 
 
 def test_native_value_ferientag_false(mock_sensor):
-    """Test native_value wenn heute_ferientag False ist."""
-    mock_sensor._ferien_info["heute_ferientag"] = False
+    """native_value liefert 'kein_ferientag' wenn kein Zeitraum heute abdeckt.
+
+    Regression (Mitternachts-Bug): eine noch auf True stehende, aber veraltete
+    'heute_ferientag'-Flag darf den State nicht bestimmen, sobald die Ferien
+    vorueber sind und erst der naechste (woechentliche) Abruf sie zuruecksetzen wuerde.
+    """
+    heute = datetime.now().date()
+    mock_sensor._ferien_info["ferien_liste"] = [
+        {
+            "name": "Sommerferien vorbei",
+            "start_datum": heute - timedelta(days=10),
+            "end_datum": heute - timedelta(days=1),
+        }
+    ]
+    # Veraltete Flag: Beim letzten Abruf waren Ferien, heute nicht mehr.
+    mock_sensor._ferien_info["heute_ferientag"] = True
     assert mock_sensor.native_value == "kein_ferientag"
 
 
 def test_native_value_ferientag_true(mock_sensor):
-    """Test native_value wenn Ferientag."""
-    mock_sensor._ferien_info["heute_ferientag"] = True
+    """native_value liefert 'ferientag' wenn heute in einem Ferienzeitraum liegt.
+
+    Prüft die dynamische Semantik: native_value wertet ferien_liste gegen das
+    heutige Datum aus, statt die beim Abruf gesetzte 'heute_ferientag'-Flag zu
+    lesen (die durch den woechentlichen Fetch-Guard veralten wuerde).
+    """
+    heute = datetime.now().date()
+    mock_sensor._ferien_info["ferien_liste"] = [
+        {
+            "name": "Herbstferien",
+            "start_datum": heute - timedelta(days=1),
+            "end_datum": heute + timedelta(days=5),
+        }
+    ]
     assert mock_sensor.native_value == "ferientag"
 
 
@@ -1687,3 +1718,71 @@ async def test_async_will_remove_without_cancel_is_safe(mock_config):
     await sensor.async_will_remove_from_hass()
 
     assert sensor._cancel_timer is None
+
+
+def test_cancel_midnight_initialized_to_none(mock_config):
+    """_cancel_midnight muss bei Initialisierung None sein."""
+    hass = MagicMock()
+    sensor = SchulferienSensor(hass, mock_config)
+    assert sensor._cancel_midnight is None
+
+
+@pytest.mark.asyncio
+async def test_midnight_timer_registered_at_midnight(mock_config):
+    """Mitternachts-Timer wird mit den MIDNIGHT_REFRESH_*-Konstanten registriert.
+
+    Sichert das Fix-Detail: Der Sensor publiziert kurz nach Mitternacht neu
+    (ohne API-Abruf) — und dank second=0 genau einmal statt 60x pro Stunde.
+    Prüft gegen die Konstanten, damit ein geänderter Sollwert nicht den Test bricht.
+    """
+    hass = MagicMock()
+    hass.config.language = "de"
+    sensor = SchulferienSensor(hass, mock_config)
+    with patch(
+        "custom_components.schulferien.schulferien_sensor.async_track_time_change",
+        return_value=MagicMock(),
+    ) as mock_track, patch.object(sensor, "async_update", new=AsyncMock()), patch.object(
+        sensor, "async_write_ha_state"
+    ):
+        await sensor.async_added_to_hass()
+
+    midnight_calls = [
+        c
+        for c in mock_track.call_args_list
+        if c.kwargs.get("hour") == MIDNIGHT_REFRESH_HOUR
+        and c.kwargs.get("minute") == MIDNIGHT_REFRESH_MINUTE
+        and c.kwargs.get("second") == MIDNIGHT_REFRESH_SECOND
+    ]
+    assert midnight_calls, "Mitternachts-Timer nicht registriert"
+
+
+@pytest.mark.asyncio
+async def test_cancel_midnight_stored_from_track(mock_config):
+    """Rueckgabewert der Mitternachts-Registrierung landet in _cancel_midnight."""
+    hass = MagicMock()
+    hass.config.language = "de"
+    sensor = SchulferienSensor(hass, mock_config)
+    mock_cancel = MagicMock()
+    with patch(
+        "custom_components.schulferien.schulferien_sensor.async_track_time_change",
+        return_value=mock_cancel,
+    ), patch.object(sensor, "async_update", new=AsyncMock()), patch.object(
+        sensor, "async_write_ha_state"
+    ):
+        await sensor.async_added_to_hass()
+
+    assert sensor._cancel_midnight is mock_cancel
+
+
+@pytest.mark.asyncio
+async def test_async_will_remove_cancels_midnight(mock_config):
+    """async_will_remove_from_hass ruft zusaetzlich _cancel_midnight auf."""
+    hass = MagicMock()
+    sensor = SchulferienSensor(hass, mock_config)
+    mock_midnight = MagicMock()
+    sensor._cancel_midnight = mock_midnight
+
+    await sensor.async_will_remove_from_hass()
+
+    mock_midnight.assert_called_once()
+    assert sensor._cancel_midnight is None

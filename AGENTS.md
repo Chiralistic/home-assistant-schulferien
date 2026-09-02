@@ -10,7 +10,7 @@ source venv/bin/activate          # venv aktivieren
 pytest                            # Tests (root, pytest.ini konfiguriert)
 pytest tests/test_xxx.py          # einzelne Datei
 pytest -x --tb=short              # schnell fehlschlagend
-pylint custom_components/schulferien --max-line-length=100  # Lint (Default-Config, kein .pylintrc)
+pylint custom_components/schulferien --max-line-length=100  # Lint (.pylintrc im Root)
 ```
 
 `pytest.ini`: `pythonpath = custom_components/schulferien`, `asyncio_mode = auto`.
@@ -44,10 +44,11 @@ Die Integration bietet Schulferien- und Feiertags-Informationen für Deutschland
 - **Entity IDs**: `sensor.schulferien_{land}_{region_slug}` — Ländercode (de/at/ch) + Regions-Slug (by/bw/he)
 - **Unique IDs**: `schulferien_{land}_{region_slug}` — gleiche Struktur, ohne Prefix
 - **API**: OpenHolidaysAPI mit Fallback-URLs (`const.py`). Tägliches Update um 03:00 via `async_track_time_change`.
+- **Zwei Timer pro Heute-Sensor**: 03:00 = API-Fetch (`async_update`, durch Fetch-Guard auf ~wöchentlich begrenzt) + State-Write; 00:05 (`MIDNIGHT_REFRESH_*`) = reiner State-Recompute ohne API. Beide Cancel-Handles werden in `async_will_remove_from_hass` freigegeben.
 - **Brückentage**: `bridge_days.yaml` im Modulverzeichnis, wird bei Sensor-Setup geladen.
 - **Ostersonntag**: `feiertag_sensor.py` ergänzt Ostersonntag automatisch per Gauss-Formel (sprachunabhängig, je Jahr im Abruf-Fenster).
 - **Multiple Instanzen**: Integration kann mehrfach installiert werden (verschiedene Länder/Regionen) — eindeutige IDs basieren auf Land+Region-Slug.
-- **pylint**: keine `.pylintrc` — CI nutzt Default-Config; max-line 100 via `--max-line-length=100`.
+- **pylint**: `.pylintrc` im Repo-Root, CI nutzt Default-Config + max-line 100 via `--max-line-length=100`. Ausdrücklich deaktiviert: `R0902` (Timer-Cancel-Handles in den Sensor-Klassen) und `R0801` (strukturelles Duplikat Heute-/Morgen-Sensoren bewusst in Kauf genommen).
 - **Translations**: `translations/` mit de, en, nl, tr, da, pt, es, it, fr.
 
 ## Tests
@@ -56,6 +57,7 @@ Die Integration bietet Schulferien- und Feiertags-Informationen für Deutschland
 - **Test-Qualitätsregel**: Tests verify intent, not just behavior. Tests must encode WHY behavior matters, not just WHAT it does.
 
 ## Gotchas
+- **State ist dynamisch, nicht gecacht**: `native_value` der Heute-Sensoren prüft `dt_util.now().date()` gegen die Zeitraum-Liste (`start <= heute <= end`) und liest NICHT die beim Fetch gesetzten Flags `heute_ferientag`/`heute_feiertag`. Sonst bleibt ein beendeter Zeitraum bis zum nächsten Wochen-Fetch als aktiv stehen (Mitternachts-Bug, behoben in 1.2.3).
 - **Fetch-Guard**: `async_update` lädt nur 1×/Tag bei Fehlschlag bzw. 1 Woche nach Erfolg, jeweils ab 03:00. `letzter_versuch` wird VOR dem Request gesetzt, `letztes_update` erst nach erfolgreicher Verarbeitung (Ordnung = Fehlschlags-Beweis).
 - BinarySensoren lesen States über `hass.states.get()` (Polling bleibt) + State-Subscription (`async_track_state_change_event`) + Registry-Lookup (`async_get_entity_id`) in `async_added_to_hass` — Fallback auf konstruierte IDs; Cleanup via `async_will_remove_from_hass`
 - `compute_region_slug()` strippt Länderpräfix von Region-Codes (z.B. `DE-BY` → `BY`)

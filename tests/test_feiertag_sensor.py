@@ -14,6 +14,11 @@ from custom_components.schulferien.feiertag_sensor import (
     berechne_ostersonntag,
 )
 from custom_components.schulferien.api_utils import load_bridge_days
+from custom_components.schulferien.const import (
+    MIDNIGHT_REFRESH_HOUR,
+    MIDNIGHT_REFRESH_MINUTE,
+    MIDNIGHT_REFRESH_SECOND,
+)
 
 
 # ============================================================
@@ -214,14 +219,36 @@ def test_feiertag_sensor_all_feiertags_info_keys(hass, config_heute):
 # ============================================================
 
 def test_native_value_feiertag_true(mock_feiertag_sensor):
-    """Test dass native_value 'feiertag' zurückgibt wenn Feiertag."""
-    mock_feiertag_sensor._feiertags_info["heute_feiertag"] = True
+    """native_value liefert 'feiertag' wenn heute in einem Feiertagszeitraum liegt.
+
+    Prüft die dynamische Semantik: native_value wertet feiertage_liste gegen das
+    heutige Datum aus, statt die beim Abruf gesetzte 'heute_feiertag'-Flag zu
+    lesen (die durch den woechentlichen Fetch-Guard veralten wuerde).
+    """
+    heute = datetime.now().date()
+    mock_feiertag_sensor._feiertags_info["feiertage_liste"] = [
+        {"name": "Testtag", "start_datum": heute, "end_datum": heute}
+    ]
     assert mock_feiertag_sensor.native_value == "feiertag"
 
 
 def test_native_value_feiertag_false(mock_feiertag_sensor):
-    """Test dass native_value 'kein_feiertag' zurückgibt wenn kein Feiertag."""
-    mock_feiertag_sensor._feiertags_info["heute_feiertag"] = False
+    """native_value liefert 'kein_feiertag' wenn kein Zeitraum heute abdeckt.
+
+    Regression (Mitternachts-Bug): eine noch auf True stehende, aber veraltete
+    'heute_feiertag'-Flag darf den State nicht bestimmen, sobald der Feiertag
+    vorueber ist und erst der naechste (woechentliche) Abruf sie zuruecksetzen wuerde.
+    """
+    heute = datetime.now().date()
+    mock_feiertag_sensor._feiertags_info["feiertage_liste"] = [
+        {
+            "name": "Vorbei",
+            "start_datum": heute - timedelta(days=3),
+            "end_datum": heute - timedelta(days=1),
+        }
+    ]
+    # Veraltete Flag: Beim letzten Abruf war es ein Feiertag, heute nicht mehr.
+    mock_feiertag_sensor._feiertags_info["heute_feiertag"] = True
     assert mock_feiertag_sensor.native_value == "kein_feiertag"
 
 
@@ -1166,3 +1193,58 @@ def test_feiertag_morgen_sensor_name_no_separator(hass):
     main_sensor = FeiertagSensor(hass, config)
     morgen_sensor = FeiertagMorgenSensor(main_sensor)
     assert morgen_sensor.name == "TestFeiertag Morgen"
+
+
+def test_feiertag_cancel_midnight_initialized_to_none(hass, config_heute):
+    """_cancel_midnight muss bei Initialisierung None sein."""
+    sensor = FeiertagSensor(hass, config_heute)
+    assert sensor._cancel_midnight is None
+
+
+@pytest.mark.asyncio
+async def test_feiertag_midnight_timer_registered_at_midnight(hass, config_heute):
+    """Mitternachts-Timer wird mit den MIDNIGHT_REFRESH_*-Konstanten registriert."""
+    hass.config.language = "de"
+    sensor = FeiertagSensor(hass, config_heute)
+    with patch(
+        "custom_components.schulferien.feiertag_sensor.async_track_time_change",
+        return_value=MagicMock(),
+    ) as mock_track, patch.object(sensor, "async_update", new=AsyncMock()), patch.object(
+        sensor, "async_write_ha_state"
+    ):
+        await sensor.async_added_to_hass()
+    midnight_calls = [
+        c
+        for c in mock_track.call_args_list
+        if c.kwargs.get("hour") == MIDNIGHT_REFRESH_HOUR
+        and c.kwargs.get("minute") == MIDNIGHT_REFRESH_MINUTE
+        and c.kwargs.get("second") == MIDNIGHT_REFRESH_SECOND
+    ]
+    assert midnight_calls, "Mitternachts-Timer nicht registriert"
+
+
+@pytest.mark.asyncio
+async def test_feiertag_cancel_midnight_stored_from_track(hass, config_heute):
+    """Rueckgabewert der Mitternachts-Registrierung landet in _cancel_midnight."""
+    hass.config.language = "de"
+    sensor = FeiertagSensor(hass, config_heute)
+    mock_cancel = MagicMock()
+    with patch(
+        "custom_components.schulferien.feiertag_sensor.async_track_time_change",
+        return_value=mock_cancel,
+    ), patch.object(sensor, "async_update", new=AsyncMock()), patch.object(
+        sensor, "async_write_ha_state"
+    ):
+        await sensor.async_added_to_hass()
+    assert sensor._cancel_midnight is mock_cancel
+
+
+@pytest.mark.asyncio
+async def test_feiertag_async_will_remove_cancels_midnight(hass, config_heute):
+    """async_will_remove_from_hass ruft zusaetzlich _cancel_midnight auf."""
+    sensor = FeiertagSensor(hass, config_heute)
+    mock_midnight = MagicMock()
+    sensor._cancel_midnight = mock_midnight
+    await sensor.async_will_remove_from_hass()
+    mock_midnight.assert_called_once()
+    assert sensor._cancel_midnight is None

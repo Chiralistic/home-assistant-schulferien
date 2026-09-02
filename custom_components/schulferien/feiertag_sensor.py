@@ -20,7 +20,10 @@ from .const import (
     API_URL_FEIERTAGE,
     API_FALLBACK_FEIERTAGE,
     DAILY_UPDATE_HOUR,
-    DAILY_UPDATE_MINUTE
+    DAILY_UPDATE_MINUTE,
+    MIDNIGHT_REFRESH_HOUR,
+    MIDNIGHT_REFRESH_MINUTE,
+    MIDNIGHT_REFRESH_SECOND
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -103,6 +106,8 @@ class FeiertagSensor(SensorEntity):
         }
         # Cancel-Funktion fuer den taeglichen Timer (gesetzt in async_added_to_hass)
         self._cancel_timer = None
+        # Cancel-Funktion fuer den Mitternachts-State-Recompute (async_added_to_hass)
+        self._cancel_midnight = None
         # Alle Feiertagsdaten und Berechnungen
         self._feiertags_info = {
             "heute_feiertag": None,
@@ -153,6 +158,23 @@ class FeiertagSensor(SensorEntity):
             "Tägliche Abfrage um %02d:%02d eingerichtet.", DAILY_UPDATE_HOUR, DAILY_UPDATE_MINUTE
         )
 
+        # Mitternachts-Recompute: publiziert native_value neu, sobald der Tag
+        # wechselt. Kein API-Abruf — der Fetch bleibt beim wöchentlichen Guard.
+        # native_value ist datumssensitiv, deshalb genügt async_write_ha_state().
+        # second=0 -> genau ein Fire pro Tag (siehe MIDNIGHT_REFRESH_* in const).
+        async def async_midnight_refresh(_):
+            """State um Mitternacht neu schreiben, ohne die API anzurufen."""
+            _LOGGER.debug("Mitternachts-Recompute: State wird neu publiziert.")
+            self.async_write_ha_state()
+
+        self._cancel_midnight = async_track_time_change(
+            self.hass,
+            async_midnight_refresh,
+            hour=MIDNIGHT_REFRESH_HOUR,
+            minute=MIDNIGHT_REFRESH_MINUTE,
+            second=MIDNIGHT_REFRESH_SECOND,
+        )
+
     async def async_will_remove_from_hass(self):
         """Cleanup: Entfernt den taeglichen Timer-Listener.
         Warum wichtig? Ohne Cleanup feuert der Listener weiter,
@@ -161,7 +183,10 @@ class FeiertagSensor(SensorEntity):
         if self._cancel_timer:
             self._cancel_timer()
             self._cancel_timer = None
-            _LOGGER.debug("Timer-Cleanup fuer FeiertagSensor durchgefuehrt.")
+        if self._cancel_midnight:
+            self._cancel_midnight()
+            self._cancel_midnight = None
+        _LOGGER.debug("Timer-Cleanup fuer FeiertagSensor durchgefuehrt.")
 
     @property
     def name(self):
@@ -187,8 +212,19 @@ class FeiertagSensor(SensorEntity):
 
     @property
     def native_value(self):
-        """Gibt den aktuellen Zustand des Sensors zurück."""
-        return "feiertag" if self._feiertags_info.get("heute_feiertag", False) else "kein_feiertag"
+        """Gibt den aktuellen Zustand des Sensors zurück.
+
+        Warum dynamisch gegen das heutige Datum statt über die beim Fetch
+        gesetzte 'heute_feiertag'-Flag? Der Fetch-Guard begrenzt API-Abrufe auf
+        ~wöchentlich. Endet ein Feiertag, bliebe die Flag bis zum nächsten Abruf
+        True. Die Prüfung gegen feiertage_liste stimmt bei jedem Lesen mit dem
+        aktuellen Datum überein — ohne API-Aufruf.
+        """
+        heute = dt_util.now().date()
+        for feiertag in self._feiertags_info.get("feiertage_liste") or []:
+            if feiertag["start_datum"] <= heute <= feiertag["end_datum"]:
+                return "feiertag"
+        return "kein_feiertag"
 
     @property
     def extra_state_attributes(self):

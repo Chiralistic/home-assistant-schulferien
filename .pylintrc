@@ -1,0 +1,17 @@
+# Pylint-Konfiguration — Schulferien-Integration
+#
+# CI-Aufruf (.github/workflows/pylint.yml, startet im Repo-Root):
+#   pylint custom_components/schulferien --max-line-length=100
+# CLI-Optionen wie --max-line-length ueberschreiben diese Datei.
+
+[MESSAGES CONTROL]
+disable=
+    # R0902 too-many-instance-attributes: Die Sensor-Klassen halten Fetch-Zustand,
+    #  regions-Info und Timer-Cancel-Handles (_cancel_timer fuer 03:00-Fetch +
+    # _cancel_midnight fuer den 00:05-Recompute). Die Default-Grenze von 7
+    # Attributen ist fuer Entity-Klassen mit eigenem Timer-Cleanup zu knapp.
+    R0902,
+    # R0801 duplicate-code: Die Heute-/Morgen-Sensoren (schulferien_sensor.py,
+    #   feiertag_sensor.py) und binary_sensor.py teilen strukturell viel Code.
+    # Das Duplikat wird bewusst in Kauf genommen statt zusaetzlicher Abstraktion.
+    R0801

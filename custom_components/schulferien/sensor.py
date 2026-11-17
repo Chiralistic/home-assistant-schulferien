@@ -5,6 +5,7 @@ import logging
 from .schulferien_sensor import SchulferienSensor, SchulferienMorgenSensor
 from .feiertag_sensor import FeiertagSensor, FeiertagMorgenSensor
 from .api_utils import load_bridge_days, compute_region_slug
+from .const import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -98,6 +99,13 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
     )
 
     sensors = _create_sensors(hass, config_schulferien, config_feiertag)
+
+    # Haupt-Sensoren für calendar.py ablegen: der Kalender liest deren
+    # ferien_liste / feiertage_liste, statt die API selbst abzufragen.
+    hass.data.setdefault(DOMAIN, {})[config_entry.entry_id] = {
+        "schulferien": sensors[0],
+        "feiertag": sensors[1],
+    }
 
     # Entities zu HA registrieren bevor Updates laufen
     async_add_entities(sensors)

@@ -26,15 +26,19 @@ Die Integration bietet Schulferien- und Feiertags-Informationen für Deutschland
 **BinarySensoren (6):**
 - Kombiniert (Schulferien ODER Feiertage), nur Schulferien, nur Feiertage — jeweils heute + morgen
 
+**Kalender (2):**
+- `calendar.schulferien_{land}_{region}` (Schulferien + Brückentage) und `calendar.feiertage_{land}_{region}` — lesen die Listen der Heute-Sensoren, keine eigenen API-Abrufe
+
 **Konfiguration:**
 - 2-Schritt-Flow: Land wählen → Region wählen (API-lookup)
 - Multiple Instanzen möglich (verschiedene Länder/Regionen)
 - Brückentage konfigurierbar via `bridge_days.yaml`
 
 ## Architektur (entry points)
-- `custom_components/schulferien/__init__.py` — `async_setup_entry` / `async_unload_entry` (forwardet zu sensor + binary_sensor)
+- `custom_components/schulferien/__init__.py` — `async_setup_entry` / `async_unload_entry` (forwardet zu sensor + binary_sensor + calendar; räumt `hass.data[DOMAIN][entry_id]` beim Unload auf)
 - `custom_components/schulferien/config_flow.py` — 2-Schritt-Flow: Land → Region (API-lookup)
-- `custom_components/schulferien/sensor.py` — `async_setup_entry` für Sensoren (erstellt 4 Sensor-Instanzen)
+- `custom_components/schulferien/sensor.py` — `async_setup_entry` für Sensoren (erstellt 4 Sensor-Instanzen, legt die zwei Heute-Sensoren in `hass.data[DOMAIN][entry_id]` ab)
+- `custom_components/schulferien/calendar.py` — `FerienKalender` (2 Instanzen pro Entry), liest `ferien_liste`/`feiertage_liste` der Sensoren
 - `custom_components/schulferien/binary_sensor.py` — `async_setup_entry` für 6 BinarySensoren
 - `custom_components/schulferien/schulferien_sensor.py` — `SchulferienSensor`, `SchulferienMorgenSensor`
 - `custom_components/schulferien/feiertag_sensor.py` — `FeiertagSensor`, `FeiertagMorgenSensor`
@@ -60,6 +64,7 @@ Die Integration bietet Schulferien- und Feiertags-Informationen für Deutschland
 - **State ist dynamisch, nicht gecacht**: `native_value` der Heute-Sensoren prüft `dt_util.now().date()` gegen die Zeitraum-Liste (`start <= heute <= end`) und liest NICHT die beim Fetch gesetzten Flags `heute_ferientag`/`heute_feiertag`. Sonst bleibt ein beendeter Zeitraum bis zum nächsten Wochen-Fetch als aktiv stehen (Mitternachts-Bug, behoben in 1.2.3).
 - **Fetch-Guard**: `async_update` lädt nur 1×/Tag bei Fehlschlag bzw. 1 Woche nach Erfolg, jeweils ab 03:00. `letzter_versuch` wird VOR dem Request gesetzt, `letztes_update` erst nach erfolgreicher Verarbeitung (Ordnung = Fehlschlags-Beweis).
 - BinarySensoren lesen States über `hass.states.get()` (Polling bleibt) + State-Subscription (`async_track_state_change_event`) + Registry-Lookup (`async_get_entity_id`) in `async_added_to_hass` — Fallback auf konstruierte IDs; Cleanup via `async_will_remove_from_hass`
+- **Kalender lösen Sensoren lazy auf**: `async_forward_entry_setups` lädt Plattformen parallel, daher holt `FerienKalender` die Sensor-Instanz erst beim Abfragen aus `hass.data` (fehlt sie → leerer Kalender, keine Exception). Ganztags-Ende ist exklusiv: `end_datum + 1 Tag`.
 - `compute_region_slug()` strippt Länderpräfix von Region-Codes (z.B. `DE-BY` → `BY`)
 - **make_add_entities Closure-Bug**: `entities_list=entities` Default + `entities` Closure-Variable = unterschiedliche Objekte. Korrekt: `entities.extend(entities_list)`
 - **BinarySensor unique_id-Präfix** (Altbestand, bewusst NICHT geändert): BinarySensoren tragen den Domain-Präfix in der unique_id (z.B. `binary_sensor.schulferien_feiertage_DE_RP`), die Sensoren nicht (`schulferien_DE_RP`). Besteht seit v1.0 (Commit `9cc7388`, Feb 2025), auch in Release 1.2/main und 1.21. Funktionell harmlos (HA behandelt unique_id als opaken String). Ein Fix wäre ein Breaking Change für Bestandsinstallationen (Entities würden als neu registriert) → so lassen.

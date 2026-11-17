@@ -14,6 +14,9 @@ from .const import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
+# calendar liest die Listen der Sensoren (via hass.data, lazy aufgeloest)
+PLATFORMS = ["sensor", "binary_sensor", "calendar"]
+
 async def async_setup_entry(hass, entry):
     """Setup der Schulferien-Integration aus einem Config Entry.
 
@@ -32,7 +35,7 @@ async def async_setup_entry(hass, entry):
     _LOGGER.debug("Setting up Schulferien entry: %s", entry.title)
 
     # Beide Entity-Types gleichzeitig laden (sensor vor binary_sensor)
-    await hass.config_entries.async_forward_entry_setups(entry, ["sensor", "binary_sensor"])
+    await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
     return True
 
@@ -48,15 +51,14 @@ async def async_unload_entry(hass, entry):
         entry: Config entry zum Entladen.
 
     Returns:
-        True wenn beide Unloads erfolgreich waren.
+        True wenn alle Plattformen erfolgreich entladen wurden.
     """
     _LOGGER.debug("Unloading Schulferien entry: %s", entry.title)
 
-    # Lade sowohl Sensor als auch Binary Sensor
-    unload_sensors = await hass.config_entries.async_forward_entry_unload(entry, "sensor")
-    unload_binary_sensors = await hass.config_entries.async_forward_entry_unload(
-        entry, "binary_sensor"
-    )
+    # Alle Plattformen entladen (sensor, binary_sensor, calendar)
+    unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
 
-    # Beide müssen erfolgreich sein — inkonsistenter Zustand vermeiden
-    return unload_sensors and unload_binary_sensors
+    if unload_ok:
+        hass.data.get(DOMAIN, {}).pop(entry.entry_id, None)
+
+    return unload_ok

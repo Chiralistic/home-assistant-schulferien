@@ -16,9 +16,9 @@ from homeassistant.components.sensor import SensorEntity, SensorEntityDescriptio
 from homeassistant.util import dt as dt_util
 import aiohttp
 from .api_utils import fetch_data, parse_daten, DEFAULT_TIMEOUT, compute_region_slug
+from .fetch_state import FetchState, validate_records
 from .const import (
     API_URL_FEIERTAGE,
-    API_FALLBACK_FEIERTAGE,
     DAILY_UPDATE_HOUR,
     DAILY_UPDATE_MINUTE,
     MIDNIGHT_REFRESH_HOUR,
@@ -109,6 +109,7 @@ class FeiertagSensor(SensorEntity):
         # Cancel-Funktion fuer den Mitternachts-State-Recompute (async_added_to_hass)
         self._cancel_midnight = None
         # Alle Feiertagsdaten und Berechnungen
+        self._fetch_state = FetchState()
         self._feiertags_info = {
             "heute_feiertag": None,
             "naechster_feiertag_name": None,
@@ -211,6 +212,11 @@ class FeiertagSensor(SensorEntity):
         return self._suggested_object_id
 
     @property
+    def available(self):
+        """Only a validated calendar can answer today’s holiday status."""
+        return self._fetch_state.available_on(dt_util.now().date())
+
+    @property
     def native_value(self):
         """Gibt den aktuellen Zustand des Sensors zurück.
 
@@ -220,6 +226,8 @@ class FeiertagSensor(SensorEntity):
         True. Die Prüfung gegen feiertage_liste stimmt bei jedem Lesen mit dem
         aktuellen Datum überein — ohne API-Aufruf.
         """
+        if not self.available:
+            return None
         heute = dt_util.now().date()
         for feiertag in self._feiertags_info.get("feiertage_liste") or []:
             if feiertag["start_datum"] <= heute <= feiertag["end_datum"]:
@@ -246,6 +254,7 @@ class FeiertagSensor(SensorEntity):
             datum = self._feiertags_info["naechster_feiertag_datum"]
 
         return {
+            **self._fetch_state.attributes,
             "Name Feiertag": aktueller_feiertag,
             "Datum": datum,
             "Land": self._location["land_name"],
@@ -255,8 +264,8 @@ class FeiertagSensor(SensorEntity):
     async def async_update(self, session=None):
         """Aktualisiert die Feiertagsdaten durch Abfrage der API.
 
-        Der 3-Regel-Guard in _update_faellig begrenzt API-Abrufe auf
-        1x/Tag bei Fehlschlag und 1 Woche nach Erfolg (jeweils ab 03:00).
+        Nach Fehlern begrenzter Backoff, nach Erfolg weiterhin wöchentlich.
+        Fehlende Daten bleiben ausdrücklich unverfügbar.
         Der session-Parameter bleibt fuer Vertrag + Tests: Ohne uebergebene
         Session wird eine eigene erstellt und nach dem Aufruf geschlossen.
         """
@@ -267,22 +276,30 @@ class FeiertagSensor(SensorEntity):
             _LOGGER.debug("Update übersprungen (Guard): kein Abruf fällig.")
             return
 
+        self._fetch_state.in_progress = True
         _LOGGER.debug("Starte API-Abfrage für Feiertagsdaten.")
         close_session = False
 
-        if session is None:
-            session = aiohttp.ClientSession(timeout=DEFAULT_TIMEOUT)
-            close_session = True
-
         try:
+            if session is None:
+                session = aiohttp.ClientSession(timeout=DEFAULT_TIMEOUT)
+                close_session = True
             api_parameter = self.get_api_parameter(heute)
             feiertage_daten = await self.hole_feiertags_daten(api_parameter, session)
 
-            if not feiertage_daten:
-                _LOGGER.warning("Keine Daten von der API erhalten.")
+            if not isinstance(feiertage_daten, list):
+                self._fetch_state.failed(dt_util.now())
                 return
-
-            self.verarbeite_feiertags_daten(feiertage_daten, heute)
+            if not feiertage_daten:
+                # An empty year-long response can mean missing regional coverage.
+                self._fetch_state.failed(dt_util.now(), empty=True)
+                _LOGGER.warning("Keine Ferientermine im abgefragten Zeitraum verfügbar.")
+                return
+            validate_records(feiertage_daten)
+            if not self.verarbeite_feiertags_daten(feiertage_daten, heute):
+                self._fetch_state.failed(dt_util.now())
+                return
+            self._fetch_state.succeeded(heute + timedelta(days=365))
 
             # Erfolgs-Zeitstempel NACH der Verarbeitung (Spiegel zu Schulferien):
             # garantiert letztes_update >= letzter_versuch — die Ordnung ist der
@@ -294,39 +311,22 @@ class FeiertagSensor(SensorEntity):
             )
 
         # pylint: disable=broad-exception-caught
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
+            self._fetch_state.failed(dt_util.now())
             _LOGGER.error("Unerwarteter Fehler beim Aktualisieren der Feiertagsdaten: %s", e)
         # pylint: enable=broad-exception-caught
 
         finally:
+            self._fetch_state.in_progress = False
             if close_session:
                 await session.close()
                 _LOGGER.debug("API-Session geschlossen.")
 
     def _update_faellig(self, jetzt):
-        """3-Regel-Guard: entscheidet, ob ein API-Abruf jetzt faellig ist.
-
-        Spiegel von SchulferienSensor._update_faellig — identische Regeln:
-        (a) nie gefetcht + heute kein Versuch, (b) >= 7 Tage + >= 03:00,
-        (c) Fehlschlag gestern + >= 03:00. Fehlschlags-Beweis ist die
-        Ordnung letzter_versuch > letztes_update.
-        """
-        letztes_update = self._feiertags_info.get("letztes_update")
-        letzter_versuch = self._feiertags_info.get("letzter_versuch")
-        heute = jetzt.date()
-        nach_drei_uhr = (jetzt.hour, jetzt.minute) >= (DAILY_UPDATE_HOUR, DAILY_UPDATE_MINUTE)
-
-        if letztes_update is None:
-            return letzter_versuch is None or letzter_versuch.date() != heute
-
-        if (heute - letztes_update.date()).days >= 7:
-            return nach_drei_uhr
-
-        return (
-            letzter_versuch is not None
-            and letzter_versuch.date() == heute - timedelta(days=1)
-            and letzter_versuch > letztes_update
-            and nach_drei_uhr
+        """Weekly refresh after success; bounded backoff after a failure."""
+        return self._fetch_state.due(
+            jetzt, self._feiertags_info.get("letztes_update"),
+            self._feiertags_info.get("letzter_versuch"),
         )
 
     def get_api_parameter(self, heute):
@@ -340,27 +340,9 @@ class FeiertagSensor(SensorEntity):
         }
 
     async def hole_feiertags_daten(self, api_parameter, session):
-        """Versucht, die Feiertagsdaten von der API abzurufen.
-
-        Warum letzter_versuch hier setzen? Der Versuchs-Zeitstempel muss VOR
-        dem Request stehen (Guard-Regel c): Ein Fehlschlag laesst ihn liegen
-        (letzter_versuch > letztes_update = Fehlschlag), ein Erfolg
-        ueberschreibt letztes_update mit einem Zeitstempel >= dem Versuch.
-        """
+        """Query the documented endpoint once; the scheduler handles retries."""
         self._feiertags_info["letzter_versuch"] = dt_util.now()
-        for url in [API_URL_FEIERTAGE, API_FALLBACK_FEIERTAGE]:
-            _LOGGER.debug("Prüfe URL: %s", url)
-            if not isinstance(url, str):
-                _LOGGER.error("Ungültige URL: %s", url)
-                continue
-
-            try:
-                feiertage_daten = await fetch_data(url, api_parameter, session)
-                if feiertage_daten:
-                    return feiertage_daten
-            except (aiohttp.ClientError, ValueError) as e:
-                _LOGGER.error("Fehler beim Abrufen der Daten von %s: %s", url, e)
-        return None
+        return await fetch_data(API_URL_FEIERTAGE, api_parameter, session)
 
     def verarbeite_feiertags_daten(self, feiertage_daten, heute):
         """Verarbeitet die erhaltenen Feiertags-Daten.
@@ -404,10 +386,10 @@ class FeiertagSensor(SensorEntity):
                         })
             self._feiertags_info["feiertage_liste"] = feiertage_liste
         # pylint: disable=broad-exception-caught
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
             _LOGGER.error("Fehler beim Verarbeiten der Daten: %s", e)
         # pylint: enable=broad-exception-caught
-            return
+            return False
 
         aktueller_feiertag = next(
             (
@@ -442,6 +424,8 @@ class FeiertagSensor(SensorEntity):
                         "%d.%m.%Y"
                     ),
                 })
+        return True
+
 
 class FeiertagMorgenSensor(SensorEntity):
     """Sensor für Feiertag morgen.
@@ -496,12 +480,22 @@ class FeiertagMorgenSensor(SensorEntity):
         return self._attr_name
 
     @property
+    def available(self):
+        """Tomorrow requires a valid calendar too."""
+        # pylint: disable=protected-access
+        return self._referenzsensor._fetch_state.available_on(
+            dt_util.now().date() + timedelta(days=1)
+        )
+
+    @property
     def native_value(self):
         """Gibt den aktuellen Zustand des Sensors zurück.
 
         Warum morgen = heute + 1 Tag? Dieser Sensor soll anzeigen ob
         MORGEN ein Feiertag ist.
         """
+        if not self.available:
+            return None
         morgen = dt_util.now().date() + timedelta(days=1)
         # pylint: disable=protected-access
         # Oder-Operator verhindert TypeError bei None (Bug 1 Fix)

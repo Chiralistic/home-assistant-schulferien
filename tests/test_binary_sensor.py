@@ -286,7 +286,8 @@ def test_schulferien_feiertag_sensor_initialization(hass, config_heute):
     """Test die Initialisierung des kombinierten Binärsensors."""
     sensor = SchulferienFeiertagBinarySensor(hass, config_heute)
     assert sensor.unique_id == "binary_sensor.schulferien_feiertage_DE_BY"
-    assert sensor._state is False
+    assert sensor._state is None
+
 
 
 def test_schulferien_feiertag_sensor_custom_unique_id(hass):
@@ -373,7 +374,8 @@ async def test_today_binary_sensor_is_on_false():
     }
     sensor = SchulferienFeiertagBinarySensor(hass, config)
     await sensor.async_update()
-    assert sensor.is_on is False
+    assert sensor.is_on is None
+
 
 
 @pytest.mark.asyncio
@@ -382,7 +384,8 @@ async def test_today_binary_sensor_state_unexpected_value(today_sensor, hass):
     hass.states.get.side_effect = lambda eid: make_state(
         "unknown") if eid == "sensor.schulferien_de_by" else make_state("unknown")
     await today_sensor.async_update()
-    assert today_sensor.is_on is False
+    assert today_sensor.is_on is None
+
 
 
 # ============================================================
@@ -393,7 +396,8 @@ def test_morgen_sensor_initialization(hass, config_morgen):
     """Test die Initialisierung des Morgen-Binärsensors."""
     sensor = SchulferienFeiertagMorgenBinarySensor(hass, config_morgen)
     assert sensor.unique_id == "binary_sensor.schulferien_feiertage_DE_BY_morgen"
-    assert sensor._state is False
+    assert sensor._state is None
+
 
 
 def test_morgen_sensor_custom_unique_id(hass):
@@ -455,7 +459,8 @@ async def test_morgen_binary_sensor_is_on_false():
     }
     sensor = SchulferienFeiertagMorgenBinarySensor(hass, config)
     await sensor.async_update()
-    assert sensor.is_on is False
+    assert sensor.is_on is None
+
 
 
 # ============================================================
@@ -466,7 +471,8 @@ def test_schulferien_only_sensor_initialization(hass, config_schulferien_only):
     """Test die Initialisierung des SchulferienOnly Sensors."""
     sensor = SchulferienOnlyBinarySensor(hass, config_schulferien_only)
     assert sensor.unique_id == "binary_sensor.nur_schulferien_DE_BY"
-    assert sensor._state is False
+    assert sensor._state is None
+
 
 
 def test_schulferien_only_sensor_custom_unique_id(hass):
@@ -536,7 +542,8 @@ async def test_schulferien_only_morgen_sensor_initialization(hass, config_schulf
     sensor = SchulferienOnlyMorgenBinarySensor(hass, config_schulferien_only_morgen)
     # Verwendet die unique_id aus dem Fixture
     assert sensor.unique_id == "binary_sensor.nur_schulferien_DE_BY_morgen"
-    assert sensor._state is False
+    assert sensor._state is None
+
 
 
 def test_schulferien_only_morgen_sensor_custom_unique_id(hass):
@@ -617,7 +624,8 @@ def test_feiertag_only_sensor_initialization(hass, config_feiertag_only):
     """Test die Initialisierung des FeiertagOnly Sensors."""
     sensor = FeiertagOnlyBinarySensor(hass, config_feiertag_only)
     assert sensor.unique_id == "binary_sensor.nur_feiertage_DE_BY"
-    assert sensor._state is False
+    assert sensor._state is None
+
 
 
 def test_feiertag_only_sensor_custom_unique_id(hass):
@@ -729,7 +737,8 @@ async def test_schulferien_only_unexpected_state():
     }
     sensor = SchulferienOnlyBinarySensor(hass, config)
     await sensor.async_update()
-    assert sensor.is_on is False
+    assert sensor.is_on is None
+
 
 
 @pytest.mark.asyncio
@@ -780,7 +789,8 @@ async def test_feiertag_only_unexpected_state():
     }
     sensor = FeiertagOnlyBinarySensor(hass, config)
     await sensor.async_update()
-    assert sensor.is_on is False
+    assert sensor.is_on is None
+
 
 
 # ============================================================
@@ -791,7 +801,8 @@ def test_feiertag_only_morgen_sensor_initialization(hass, config_feiertag_only_m
     """Test die Initialisierung des FeiertagOnlyMorgen Sensors."""
     sensor = FeiertagOnlyMorgenBinarySensor(hass, config_feiertag_only_morgen)
     assert sensor.unique_id == "binary_sensor.nur_feiertage_DE_BY_morgen"
-    assert sensor._state is False
+    assert sensor._state is None
+
 
 
 def test_feiertag_only_morgen_sensor_custom_unique_id(hass):
@@ -1343,7 +1354,8 @@ async def test_schulferien_state_other_value(today_sensor, hass):
     hass.states.get.side_effect = lambda eid: make_state(
         "kein_ferientag") if eid == "sensor.schulferien_de_by" else make_state("kein_feiertag_de_by")
     await today_sensor.async_update()
-    assert today_sensor.is_on is False
+    assert today_sensor.is_on is None
+
 
 
 @pytest.mark.asyncio
@@ -1361,7 +1373,8 @@ async def test_combined_sensor_with_empty_string_state(today_sensor, hass):
     hass.states.get.side_effect = lambda eid: make_state(
         "") if eid == "sensor.schulferien_de_by" else make_state("")
     await today_sensor.async_update()
-    assert today_sensor.is_on is False
+    assert today_sensor.is_on is None
+
 
 
 @pytest.mark.asyncio
@@ -1382,8 +1395,9 @@ async def test_all_sensors_initialization():
         FeiertagOnlyMorgenBinarySensor(hass, config),
     ]
     for sensor in sensors:
-        assert sensor._state is False
+        assert sensor._state is None
         assert sensor.unique_id is not None
+
 
 
 @pytest.mark.asyncio
@@ -1416,7 +1430,8 @@ async def test_combined_sensor_brueckentag_state(today_sensor, hass):
         "brueckentag") if eid == "sensor.feiertag" else make_state("kein_ferientag")
     await today_sensor.async_update()
     # "brueckentag" != "feiertag" und != "ferientag" → False
-    assert today_sensor.is_on is False
+    assert today_sensor.is_on is None
+
 
 
 @pytest.mark.asyncio
@@ -1426,7 +1441,8 @@ async def test_schulferien_only_brueckentag_state(schulferien_only_sensor, hass)
         "brueckentag") if eid == "sensor.schulferien" else make_state("kein_feiertag")
     await schulferien_only_sensor.async_update()
     # "brueckentag" != "ferientag" → False
-    assert schulferien_only_sensor.is_on is False
+    assert schulferien_only_sensor.is_on is None
+
 
 
 @pytest.mark.asyncio
@@ -1436,7 +1452,8 @@ async def test_feiertag_only_brueckentag_state(feiertag_only_sensor, hass):
         "brueckentag") if eid == "sensor.feiertag" else make_state("kein_ferientag")
     await feiertag_only_sensor.async_update()
     # "brueckentag" != "feiertag" → False
-    assert feiertag_only_sensor.is_on is False
+    assert feiertag_only_sensor.is_on is None
+
 
 
 # ============================================================

@@ -117,7 +117,10 @@ def test_ha_derive_object_ids_nutzt_suggested_object_id(mock_sensor, morgen_sens
     object_id_base — daraus wird sensor.schulferien_de_by. Genau dieser Pfad
     ersetzt die fruehere (crashende) entity_id-Property.
     """
-    from homeassistant.helpers.entity_platform import _async_derive_object_ids
+    from homeassistant.helpers import entity_platform
+    if not hasattr(entity_platform, "_async_derive_object_ids"):
+        pytest.skip("Requires the newer HA entity ID helper")
+    _async_derive_object_ids = entity_platform._async_derive_object_ids
 
     # HA setzt dieses Attribut vor dem Ableiten auf None (entity_platform.py)
     mock_sensor.internal_integration_suggested_object_id = None
@@ -135,6 +138,7 @@ def test_ha_derive_object_ids_nutzt_suggested_object_id(mock_sensor, morgen_sens
     )
     assert suggested_morgen is None
     assert object_id_base_morgen == "schulferien_de_by_morgen"
+
 
 
 def test_sensor_initialization_with_brueckentage(mock_config_with_brueckentage):
@@ -220,7 +224,8 @@ def test_sensor_initialization_missing_brueckentage(hass_mock):
 
 def test_native_value_kein_ferientag(mock_sensor):
     """Test native_value wenn kein Ferientag."""
-    assert mock_sensor.native_value == "kein_ferientag"
+    assert mock_sensor.native_value is None
+
 
 
 def test_native_value_ferientag_false(mock_sensor):
@@ -240,7 +245,11 @@ def test_native_value_ferientag_false(mock_sensor):
     ]
     # Veraltete Flag: Beim letzten Abruf waren Ferien, heute nicht mehr.
     mock_sensor._ferien_info["heute_ferientag"] = True
+    # Explicitly model a previously validated calendar.
+    _loaded = getattr(mock_sensor, "_referenzsensor", mock_sensor)
+    _loaded._fetch_state.succeeded(datetime.max.date())
     assert mock_sensor.native_value == "kein_ferientag"
+
 
 
 def test_native_value_ferientag_true(mock_sensor):
@@ -258,13 +267,18 @@ def test_native_value_ferientag_true(mock_sensor):
             "end_datum": heute + timedelta(days=5),
         }
     ]
+    # Explicitly model a previously validated calendar.
+    _loaded = getattr(mock_sensor, "_referenzsensor", mock_sensor)
+    _loaded._fetch_state.succeeded(datetime.max.date())
     assert mock_sensor.native_value == "ferientag"
+
 
 
 def test_native_value_ferientag_none(mock_sensor):
     """Test native_value wenn heute_ferientag None ist."""
     mock_sensor._ferien_info["heute_ferientag"] = None
-    assert mock_sensor.native_value == "kein_ferientag"
+    assert mock_sensor.native_value is None
+
 
 
 # ============================================================
@@ -659,7 +673,8 @@ async def test_update_no_data(mock_sensor, morgen_sensor):
     """Test Update wenn keine Daten von der API."""
     with patch("custom_components.schulferien.schulferien_sensor.fetch_data", new=AsyncMock(return_value={})):
         await mock_sensor.async_update()
-        assert mock_sensor.native_value == "kein_ferientag"
+        assert mock_sensor.native_value is None
+
 
 
 @pytest.mark.asyncio
@@ -667,7 +682,8 @@ async def test_update_empty_data(mock_sensor, morgen_sensor):
     """Test Update wenn leere Daten von der API."""
     with patch("custom_components.schulferien.schulferien_sensor.fetch_data", new=AsyncMock(return_value=[])):
         await mock_sensor.async_update()
-        assert mock_sensor.native_value == "kein_ferientag"
+        assert mock_sensor.native_value is None
+
 
 
 @pytest.mark.asyncio
@@ -675,7 +691,8 @@ async def test_update_none_data(mock_sensor, morgen_sensor):
     """Test Update wenn None von der API."""
     with patch("custom_components.schulferien.schulferien_sensor.fetch_data", new=AsyncMock(return_value=None)):
         await mock_sensor.async_update()
-        assert mock_sensor.native_value == "kein_ferientag"
+        assert mock_sensor.native_value is None
+
 
 
 @pytest.mark.asyncio
@@ -683,7 +700,8 @@ async def test_update_api_error(mock_sensor, morgen_sensor):
     """Test Update bei API-Fehler."""
     with patch("custom_components.schulferien.schulferien_sensor.fetch_data", new=AsyncMock(side_effect=aiohttp.ClientError("API-Fehler"))):
         await mock_sensor.async_update()
-        assert mock_sensor.native_value == "kein_ferientag"
+        assert mock_sensor.native_value is None
+
 
 
 @pytest.mark.asyncio
@@ -691,7 +709,8 @@ async def test_update_client_error(mock_sensor, morgen_sensor):
     """Test Update bei aiohttp ClientError."""
     with patch("custom_components.schulferien.schulferien_sensor.fetch_data", new=AsyncMock(side_effect=aiohttp.ClientError("ClientError"))):
         await mock_sensor.async_update()
-        assert mock_sensor.native_value == "kein_ferientag"
+        assert mock_sensor.native_value is None
+
 
 
 @pytest.mark.asyncio
@@ -699,7 +718,8 @@ async def test_update_value_error(mock_sensor, morgen_sensor):
     """Test Update bei ValueError."""
     with patch("custom_components.schulferien.schulferien_sensor.fetch_data", new=AsyncMock(side_effect=ValueError("Ungültige Daten"))):
         await mock_sensor.async_update()
-        assert mock_sensor.native_value == "kein_ferientag"
+        assert mock_sensor.native_value is None
+
 
 
 @pytest.mark.asyncio
@@ -707,7 +727,8 @@ async def test_update_key_error(mock_sensor, morgen_sensor):
     """Test Update bei KeyError."""
     with patch("custom_components.schulferien.schulferien_sensor.fetch_data", new=AsyncMock(side_effect=KeyError("Fehlender Schlüssel"))):
         await mock_sensor.async_update()
-        assert mock_sensor.native_value == "kein_ferientag"
+        assert mock_sensor.native_value is None
+
 
 
 @pytest.mark.asyncio
@@ -715,7 +736,8 @@ async def test_update_type_error(mock_sensor, morgen_sensor):
     """Test Update bei TypeError."""
     with patch("custom_components.schulferien.schulferien_sensor.fetch_data", new=AsyncMock(side_effect=TypeError("Falscher Typ"))):
         await mock_sensor.async_update()
-        assert mock_sensor.native_value == "kein_ferientag"
+        assert mock_sensor.native_value is None
+
 
 
 @pytest.mark.asyncio
@@ -770,7 +792,9 @@ def test_guard_rule_a_blocks_after_todays_attempt(mock_sensor):
     jetzt = datetime(2024, 6, 18, 10, 0)
     mock_sensor._ferien_info["letztes_update"] = None
     mock_sensor._ferien_info["letzter_versuch"] = datetime(2024, 6, 18, 3, 5)
+    mock_sensor._fetch_state.failed(jetzt - timedelta(seconds=30))
     assert mock_sensor._update_faellig(jetzt) is False
+
 
 
 def test_guard_rule_b_weekly_before_3am(mock_sensor):
@@ -810,7 +834,9 @@ def test_guard_rule_c_failed_yesterday_at_3am(mock_sensor):
     jetzt = datetime(2024, 6, 18, 3, 0)
     mock_sensor._ferien_info["letztes_update"] = datetime(2024, 6, 15, 3, 0)
     mock_sensor._ferien_info["letzter_versuch"] = datetime(2024, 6, 17, 3, 5)
+    mock_sensor._fetch_state.failed(jetzt - timedelta(days=1))
     assert mock_sensor._update_faellig(jetzt) is True
+
 
 
 def test_guard_rule_c_blocks_before_3am(mock_sensor):
@@ -865,8 +891,8 @@ async def test_update_sets_letzter_versuch_before_request(mock_sensor):
 
 
 @pytest.mark.asyncio
-async def test_update_failure_blocks_refetch_same_day(mock_sensor):
-    """Nach Fehlschlag sperrt letzter_versuch weitere Abrufe am selben Tag.
+async def test_update_failure_blocks_refetch_before_retry(mock_sensor):
+    """Nach Fehlschlag sperrt der Backoff sofortige Wiederholungen.
 
     Warum? Das ist die Regression fuer den Hammering-Bug der FRD: vorher
     passierte jeder 30s-Poll den Guard, weil letztes_update nach einem
@@ -876,6 +902,8 @@ async def test_update_failure_blocks_refetch_same_day(mock_sensor):
     mock_sensor._ferien_info["letztes_update"] = datetime(2024, 6, 13, 3, 0)   # 5 Tage alt
     mock_sensor._ferien_info["letzter_versuch"] = datetime(2024, 6, 17, 3, 5)  # gestern
 
+    mock_sensor._fetch_state.failed(mit - timedelta(days=1))
+
     with patch("custom_components.schulferien.schulferien_sensor.dt_util") as mock_dt, \
             patch("custom_components.schulferien.schulferien_sensor.fetch_data",
                   new=AsyncMock(side_effect=aiohttp.ClientError("offline"))) as mock_fetch:
@@ -883,11 +911,12 @@ async def test_update_failure_blocks_refetch_same_day(mock_sensor):
         await mock_sensor.async_update()   # Regel (c): Retry heute -> Fehlschlag
         # 2. Poll am selben Tag: letzter_versuch=heute -> gesperrt (kein Fetch)
         await mock_sensor.async_update()
-        # hole_ferien_daten probiert 2 URLs pro Versuch; der 2. Poll darf
+        # hole_ferien_daten nutzt nur den dokumentierten Endpunkt; der 2. Poll darf
         # keine weiteren Aufrufe erzeugen
-        assert mock_fetch.call_count == 2
+        assert mock_fetch.call_count == 1
     assert mock_sensor._ferien_info["letzter_versuch"] == mit
     assert mock_sensor._ferien_info["letztes_update"] == datetime(2024, 6, 13, 3, 0)
+
 
 @pytest.mark.asyncio
 async def test_update_with_brueckentage(mock_sensor, morgen_sensor, mock_config_with_brueckentage):
@@ -984,8 +1013,8 @@ async def test_hole_ferien_daten_success_first_url(mock_sensor):
 
 
 @pytest.mark.asyncio
-async def test_hole_ferien_daten_fallback_to_second_url(mock_sensor):
-    """Test Fallback auf zweite URL bei Fehler."""
+async def test_hole_ferien_daten_does_not_use_invalid_fallback(mock_sensor):
+    """Fehler darf keinen nicht existierenden Ersatzendpunkt aufrufen."""
     api_parameter = {"countryIsoCode": "DE", "subdivisionCode": "DE-BY"}
     mock_session = MagicMock()
     mock_api_response = [{"name": [{"text": "Test"}],
@@ -994,25 +1023,27 @@ async def test_hole_ferien_daten_fallback_to_second_url(mock_sensor):
     with patch("custom_components.schulferien.schulferien_sensor.fetch_data",
                new=AsyncMock(side_effect=[None, mock_api_response])) as mock_fetch:
         result = await mock_sensor.hole_ferien_daten(api_parameter, mock_session)
-        assert result == mock_api_response
-        assert mock_fetch.call_count == 2
+        assert result is None
+        assert mock_fetch.call_count == 1
+
 
 
 @pytest.mark.asyncio
-async def test_hole_ferien_daten_both_urls_fail(mock_sensor):
-    """Test dass None zurückgegeben wird wenn beide URLs fehlschlagen."""
+async def test_hole_ferien_daten_failure_without_fallback(mock_sensor):
+    """Test dass None zurückgegeben wird wenn der Abruf fehlschlägt."""
     api_parameter = {"countryIsoCode": "DE", "subdivisionCode": "DE-BY"}
     mock_session = MagicMock()
 
     with patch("custom_components.schulferien.schulferien_sensor.fetch_data", new=AsyncMock(return_value=None)) as mock_fetch:
         result = await mock_sensor.hole_ferien_daten(api_parameter, mock_session)
         assert result is None
-        assert mock_fetch.call_count == 2
+        assert mock_fetch.call_count == 1
+
 
 
 @pytest.mark.asyncio
-async def test_hole_ferien_daten_client_error_first_url(mock_sensor):
-    """Test Fallback bei ClientError der ersten URL."""
+async def test_hole_ferien_daten_propagates_unhandled_client_error(mock_sensor):
+    """Unerwartete Fehler behandelt async_update inklusive Backoff."""
     api_parameter = {"countryIsoCode": "DE", "subdivisionCode": "DE-BY"}
     mock_session = MagicMock()
     mock_api_response = [{"name": [{"text": "Test"}],
@@ -1020,9 +1051,10 @@ async def test_hole_ferien_daten_client_error_first_url(mock_sensor):
 
     with patch("custom_components.schulferien.schulferien_sensor.fetch_data",
                new=AsyncMock(side_effect=[aiohttp.ClientError("Error"), mock_api_response])) as mock_fetch:
-        result = await mock_sensor.hole_ferien_daten(api_parameter, mock_session)
-        assert result == mock_api_response
-        assert mock_fetch.call_count == 2
+        with pytest.raises(aiohttp.ClientError):
+            await mock_sensor.hole_ferien_daten(api_parameter, mock_session)
+        assert mock_fetch.call_count == 1
+
 
 
 # ============================================================
@@ -1214,7 +1246,11 @@ def test_morgen_sensor_no_ferien_nearby(mock_sensor, morgen_sensor):
             "end_datum": datetime(2024, 9, 9).date(),
         }
     ]
+    # Explicitly model a previously validated calendar.
+    _loaded = getattr(morgen_sensor, "_referenzsensor", morgen_sensor)
+    _loaded._fetch_state.succeeded(datetime.max.date())
     assert morgen_sensor.native_value == "kein_ferientag"
+
 
 
 def test_morgen_sensor_ferien_tomorrow(mock_sensor, morgen_sensor):
@@ -1239,7 +1275,11 @@ def test_morgen_sensor_ferien_tomorrow(mock_sensor, morgen_sensor):
             "end_datum": morgen + timedelta(days=2),
         }
     ]
+    # Explicitly model a previously validated calendar.
+    _loaded = getattr(morgen_sensor, "_referenzsensor", morgen_sensor)
+    _loaded._fetch_state.succeeded(datetime.max.date())
     assert morgen_sensor.native_value == "ferientag"
+
 
 
 def test_morgen_sensor_ferien_spanning_tomorrow(mock_sensor, morgen_sensor):
@@ -1265,7 +1305,11 @@ def test_morgen_sensor_ferien_spanning_tomorrow(mock_sensor, morgen_sensor):
             "end_datum": heute + timedelta(days=25),
         }
     ]
+    # Explicitly model a previously validated calendar.
+    _loaded = getattr(morgen_sensor, "_referenzsensor", morgen_sensor)
+    _loaded._fetch_state.succeeded(datetime.max.date())
     assert morgen_sensor.native_value == "ferientag"
+
 
 
 def test_morgen_sensor_empty_ferien_list(mock_sensor, morgen_sensor):
@@ -1283,7 +1327,8 @@ def test_morgen_sensor_empty_ferien_list(mock_sensor, morgen_sensor):
     base = SchulferienSensor(hass_mock, config)
     morgen_sensor = SchulferienMorgenSensor(base)
     base._ferien_info["ferien_liste"] = []
-    assert morgen_sensor.native_value == "kein_ferientag"
+    assert morgen_sensor.native_value is None
+
 
 
 def test_morgen_sensor_none_ferien_list(mock_sensor, morgen_sensor):
@@ -1305,7 +1350,8 @@ def test_morgen_sensor_none_ferien_list(mock_sensor, morgen_sensor):
     morgen_sensor = SchulferienMorgenSensor(base)
     base._ferien_info["ferien_liste"] = None
     # Mit Fix (or []) sollte kein Fehler mehr auftreten
-    assert morgen_sensor.native_value == "kein_ferientag"
+    assert morgen_sensor.native_value is None
+
 
 
 @pytest.mark.asyncio
@@ -1354,7 +1400,11 @@ def test_morgen_sensor_multiple_ferien(mock_sensor, morgen_sensor):
             "end_datum": heute + timedelta(days=35),
         },
     ]
+    # Explicitly model a previously validated calendar.
+    _loaded = getattr(morgen_sensor, "_referenzsensor", morgen_sensor)
+    _loaded._fetch_state.succeeded(datetime.max.date())
     assert morgen_sensor.native_value == "kein_ferientag"
+
 
 
 def test_morgen_sensor_ends_tomorrow(mock_sensor, morgen_sensor):
@@ -1380,7 +1430,11 @@ def test_morgen_sensor_ends_tomorrow(mock_sensor, morgen_sensor):
             "end_datum": morgen,
         }
     ]
+    # Explicitly model a previously validated calendar.
+    _loaded = getattr(morgen_sensor, "_referenzsensor", morgen_sensor)
+    _loaded._fetch_state.succeeded(datetime.max.date())
     assert morgen_sensor.native_value == "ferientag"
+
 
 
 def test_morgen_sensor_starts_and_ends_same_day(mock_sensor, morgen_sensor):
@@ -1405,7 +1459,11 @@ def test_morgen_sensor_starts_and_ends_same_day(mock_sensor, morgen_sensor):
             "end_datum": morgen,
         }
     ]
+    # Explicitly model a previously validated calendar.
+    _loaded = getattr(morgen_sensor, "_referenzsensor", morgen_sensor)
+    _loaded._fetch_state.succeeded(datetime.max.date())
     assert morgen_sensor.native_value == "ferientag"
+
 
 
 # ============================================================
@@ -1537,7 +1595,8 @@ def test_sensor_unique_id_property(mock_sensor):
 def test_native_value_with_empty_ferien_list(mock_sensor):
     """Test native_value mit leerer Ferien-Liste."""
     mock_sensor._ferien_info["ferien_liste"] = []
-    assert mock_sensor.native_value == "kein_ferientag"
+    assert mock_sensor.native_value is None
+
 
 
 def test_extra_state_attributes_with_empty_ferien_list(mock_sensor):
@@ -1570,7 +1629,11 @@ def test_morgen_sensor_with_single_day_ferien(mock_sensor, morgen_sensor):
             "end_datum": morgen,
         }
     ]
+    # Explicitly model a previously validated calendar.
+    _loaded = getattr(morgen_sensor, "_referenzsensor", morgen_sensor)
+    _loaded._fetch_state.succeeded(datetime.max.date())
     assert morgen_sensor.native_value == "ferientag"
+
 
 
 @pytest.mark.asyncio
@@ -1584,7 +1647,8 @@ async def test_update_with_invalid_api_response(mock_sensor, morgen_sensor):
 
         await mock_sensor.async_update()
         # Sollte keinen Fehler werfen
-        assert mock_sensor.native_value == "kein_ferientag"
+        assert mock_sensor.native_value is None
+
 
 
 def test_verarbeite_ferien_daten_brueckentage_only(mock_sensor):

@@ -17,9 +17,9 @@ from homeassistant.components.sensor import SensorEntity, SensorEntityDescriptio
 from homeassistant.util import dt as dt_util
 import aiohttp
 from .api_utils import fetch_data, parse_daten, DEFAULT_TIMEOUT, compute_region_slug
+from .fetch_state import FetchState, validate_records
 from .const import (
     API_URL_FERIEN,
-    API_FALLBACK_FERIEN,
     DAILY_UPDATE_HOUR,
     DAILY_UPDATE_MINUTE,
     MIDNIGHT_REFRESH_HOUR,
@@ -89,6 +89,7 @@ class SchulferienSensor(SensorEntity):
         # Cancel-Funktion fuer den Mitternachts-State-Recompute (async_added_to_hass)
         self._cancel_midnight = None
         # Alle Feriendaten und Berechnungen
+        self._fetch_state = FetchState()
         self._ferien_info = {
             "heute_ferientag": None,
             "naechste_ferien_name": None,
@@ -199,6 +200,11 @@ class SchulferienSensor(SensorEntity):
         return self._suggested_object_id
 
     @property
+    def available(self):
+        """Only a validated calendar can answer today’s holiday status."""
+        return self._fetch_state.available_on(dt_util.now().date())
+
+    @property
     def native_value(self):
         """Gibt den aktuellen Zustand des Sensors zurück.
 
@@ -209,6 +215,8 @@ class SchulferienSensor(SensorEntity):
         (Issue: NRW nach den Sommerferien). Die Prüfung gegen ferien_liste
         stimmt bei jedem Lesen mit dem aktuellen Datum überein — ohne API-Aufruf.
         """
+        if not self.available:
+            return None
         heute = dt_util.now().date()
         for ferien in self._ferien_info.get("ferien_liste") or []:
             if ferien["start_datum"] <= heute <= ferien["end_datum"]:
@@ -244,6 +252,7 @@ class SchulferienSensor(SensorEntity):
             ende = self._ferien_info["naechste_ferien_ende"]
 
         return {
+            **self._fetch_state.attributes,
             "Name der Ferien": aktuelles_ereignis,
             "Beginn": beginn,
             "Ende": ende,
@@ -255,8 +264,8 @@ class SchulferienSensor(SensorEntity):
     async def async_update(self, session=None):
         """Aktualisiert die Schulferiendaten durch Abfrage der API.
 
-        Der 3-Regel-Guard in _update_faellig begrenzt API-Abrufe auf
-        1x/Tag bei Fehlschlag und 1 Woche nach Erfolg (jeweils ab 03:00).
+        Nach Fehlern begrenzter Backoff, nach Erfolg weiterhin wöchentlich.
+        Fehlende Daten bleiben ausdrücklich unverfügbar.
         Der session-Parameter bleibt fuer Vertrag + Tests: Ohne uebergebene
         Session wird eine eigene erstellt und nach dem Aufruf geschlossen.
         """
@@ -267,23 +276,30 @@ class SchulferienSensor(SensorEntity):
             _LOGGER.debug("Update übersprungen (Guard): kein Abruf fällig.")
             return
 
+        self._fetch_state.in_progress = True
         _LOGGER.debug("Starte Update der Schulferiendaten.")
         close_session = False
 
-        # Eigene Session erstellen falls keine übergeben wurde
-        if session is None:
-            session = aiohttp.ClientSession(timeout=DEFAULT_TIMEOUT)
-            close_session = True
-
         try:
+            if session is None:
+                session = aiohttp.ClientSession(timeout=DEFAULT_TIMEOUT)
+                close_session = True
             api_parameter = self.get_api_parameter(heute)
             ferien_daten = await self.hole_ferien_daten(api_parameter, session)
 
-            if not ferien_daten:
-                _LOGGER.warning("Keine Daten von der API erhalten.")
+            if not isinstance(ferien_daten, list):
+                self._fetch_state.failed(dt_util.now())
                 return
-
-            self.verarbeite_ferien_daten(ferien_daten, heute)
+            if not ferien_daten:
+                # An empty year-long response can mean missing regional coverage.
+                self._fetch_state.failed(dt_util.now(), empty=True)
+                _LOGGER.warning("Keine Ferientermine im abgefragten Zeitraum verfügbar.")
+                return
+            validate_records(ferien_daten)
+            if not self.verarbeite_ferien_daten(ferien_daten, heute):
+                self._fetch_state.failed(dt_util.now())
+                return
+            self._fetch_state.succeeded(heute + timedelta(days=365))
 
             # Erfolgs-Zeitstempel NACH der Verarbeitung erfassen: garantiert
             # letztes_update >= letzter_versuch (Ordnung = Fehlschlags-Beweis
@@ -297,47 +313,22 @@ class SchulferienSensor(SensorEntity):
             )
 
         # pylint: disable=broad-exception-caught
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
+            self._fetch_state.failed(dt_util.now())
             _LOGGER.error("Unerwarteter Fehler beim Aktualisieren der Daten: %s", e)
         # pylint: enable=broad-exception-caught
 
         finally:
+            self._fetch_state.in_progress = False
             if close_session:
                 await session.close()
                 _LOGGER.debug("API-Session geschlossen.")
 
     def _update_faellig(self, jetzt):
-        """3-Regel-Guard: entscheidet, ob ein API-Abruf jetzt faellig ist.
-
-        (a) Noch nie erfolgreich gefetcht und heute noch kein Versuch -
-            Setup/Neustart/Erholung. Die "heute kein Versuch"-Klausel ist
-            der Anti-Hammering-Kern.
-        (b) Letzter Erfolg >= 7 Tage her und Uhrzeit >= 03:00 - woechentlicher
-            Abruf.
-        (c) Letzter Versuch war gestern UND liegt nach dem letzten Erfolg
-            (letzter_versuch > letztes_update beweist den Fehlschlag) und
-            Uhrzeit >= 03:00 - taeglicher Fehlschlags-Retry.
-
-        Warum date-basiert? timedelta-Arithmetik auf aware-Objekten misst
-        7 Kalendertage am Spring-Forward als 6d23h (DST) - .date()-Deltas
-        bleiben korrekt. Das 03:00-Fenster vergleicht lokale Wanduhr, nie UTC.
-        """
-        letztes_update = self._ferien_info.get("letztes_update")
-        letzter_versuch = self._ferien_info.get("letzter_versuch")
-        heute = jetzt.date()
-        nach_drei_uhr = (jetzt.hour, jetzt.minute) >= (DAILY_UPDATE_HOUR, DAILY_UPDATE_MINUTE)
-
-        if letztes_update is None:
-            return letzter_versuch is None or letzter_versuch.date() != heute
-
-        if (heute - letztes_update.date()).days >= 7:
-            return nach_drei_uhr
-
-        return (
-            letzter_versuch is not None
-            and letzter_versuch.date() == heute - timedelta(days=1)
-            and letzter_versuch > letztes_update
-            and nach_drei_uhr
+        """Weekly refresh after success; bounded backoff after a failure."""
+        return self._fetch_state.due(
+            jetzt, self._ferien_info.get("letztes_update"),
+            self._ferien_info.get("letzter_versuch"),
         )
 
     def get_api_parameter(self, heute):
@@ -351,23 +342,9 @@ class SchulferienSensor(SensorEntity):
         }
 
     async def hole_ferien_daten(self, api_parameter, session):
-        """Versucht, die Ferientermine von der API abzurufen.
-
-        Warum letzter_versuch hier setzen? Der Versuchs-Zeitstempel muss VOR
-        dem Request stehen (Guard-Regel c): Ein Fehlschlag laesst ihn liegen
-        (letzter_versuch > letztes_update = Fehlschlag), ein Erfolg
-        ueberschreibt letztes_update mit einem Zeitstempel >= dem Versuch.
-        """
+        """Query the documented endpoint once; the scheduler handles retries."""
         self._ferien_info["letzter_versuch"] = dt_util.now()
-        for url in [API_URL_FERIEN, API_FALLBACK_FERIEN]:
-            _LOGGER.debug("Prüfe URL: %s", url)
-            try:
-                ferien_daten = await fetch_data(url, api_parameter, session)
-                if ferien_daten:
-                    return ferien_daten
-            except aiohttp.ClientError as e:
-                _LOGGER.error("Fehler beim Abrufen der Daten von %s: %s", url, e)
-        return None
+        return await fetch_data(API_URL_FERIEN, api_parameter, session)
 
     def verarbeite_ferien_daten(self, ferien_daten, heute):
         """Verarbeitet die erhaltenen Ferien-Daten."""
@@ -379,9 +356,9 @@ class SchulferienSensor(SensorEntity):
         # Fehler bis async_added_to_hass durchschlagen und die Entity
         # "nicht verfuegbar" machen.
         # pylint: disable=broad-exception-caught
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
             _LOGGER.error("Fehler beim Verarbeiten der Daten: %s", e)
-            return
+            return False
         # pylint: enable=broad-exception-caught
 
         aktuelles_ereignis = next(
@@ -408,6 +385,7 @@ class SchulferienSensor(SensorEntity):
                     "naechste_ferien_beginn": naechste_ferien["start_datum"].strftime("%d.%m.%Y"),
                     "naechste_ferien_ende": naechste_ferien["end_datum"].strftime("%d.%m.%Y"),
                 })
+        return True
 
 # Zweite Definition der EntityDescription (oben als Konstante, hier für Klassen-Referenz)
 # pylint: disable=invalid-name
@@ -472,12 +450,22 @@ class SchulferienMorgenSensor(SensorEntity):
         return self._attr_name
 
     @property
+    def available(self):
+        """Tomorrow requires a valid calendar too."""
+        # pylint: disable=protected-access
+        return self._referenzsensor._fetch_state.available_on(
+            dt_util.now().date() + timedelta(days=1)
+        )
+
+    @property
     def native_value(self):
         """Gibt den aktuellen Zustand des Sensors zurück.
 
         Warum morgen = heute + 1 Tag? Dieser Sensor soll anzeigen ob
         MORGEN ein Ferientag ist. Die Daten kommen aus dem Referenzsensor.
         """
+        if not self.available:
+            return None
         morgen = dt_util.now().date() + timedelta(days=1)
         # pylint: disable=protected-access
         # Oder-Operator verhindert TypeError bei None (Bug 1 Fix)

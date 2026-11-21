@@ -229,7 +229,11 @@ def test_native_value_feiertag_true(mock_feiertag_sensor):
     mock_feiertag_sensor._feiertags_info["feiertage_liste"] = [
         {"name": "Testtag", "start_datum": heute, "end_datum": heute}
     ]
+    # Explicitly model a previously validated calendar.
+    _loaded = getattr(mock_feiertag_sensor, "_referenzsensor", mock_feiertag_sensor)
+    _loaded._fetch_state.succeeded(datetime.max.date())
     assert mock_feiertag_sensor.native_value == "feiertag"
+
 
 
 def test_native_value_feiertag_false(mock_feiertag_sensor):
@@ -249,18 +253,24 @@ def test_native_value_feiertag_false(mock_feiertag_sensor):
     ]
     # Veraltete Flag: Beim letzten Abruf war es ein Feiertag, heute nicht mehr.
     mock_feiertag_sensor._feiertags_info["heute_feiertag"] = True
+    # Explicitly model a previously validated calendar.
+    _loaded = getattr(mock_feiertag_sensor, "_referenzsensor", mock_feiertag_sensor)
+    _loaded._fetch_state.succeeded(datetime.max.date())
     assert mock_feiertag_sensor.native_value == "kein_feiertag"
+
 
 
 def test_native_value_feiertag_none(mock_feiertag_sensor):
     """Test dass native_value 'kein_feiertag' zurückgibt wenn None."""
     mock_feiertag_sensor._feiertags_info["heute_feiertag"] = None
-    assert mock_feiertag_sensor.native_value == "kein_feiertag"
+    assert mock_feiertag_sensor.native_value is None
+
 
 
 def test_native_value_feiertag_default(mock_feiertag_sensor):
     """Test dass native_value 'kein_feiertag' als Default zurückgibt."""
-    assert mock_feiertag_sensor.native_value == "kein_feiertag"
+    assert mock_feiertag_sensor.native_value is None
+
 
 
 # ============================================================
@@ -471,7 +481,7 @@ async def test_async_update_skip_same_day(mock_feiertag_sensor):
 async def test_async_update_with_valid_data(mock_feiertag_sensor, feiertags_daten):
     """Test Update mit gültigen Daten."""
     mock_feiertag_sensor._feiertags_info["letztes_update"] = None
-    mock_feiertag_sensor.hole_feiertags_daten = AsyncMock(return_value=feiertags_daten)
+    mock_feiertag_sensor.hole_feiertags_daten = AsyncMock(return_value=[{"startDate": "2024-06-18", "endDate": "2024-06-18", "name": [{"text": "Test"}]}])
     mock_feiertag_sensor.verarbeite_feiertags_daten = MagicMock()
 
     await mock_feiertag_sensor.async_update()
@@ -479,6 +489,7 @@ async def test_async_update_with_valid_data(mock_feiertag_sensor, feiertags_date
     mock_feiertag_sensor.hole_feiertags_daten.assert_called_once()
     mock_feiertag_sensor.verarbeite_feiertags_daten.assert_called_once()
     assert mock_feiertag_sensor._feiertags_info["letztes_update"] is not None
+
 
 
 @pytest.mark.asyncio
@@ -549,7 +560,9 @@ def test_guard_rule_a_blocks_after_todays_attempt(mock_feiertag_sensor):
     jetzt = datetime(2024, 6, 18, 10, 0)
     mock_feiertag_sensor._feiertags_info["letztes_update"] = None
     mock_feiertag_sensor._feiertags_info["letzter_versuch"] = datetime(2024, 6, 18, 3, 5)
+    mock_feiertag_sensor._fetch_state.failed(jetzt - timedelta(seconds=30))
     assert mock_feiertag_sensor._update_faellig(jetzt) is False
+
 
 
 def test_guard_rule_b_weekly_before_3am(mock_feiertag_sensor):
@@ -589,7 +602,9 @@ def test_guard_rule_c_failed_yesterday_at_3am(mock_feiertag_sensor):
     jetzt = datetime(2024, 6, 18, 3, 0)
     mock_feiertag_sensor._feiertags_info["letztes_update"] = datetime(2024, 6, 15, 3, 0)
     mock_feiertag_sensor._feiertags_info["letzter_versuch"] = datetime(2024, 6, 17, 3, 5)
+    mock_feiertag_sensor._fetch_state.failed(jetzt - timedelta(days=1))
     assert mock_feiertag_sensor._update_faellig(jetzt) is True
+
 
 
 def test_guard_rule_c_blocks_before_3am(mock_feiertag_sensor):
@@ -644,8 +659,8 @@ async def test_update_sets_letzter_versuch_before_request(mock_feiertag_sensor):
 
 
 @pytest.mark.asyncio
-async def test_update_failure_blocks_refetch_same_day(mock_feiertag_sensor):
-    """Nach Fehlschlag sperrt letzter_versuch weitere Abrufe am selben Tag.
+async def test_update_failure_blocks_refetch_before_retry(mock_feiertag_sensor):
+    """Nach Fehlschlag sperrt der Backoff sofortige Wiederholungen.
 
     Warum? Das ist die Regression fuer den Hammering-Bug der FRD: vorher
     passierte jeder 30s-Poll den Guard, weil letztes_update nach einem
@@ -655,6 +670,8 @@ async def test_update_failure_blocks_refetch_same_day(mock_feiertag_sensor):
     mock_feiertag_sensor._feiertags_info["letztes_update"] = datetime(2024, 6, 13, 3, 0)   # 5 Tage alt
     mock_feiertag_sensor._feiertags_info["letzter_versuch"] = datetime(2024, 6, 17, 3, 5)  # gestern
 
+    mock_feiertag_sensor._fetch_state.failed(mit - timedelta(days=1))
+
     with patch("custom_components.schulferien.feiertag_sensor.dt_util") as mock_dt, \
             patch("custom_components.schulferien.feiertag_sensor.fetch_data",
                   new=AsyncMock(side_effect=aiohttp.ClientError("offline"))) as mock_fetch:
@@ -662,11 +679,12 @@ async def test_update_failure_blocks_refetch_same_day(mock_feiertag_sensor):
         await mock_feiertag_sensor.async_update()   # Regel (c): Retry heute -> Fehlschlag
         # 2. Poll am selben Tag: letzter_versuch=heute -> gesperrt (kein Fetch)
         await mock_feiertag_sensor.async_update()
-        # hole_feiertags_daten probiert 2 URLs pro Versuch; der 2. Poll darf
+        # hole_feiertags_daten nutzt nur den dokumentierten Endpunkt; der 2. Poll darf
         # keine weiteren Aufrufe erzeugen
-        assert mock_fetch.call_count == 2
+        assert mock_fetch.call_count == 1
     assert mock_feiertag_sensor._feiertags_info["letzter_versuch"] == mit
     assert mock_feiertag_sensor._feiertags_info["letztes_update"] == datetime(2024, 6, 13, 3, 0)
+
 
 # ============================================================
 # Tests für hole_feiertags_daten Method
@@ -938,7 +956,11 @@ def test_feiertag_morgen_sensor_native_value_feiertag(hass, config_heute):
         "end_datum": morgen,
     }]
     morgen_sensor = FeiertagMorgenSensor(main_sensor)
+    # Explicitly model a previously validated calendar.
+    _loaded = getattr(morgen_sensor, "_referenzsensor", morgen_sensor)
+    _loaded._fetch_state.succeeded(datetime.max.date())
     assert morgen_sensor.native_value == "feiertag"
+
 
 
 def test_feiertag_morgen_sensor_native_value_kein_feiertag(hass, config_heute):
@@ -950,7 +972,11 @@ def test_feiertag_morgen_sensor_native_value_kein_feiertag(hass, config_heute):
         "end_datum": datetime.now().date(),
     }]
     morgen_sensor = FeiertagMorgenSensor(main_sensor)
+    # Explicitly model a previously validated calendar.
+    _loaded = getattr(morgen_sensor, "_referenzsensor", morgen_sensor)
+    _loaded._fetch_state.succeeded(datetime.max.date())
     assert morgen_sensor.native_value == "kein_feiertag"
+
 
 
 def test_feiertag_morgen_sensor_native_value_empty_list(hass, config_heute):
@@ -958,7 +984,8 @@ def test_feiertag_morgen_sensor_native_value_empty_list(hass, config_heute):
     main_sensor = FeiertagSensor(hass, config_heute)
     main_sensor._feiertags_info["feiertage_liste"] = []
     morgen_sensor = FeiertagMorgenSensor(main_sensor)
-    assert morgen_sensor.native_value == "kein_feiertag"
+    assert morgen_sensor.native_value is None
+
 
 
 def test_feiertag_morgen_sensor_native_value_none_list(hass, config_heute):
@@ -966,7 +993,8 @@ def test_feiertag_morgen_sensor_native_value_none_list(hass, config_heute):
     main_sensor = FeiertagSensor(hass, config_heute)
     main_sensor._feiertags_info["feiertage_liste"] = None
     morgen_sensor = FeiertagMorgenSensor(main_sensor)
-    assert morgen_sensor.native_value == "kein_feiertag"
+    assert morgen_sensor.native_value is None
+
 
 
 def test_feiertag_morgen_sensor_unique_id(hass, config_heute):
@@ -1071,7 +1099,14 @@ def test_feiertag_sensor_multi_day_feiertag(hass, config_heute):
     }]
     sensor._feiertags_info["heute_feiertag"] = True
 
+    # Explicitly model a previously validated calendar.
+
+    _loaded = getattr(sensor, "_referenzsensor", sensor)
+
+    _loaded._fetch_state.succeeded(datetime.max.date())
+
     assert sensor.native_value == "feiertag"
+
 
 
 def test_feiertag_sensor_naechster_feiertag_in_weiter_zukunft(hass, config_heute):

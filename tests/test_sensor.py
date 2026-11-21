@@ -947,3 +947,43 @@ async def test_multiple_instances_different_regions():
     assert "schulferien_de_by" in suggested_object_ids
     assert "schulferien_de_bw" in suggested_object_ids
     assert len(set(suggested_object_ids)) == len(suggested_object_ids)
+
+
+@pytest.mark.asyncio
+async def test_async_setup_entry_registers_sensors_for_calendar():
+    """Die Haupt-Sensoren landen unter hass.data[DOMAIN][entry_id].
+
+    Warum? calendar.py liest dort ferien_liste/feiertage_liste, statt die API
+    selbst abzufragen. Pro Config Entry eigener Schluessel, damit mehrere
+    Regionen sich nicht gegenseitig ueberschreiben.
+    """
+    from custom_components.schulferien.const import DOMAIN
+
+    hass = MagicMock()
+    hass.data = {}
+    hass.config.path = MagicMock(
+        return_value="custom_components/schulferien/bridge_days.yaml"
+    )
+
+    config_entry = MagicMock()
+    config_entry.entry_id = "entry_by"
+    config_entry.data = {
+        "land": "DE",
+        "region": "DE-BY",
+        "land_name": "Deutschland",
+        "region_name": "Bayern",
+    }
+
+    added_entities = []
+
+    with patch(
+        "custom_components.schulferien.sensor.load_bridge_days",
+        new=AsyncMock(return_value=[]),
+    ):
+        await async_setup_entry(hass, config_entry, added_entities.extend)
+
+    registriert = hass.data[DOMAIN]["entry_by"]
+    assert registriert["schulferien"] is added_entities[0]
+    assert registriert["feiertag"] is added_entities[1]
+    assert registriert["schulferien"].__class__.__name__ == "SchulferienSensor"
+    assert registriert["feiertag"].__class__.__name__ == "FeiertagSensor"

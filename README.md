@@ -20,6 +20,7 @@ Jede Instanz hat eigene Sensoren für:
 - **Schulferien Morgen** (`sensor.schulferien_{land}_{region}_morgen`) – Status für morgen
 - **Feiertage** (`sensor.feiertag_{land}_{region}`) – nächster Feiertag
 - **Binary Sensors** (`binary_sensor.schulferien_feiertage_{land}_{region}`, `binary_sensor.nur_schulferien_{land}_{region}`, `binary_sensor.nur_feiertage_{land}_{region}` — jeweils auch mit `_morgen`-Suffix) – kombinierte Zustände
+- **Kalender** (`calendar.schulferien_{land}_{region}`, `calendar.feiertage_{land}_{region}`) – alle Termine für die Kalender-Karte
 
 ### Update von älteren Versionen (vor Multi-Instanz-Unterstützung)
 
@@ -127,6 +128,23 @@ cards:
         name: Nur Feiertage Morgen (binary)
 ```
 
+### Kalender
+
+Pro Instanz gibt es zwei Kalender-Entitäten, die alle bekannten Termine als ganztägige Einträge enthalten:
+
+- `calendar.schulferien_{land}_{region}` – Schulferien inkl. der Brückentage aus `bridge_days.yaml`
+- `calendar.feiertage_{land}_{region}` – gesetzliche Feiertage
+
+Die Kalender fragen die API nicht selbst ab, sondern zeigen die Daten der Sensoren an (Zeitraum: 30 Tage zurück bis 365 Tage voraus). Damit lassen sich z.B. alle schulfreien Tage in der Kalender-Karte anzeigen:
+
+```yaml
+type: calendar
+initial_view: listWeek
+entities:
+  - calendar.schulferien_de_by
+  - calendar.feiertage_de_by
+```
+
 ### Mehrere Bundesländer gleichzeitig anzeigen
 
 Um Schulferien aus mehreren Bundesländern anzuzeigen, füge einfach weitere Blöcke hinzu und passe die Entity-IDs an. Beispiel für Bayern und Baden-Württemberg:
@@ -163,6 +181,7 @@ Each instance has its own sensors for:
 - **School holidays tomorrow** (`sensor.schulferien_{country}_{region}_morgen`) – status for tomorrow
 - **Holidays** (`sensor.feiertag_{country}_{region}`) – next public holiday
 - **Binary sensors** – combined states
+- **Calendars** (`calendar.schulferien_{country}_{region}`, `calendar.feiertage_{country}_{region}`) – all dates for the calendar card
 
 ### Example: Germany (Lower Saxony)
 
@@ -238,6 +257,23 @@ cards:
         name: Tomorrow: only public holidays
 ```
 
+### Calendars
+
+Each instance provides two calendar entities containing all known dates as all-day events:
+
+- `calendar.schulferien_{country}_{region}` – school holidays, including the bridge days from `bridge_days.yaml`
+- `calendar.feiertage_{country}_{region}` – public holidays
+
+The calendars do not query the API themselves; they show the data the sensors already fetched (range: 30 days back to 365 days ahead). For example, to show all days without school in the calendar card:
+
+```yaml
+type: calendar
+initial_view: listWeek
+entities:
+  - calendar.schulferien_de_by
+  - calendar.feiertage_de_by
+```
+
 ### Track multiple states at once
 
 To display school holidays from multiple states, simply add more blocks and adjust the entity IDs. Example for Bavaria and Baden-Württemberg:
@@ -273,6 +309,7 @@ Each instance has its own sensors for:
 - **School holidays tomorrow** (`sensor.schulferien_{country}_{region}_morgen`) – status for tomorrow
 - **Public holidays** (`sensor.feiertag_{country}_{region}`) – next public holiday
 - **Binary sensors** (`binary_sensor.schulferien_feiertage_{country}_{region}`, `binary_sensor.nur_schulferien_{country}_{region}`, `binary_sensor.nur_feiertage_{country}_{region}` — each also available with a `_morgen` suffix) – combined states
+- **Calendars** (`calendar.schulferien_{country}_{region}`, `calendar.feiertage_{country}_{region}`) – all dates for the calendar card
 
 ### Updating from older versions (before multi-instance support)
 
@@ -378,6 +415,23 @@ cards:
         name: Only public holidays (binary)
       - entity: binary_sensor.nur_feiertage_de_ni_morgen
         name: Tomorrow: only public holidays (binary)
+```
+
+### Calendars
+
+Each instance provides two calendar entities containing all known dates as all-day events:
+
+- `calendar.schulferien_{country}_{region}` – school holidays, including the bridge days from `bridge_days.yaml`
+- `calendar.feiertage_{country}_{region}` – public holidays
+
+The calendars do not query the API themselves; they show the data the sensors already fetched (range: 30 days back to 365 days ahead). For example, to show all days without school in the calendar card:
+
+```yaml
+type: calendar
+initial_view: listWeek
+entities:
+  - calendar.schulferien_de_by
+  - calendar.feiertage_de_by
 ```
 
 ### Display multiple states at once

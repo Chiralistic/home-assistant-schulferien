@@ -7,6 +7,6 @@
   "integration_type": "service",
   "iot_class": "cloud_polling",
   "issue_tracker": "https://github.com/Chiralistic/home-assistant-schulferien/issues",
-  "requirements": ["aiohttp", "aiofiles"],
-  "version": "1.2.3"
+  "requirements": ["aiofiles"],
+  "version": "1.3.0"
 }

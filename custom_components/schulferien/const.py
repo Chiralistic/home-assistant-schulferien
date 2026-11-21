@@ -2,11 +2,9 @@
 
 DOMAIN = "schulferien"
 
-# OpenHolidaysAPI-Endpunkte mit Fallback-URLs
+# Dokumentierte OpenHolidaysAPI-Endpunkte; kein /Holidays/-Fallback.
 API_URL_FERIEN = "https://openholidaysapi.org/SchoolHolidays"
-API_FALLBACK_FERIEN = "https://openholidaysapi.org/Holidays/SchoolHolidays"
 API_URL_FEIERTAGE = "https://openholidaysapi.org/PublicHolidays"
-API_FALLBACK_FEIERTAGE = "https://openholidaysapi.org/Holidays/PublicHolidays"
 
 # Tägliche Aktualisierung um 03:00 Uhr
 DAILY_UPDATE_HOUR = 3

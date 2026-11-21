@@ -128,7 +128,7 @@ class SchulferienBinarySensorBase(BinarySensorEntity):
             "schulferien": config["schulferien_entity_id"],
             "feiertag": config["feiertag_entity_id"],
         }
-        self._state = False
+        self._state = None
         # Volle Sensor-Unique-IDs fuer den Registry-Lookup in async_added_to_hass
         # (Slice 5): transportiert aus _create_binary_sensor_configs.
         self._sensor_unique_ids = {
@@ -164,17 +164,26 @@ class SchulferienBinarySensorBase(BinarySensorEntity):
         = Single-Check. Die only-* Sensoren pruefen bewusst einseitig
         (kein Exklusiv-Check): ein Feiertag in den Ferien ist weiterhin
         Feiertag UND Ferien — an beides-Tagen sind beide only-* Sensoren an.
-        None-States (Sensor noch nicht registriert) werden
-        als falsy behandelt — kein Crash, konsistent zum Bestandsverhalten.
+        Fehlende, unbekannte und wiederhergestellte States bleiben unbekannt.
+        Ein bekannter positiver Wert genügt weiterhin für das kombinierte ODER.
         """
         states = {
             key: self._hass.states.get(self._entity_ids[key])
             for key in self._state_keys
         }
-        self._state = any(
-            states[key] and states[key].state == _ERWARTETER_ZUSTAND[key]
-            for key in self._state_keys
-        )
+        values = []
+        for key, state in states.items():
+            expected = _ERWARTETER_ZUSTAND[key]
+            if state is None or state.attributes.get("restored", False) is True:
+                values.append(None)
+            elif state.state == expected:
+                values.append(True)
+            elif state.state == "kein_" + expected:
+                values.append(False)
+            else:
+                values.append(None)
+        # Known positive OR unknown is positive; negative OR unknown is unknown.
+        self._state = True if True in values else None if None in values else False
 
     async def async_added_to_hass(self):
         """Lifecycle: Registry-Aufloesung + State-Subscription.

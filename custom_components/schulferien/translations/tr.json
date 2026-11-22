@@ -57,5 +57,16 @@
         }
       }
     }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "İsim dilleri",
+        "description": "İsimler OpenHolidays API'den gelir; yalnızca bu bölge için sağladığı diller listelenir. Birden fazla dil eklendikleri sırayla birleştirilir, örneğin `Herbstferien / Autumn Holidays`. Sırayı değiştirmek için kaldırıp yeniden ekleyin. Seçim yapılmazsa Home Assistant dili kullanılır.",
+        "data": {
+          "languages": "Diller"
+        }
+      }
+    }
   }
 }

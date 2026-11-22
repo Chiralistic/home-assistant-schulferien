@@ -5,12 +5,13 @@ import logging
 from .schulferien_sensor import SchulferienSensor, SchulferienMorgenSensor
 from .feiertag_sensor import FeiertagSensor, FeiertagMorgenSensor
 from .api_utils import load_bridge_days, compute_region_slug
-from .const import DOMAIN
+from .const import DOMAIN, CONF_LANGUAGES
 
 _LOGGER = logging.getLogger(__name__)
 
 
-def _create_sensor_configs(land, region, land_name, region_name, brueckentage):
+# pylint: disable-next=too-many-arguments,too-many-positional-arguments
+def _create_sensor_configs(land, region, land_name, region_name, brueckentage, sprachen=None):
     """Erstellt Konfigurationsdicts für Schulferien- und Feiertag-Sensoren.
 
     Args:
@@ -19,6 +20,7 @@ def _create_sensor_configs(land, region, land_name, region_name, brueckentage):
         land_name: Angezeigter Ländername.
         region_name: Angezeigter Regionsname.
         brueckentage: Liste der Brückentage.
+        sprachen: Sprachen der Namen aus dem Options-Flow (None = HA-Sprache).
 
     Returns:
         Tuple von (schulferien_config, feiertag_config).
@@ -33,6 +35,7 @@ def _create_sensor_configs(land, region, land_name, region_name, brueckentage):
         "land_name": land_name,
         "region_name": region_name,
         "brueckentage": brueckentage,
+        "sprachen": sprachen,
     }
 
     feiertag_config = {
@@ -42,6 +45,7 @@ def _create_sensor_configs(land, region, land_name, region_name, brueckentage):
         "region": region,
         "land_name": land_name,
         "region_name": region_name,
+        "sprachen": sprachen,
     }
 
     return schulferien_config, feiertag_config
@@ -95,7 +99,8 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
     brueckentage = await load_bridge_days(bridge_days_path)
 
     config_schulferien, config_feiertag = _create_sensor_configs(
-        land, region, land_name, region_name, brueckentage
+        land, region, land_name, region_name, brueckentage,
+        config_entry.options.get(CONF_LANGUAGES),
     )
 
     sensors = _create_sensors(hass, config_schulferien, config_feiertag)

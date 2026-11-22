@@ -57,5 +57,16 @@
         }
       }
     }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Talen van de namen",
+        "description": "De namen komen van de OpenHolidays API; alleen de talen die deze voor deze regio levert, worden getoond. Meerdere talen worden samengevoegd in de volgorde waarin ze zijn toegevoegd, bijvoorbeeld `Herbstferien / Autumn Holidays`. Voor een andere volgorde verwijderen en opnieuw toevoegen. Zonder keuze wordt de taal van Home Assistant gebruikt.",
+        "data": {
+          "languages": "Talen"
+        }
+      }
+    }
   }
 }

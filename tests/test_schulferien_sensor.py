@@ -466,11 +466,17 @@ def test_get_api_parameter(mock_sensor):
     assert params["subdivisionCode"] == "DE-BY"
     assert params["validFrom"] == "2024-05-19"  # heute - 30 Tage
     assert params["validTo"] == "2025-06-18"    # heute + 365 Tage
-    assert params["languageIsoCode"] == "DE"
+    # Kein languageIsoCode: die API soll alle Sprachen liefern, die Auswahl
+    # passiert in parse_daten (sonst bräuchte jede Zusatzsprache einen Abruf).
+    assert "languageIsoCode" not in params
 
 
-def test_get_api_parameter_with_iso_code(hass_mock):
-    """Test dass der ISO-Code korrekt gesetzt wird."""
+def test_anzeige_sprachen_aus_option_mit_ha_fallback(hass_mock):
+    """Option schlägt HA-Sprache; ohne Option bleibt es bei der HA-Sprache.
+
+    Warum? Ohne Konfiguration soll ein Update nichts an den Namen ändern
+    (vorher kam languageIsoCode immer aus der HA-Sprache).
+    """
     config = {
         "name": "Test",
         "unique_id": "sensor.test",
@@ -479,12 +485,13 @@ def test_get_api_parameter_with_iso_code(hass_mock):
         "land_name": "Deutschland",
         "region_name": "Bayern",
     }
-    sensor = SchulferienSensor(hass_mock, config)
-    sensor._location["iso_code"] = "DE"
+    ohne_option = SchulferienSensor(hass_mock, config)
+    ohne_option._location["iso_code"] = "EN"
+    assert ohne_option.anzeige_sprachen() == ["EN"]
 
-    heute = datetime(2024, 6, 18).date()
-    params = sensor.get_api_parameter(heute)
-    assert params["languageIsoCode"] == "DE"
+    mit_option = SchulferienSensor(hass_mock, {**config, "sprachen": ["DE", "EN"]})
+    mit_option._location["iso_code"] = "EN"
+    assert mit_option.anzeige_sprachen() == ["DE", "EN"]
 
 
 def test_get_api_parameter_different_region(hass_mock):

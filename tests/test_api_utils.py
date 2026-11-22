@@ -304,6 +304,19 @@ async def test_fetch_data_http_403():
 # Tests für parse_daten
 # ============================================================
 
+def _anzeige(result):
+    """Nur Anzeigename + Daten vergleichen.
+
+    "namen" (alle Sprachvarianten) und "name_quelle" sind interne Felder für
+    das Options-Formular; diese Tests prüfen, was Sensoren/Kalender zeigen.
+    Die Sprachfelder selbst prüfen die test_sprache_*-Tests.
+    """
+    return [
+        {k: v for k, v in e.items() if k not in ("namen", "name_quelle")}
+        for e in result
+    ]
+
+
 def test_parse_daten_valid():
     """Test parsing valid JSON data."""
     json_data = [
@@ -321,7 +334,7 @@ def test_parse_daten_valid():
             "end_datum": datetime(2024, 6, 15).date()
         }
     ]
-    assert result == expected
+    assert _anzeige(result) == expected
 
 
 def test_parse_daten_with_brueckentage():
@@ -352,7 +365,7 @@ def test_parse_daten_with_brueckentage():
             "end_datum": datetime(2024, 6, 17).date()
         },
     ]
-    assert result == expected
+    assert _anzeige(result) == expected
 
 
 def test_parse_daten_with_feiertage_typ():
@@ -372,7 +385,7 @@ def test_parse_daten_with_feiertage_typ():
             "end_datum": datetime(2024, 12, 25).date()
         }
     ]
-    assert result == expected
+    assert _anzeige(result) == expected
 
 
 def test_parse_daten_empty_list():

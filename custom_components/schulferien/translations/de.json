@@ -57,5 +57,16 @@
         }
       }
     }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Sprachen der Namen",
+        "description": "Die Namen kommen von der OpenHolidays API; angeboten werden nur die Sprachen, die sie für diese Region liefert. Mehrere Sprachen werden in der Reihenfolge verbunden, in der sie hinzugefügt wurden, zum Beispiel `Herbstferien / Autumn Holidays`. Für eine andere Reihenfolge entfernen und neu hinzufügen. Ohne Auswahl gilt die Home-Assistant-Sprache.",
+        "data": {
+          "languages": "Sprachen"
+        }
+      }
+    }
   }
 }

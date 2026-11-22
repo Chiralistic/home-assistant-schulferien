@@ -57,5 +57,16 @@
         }
       }
     }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Sprog for navne",
+        "description": "Navnene kommer fra OpenHolidays API; kun de sprog, den leverer for denne region, vises. Flere sprog sættes sammen i den rækkefølge, de blev tilføjet, for eksempel `Herbstferien / Autumn Holidays`. Fjern og tilføj igen for en anden rækkefølge. Uden valg bruges Home Assistants sprog.",
+        "data": {
+          "languages": "Sprog"
+        }
+      }
+    }
   }
 }

@@ -360,7 +360,9 @@ def test_get_api_parameter(mock_feiertag_sensor):
 
     assert params["countryIsoCode"] == "DE"
     assert params["subdivisionCode"] == "DE-BY"
-    assert params["languageIsoCode"] == "DE"
+    # Kein languageIsoCode: die API soll alle Sprachen liefern, die Auswahl
+    # passiert in parse_daten (sonst bräuchte jede Zusatzsprache einen Abruf).
+    assert "languageIsoCode" not in params
     assert params["validFrom"] == (heute - timedelta(days=30)).strftime("%Y-%m-%d")
     assert params["validTo"] == (heute + timedelta(days=365)).strftime("%Y-%m-%d")
 
@@ -402,14 +404,23 @@ def test_get_api_parameter_with_different_region(hass):
     assert params["subdivisionCode"] == "DE-BE"
 
 
-def test_get_api_parameter_language_from_hass(hass, config_heute):
-    """Test dass languageIsoCode aus hass.config.language gelesen wird."""
+def test_anzeige_sprachen_default_ist_ha_sprache(hass, config_heute):
+    """Ohne Option gilt die HA-Sprache.
+
+    Warum? So war es vor dem Options-Flow (languageIsoCode = HA-Sprache):
+    bestehende Installationen dürfen nach dem Update keine anderen Namen
+    sehen, solange niemand Sprachen konfiguriert.
+    """
     sensor = FeiertagSensor(hass, config_heute)
-    hass.config.language = "en"
     sensor._location["iso_code"] = "EN"
-    heute = datetime.now().date()
-    params = sensor.get_api_parameter(heute)
-    assert params["languageIsoCode"] == "EN"
+    assert sensor.anzeige_sprachen() == ["EN"]
+
+
+def test_anzeige_sprachen_aus_option(hass, config_heute):
+    """Gewählte Sprachen haben Vorrang vor der HA-Sprache, Reihenfolge bleibt."""
+    sensor = FeiertagSensor(hass, {**config_heute, "sprachen": ["de", "en"]})
+    sensor._location["iso_code"] = "EN"
+    assert sensor.anzeige_sprachen() == ["DE", "EN"]
 
 
 # ============================================================

@@ -15,7 +15,10 @@ from homeassistant.helpers.event import async_track_time_change
 from homeassistant.components.sensor import SensorEntity, SensorEntityDescription
 from homeassistant.util import dt as dt_util
 import aiohttp
-from .api_utils import fetch_data, parse_daten, DEFAULT_TIMEOUT, compute_region_slug
+from .api_utils import (
+    fetch_data, parse_daten, DEFAULT_TIMEOUT, compute_region_slug, normalisiere_sprachen,
+    waehle_namen, OSTERSONNTAG_NAMEN,
+)
 from .fetch_state import FetchState, validate_records
 from .const import (
     API_URL_FEIERTAGE,
@@ -103,6 +106,8 @@ class FeiertagSensor(SensorEntity):
             "region_name": config["region_name"],
             # iso_code wird in async_added_to_hass aus HA konfiguriert
             "iso_code": "DE",
+            # Sprachen aus dem Options-Flow (leer = HA-Sprache, siehe anzeige_sprachen)
+            "sprachen": normalisiere_sprachen(config.get("sprachen")),
         }
         # Cancel-Funktion fuer den taeglichen Timer (gesetzt in async_added_to_hass)
         self._cancel_timer = None
@@ -329,14 +334,27 @@ class FeiertagSensor(SensorEntity):
             self._feiertags_info.get("letzter_versuch"),
         )
 
+    def anzeige_sprachen(self):
+        """Sprachen für die Namen: Options-Auswahl, sonst die HA-Sprache.
+
+        Warum die HA-Sprache als Default? Das war das Verhalten vor dem
+        Options-Flow (languageIsoCode = HA-Sprache) — bestehende
+        Installationen sehen ohne Konfiguration dieselben Namen wie vorher.
+        """
+        return self._location["sprachen"] or [self._location["iso_code"]]
+
     def get_api_parameter(self, heute):
-        """Erstellt die API-Parameter für die Feiertagsanfrage."""
+        """Erstellt die API-Parameter für die Feiertagsanfrage.
+
+        Warum kein languageIsoCode? Ohne den Parameter liefert die API die
+        Namen in allen Sprachen in einer Antwort; die Auswahl passiert in
+        parse_daten. Ein Abruf reicht so für beliebig viele Sprachen.
+        """
         return {
             "countryIsoCode": self._location["land"],
             "subdivisionCode": self._location["region"],
             "validFrom": (heute - timedelta(days=30)).strftime("%Y-%m-%d"),
             "validTo": (heute + timedelta(days=365)).strftime("%Y-%m-%d"),
-            "languageIsoCode": self._location["iso_code"],
         }
 
     async def hole_feiertags_daten(self, api_parameter, session):
@@ -354,7 +372,9 @@ class FeiertagSensor(SensorEntity):
         sprachunabhaengig (kein Namens-Match mehr).
         """
         try:
-            feiertage_liste = parse_daten(feiertage_daten, typ="feiertage")
+            feiertage_liste = parse_daten(
+                feiertage_daten, typ="feiertage", sprachen=self.anzeige_sprachen()
+            )
 
             # Ostersonntag sprachunabhaengig per Gauss ergaenzen. Warum nicht
             # mehr Namens-Match? Die API liefert Ostermontag unter beliebigen
@@ -380,7 +400,11 @@ class FeiertagSensor(SensorEntity):
                         for f in feiertage_liste
                     ):
                         feiertage_liste.append({
-                            "name": "Ostersonntag",
+                            "name": waehle_namen(
+                                OSTERSONNTAG_NAMEN, self.anzeige_sprachen()
+                            ),
+                            "namen": dict(OSTERSONNTAG_NAMEN),
+                            "name_quelle": "fest",
                             "start_datum": ostersonntag_datum,
                             "end_datum": ostersonntag_datum,
                         })

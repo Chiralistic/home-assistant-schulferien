@@ -8,6 +8,9 @@ Warum 2 Schritte? Die API hat ~200 Länder mit unterschiedlichen Regionen.
 Ein einziger Dropdown wäre überladen. Land → Region ist intuitiv und
 skaliert gut mit neuen Ländern/Regionen.
 
+Options-Flow (Konfigurieren): Sprachen der Ferien-/Feiertagsnamen, siehe
+SchulferienOptionsFlow.
+
 Sprachcode: Der Flow verwendet die HA-Sprache (z.B. "de" → "DE")
 um Länder- und Regionsnamen lokalisiert anzuzeigen. Die API unterstützt
 isoCode-basierte Lokalisierung (DE, AT, CH, etc.).
@@ -19,10 +22,18 @@ import logging
 import aiohttp
 import voluptuous as vol
 from homeassistant import config_entries
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers.selector import (
+    SelectOptionDict,
+    SelectSelector,
+    SelectSelectorConfig,
+    SelectSelectorMode,
+)
 
-from .const import DOMAIN
-from .api_utils import DEFAULT_TIMEOUT
+from .const import DOMAIN, CONF_LANGUAGES, API_URL_LANGUAGES
+from .api_utils import (
+    DEFAULT_TIMEOUT, normalisiere_sprachen, sprachen_aus_liste,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -39,6 +50,12 @@ class SchulferienFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
     """
 
     VERSION = 1
+
+    @staticmethod
+    @callback
+    def async_get_options_flow(config_entry):
+        """Options-Flow für die Sprachauswahl."""
+        return SchulferienOptionsFlow()
 
     def __init__(self):
         """Initialisierung des Config-Flows."""
@@ -285,3 +302,112 @@ class SchulferienFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         except (vol.Invalid, KeyError) as e:
             _LOGGER.error("Fehler beim Erstellen des Eintrags: %s", e)
             return self.async_abort(reason="creation_failed")
+
+
+class SchulferienOptionsFlow(config_entries.OptionsFlow):
+    """Options-Flow: Sprachen der Ferien- und Feiertagsnamen.
+
+    Warum? Die Namen ("Herbstferien") sind Daten aus der API, keine
+    Frontend-Übersetzungen — alle Personen sehen denselben Text. Bisher kam
+    er immer in der HA-Systemsprache. Mehrsprachige Haushalte (HA auf
+    Englisch, Kinder lesen Deutsch) können hier mehrere Sprachen wählen:
+    "Herbstferien / Autumn Holidays".
+
+    Angeboten werden die Sprachen, die die API für diese Region tatsächlich
+    liefert (aus den schon geladenen Daten), plus HA-Sprache und die aktuelle
+    Auswahl. Keine Auswahl = HA-Sprache (Verhalten vor dem Options-Flow).
+    """
+
+    async def async_step_init(self, user_input=None):
+        """Einziger Schritt: Mehrfachauswahl der Sprachen."""
+        if user_input is not None:
+            return self.async_create_entry(
+                data={CONF_LANGUAGES: normalisiere_sprachen(user_input.get(CONF_LANGUAGES))}
+            )
+
+        ha_sprache = normalisiere_sprachen([self.hass.config.language]) or ["DE"]
+        aktuell = normalisiere_sprachen(self.config_entry.options.get(CONF_LANGUAGES))
+
+        api_eintraege = self._api_eintraege()
+        verfuegbar = []
+        for sprache in aktuell + ha_sprache + sprachen_aus_liste(api_eintraege):
+            if sprache not in verfuegbar:
+                verfuegbar.append(sprache)
+
+        sprachnamen = await self._hole_sprachnamen(ha_sprache[0])
+        optionen = [
+            SelectOptionDict(
+                value=sprache,
+                label=f"{sprachnamen[sprache]} ({sprache})" if sprache in sprachnamen
+                else sprache,
+            )
+            for sprache in verfuegbar
+        ]
+
+        return self.async_show_form(
+            step_id="init",
+            data_schema=vol.Schema(
+                {
+                    vol.Optional(
+                        CONF_LANGUAGES, default=aktuell or ha_sprache
+                    ): SelectSelector(
+                        SelectSelectorConfig(
+                            options=optionen,
+                            multiple=True,
+                            # Warum Dropdown (Chips) statt Checkboxen? Die
+                            # Reihenfolge bestimmt den Namen; Checkboxen stehen
+                            # immer in Listenreihenfolge, Chips in der
+                            # Reihenfolge des Hinzufügens. Nummerierte Einzel-
+                            # felder skalieren nicht (CH: 5+ Sprachen).
+                            mode=SelectSelectorMode.DROPDOWN,
+                        )
+                    ),
+                }
+            ),
+        )
+
+    def _api_eintraege(self) -> list:
+        """Geladene Ferien/Feiertage dieses Entries, die von der API stammen.
+
+        Warum aus den Daten statt aus /Countries (officialLanguages)? Die
+        Daten zeigen, was für genau diese Region wirklich ankommt (DE-BY: DE
+        und EN; EN fehlt in officialLanguages). Sind noch keine Daten geladen,
+        ist die Liste leer und das Formular bietet HA-Sprache + Auswahl.
+        Brückentag/Ostersonntag (feste Namen in 9 Sprachen) sind
+        ausgenommen, sonst würden Sprachen angeboten, die die API hier nicht
+        liefert.
+        """
+        sensoren = self.hass.data.get(DOMAIN, {}).get(self.config_entry.entry_id, {})
+        listen = []
+        # pylint: disable=protected-access
+        if sensoren.get("schulferien") is not None:
+            listen += sensoren["schulferien"]._ferien_info.get("ferien_liste", [])
+        if sensoren.get("feiertag") is not None:
+            listen += sensoren["feiertag"]._feiertags_info.get("feiertage_liste", [])
+        # pylint: enable=protected-access
+        return [e for e in listen if e.get("name_quelle", "api") == "api"]
+
+    async def _hole_sprachnamen(self, anzeige_sprache: str) -> dict:
+        """Lesbare Sprachnamen von der API ({"DE": "German"}), leer bei Fehler.
+
+        Ohne Namen zeigt das Formular nur die Codes — es bleibt bedienbar,
+        deshalb wird ein Fehler nur geloggt.
+        """
+        try:
+            async with aiohttp.ClientSession(timeout=DEFAULT_TIMEOUT) as session:
+                async with session.get(
+                    API_URL_LANGUAGES, params={"languageIsoCode": anzeige_sprache}
+                ) as response:
+                    response.raise_for_status()
+                    daten = await response.json()
+            namen = {}
+            for eintrag in daten:
+                texte = {n.get("language"): n.get("text") for n in eintrag.get("name", [])}
+                text = texte.get(anzeige_sprache) or texte.get("EN")
+                if text:
+                    namen[str(eintrag.get("isoCode", "")).upper()] = text
+            return namen
+        except (aiohttp.ClientError, TimeoutError, ValueError, TypeError,
+                AttributeError) as error:
+            _LOGGER.warning("Sprachnamen konnten nicht geladen werden: %s", error)
+            return {}

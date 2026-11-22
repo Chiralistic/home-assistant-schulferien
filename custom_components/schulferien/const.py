@@ -2,6 +2,11 @@
 
 DOMAIN = "schulferien"
 
+# Options-Flow: Sprachen der Ferien-/Feiertagsnamen, z.B. ["DE", "EN"] ->
+# "Herbstferien / Autumn Holidays". Fehlt die Option, gilt die HA-Sprache.
+CONF_LANGUAGES = "languages"
+API_URL_LANGUAGES = "https://openholidaysapi.org/Languages"
+
 # Dokumentierte OpenHolidaysAPI-Endpunkte; kein /Holidays/-Fallback.
 API_URL_FERIEN = "https://openholidaysapi.org/SchoolHolidays"
 API_URL_FEIERTAGE = "https://openholidaysapi.org/PublicHolidays"

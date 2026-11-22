@@ -3,6 +3,7 @@
 Zentrale Funktionen:
 - fetch_data: HTTP-Abfrage der OpenHolidaysAPI mit Fallback-Logik
 - parse_daten: Konvertierung der API-JSON-Response in interne Datenstruktur
+- waehle_namen / sprachen_aus_liste: Namen in den gewählten Sprachen
 - load_bridge_days: Laden der Brückentage aus bridge_days.yaml
 - compute_region_slug: Normalisierung von Region-Codes (DE-BY → BY)
 """
@@ -84,6 +85,110 @@ async def fetch_data(
 
     return {}
 
+# Feste Namen, die nicht von der API kommen (Brückentage aus bridge_days.yaml,
+# per Gauss ergänzter Ostersonntag). Gleiche Struktur wie die API-Namen
+# ({SPRACHE: Text}), damit waehle_namen sie genauso behandelt.
+# Warum genau diese Sprachen? Es sind die Sprachen der translations/.
+# Fehlt eine gewählte Sprache, greift der Fallback in waehle_namen (Deutsch
+# zuerst = bisheriges Verhalten).
+BRUECKENTAG_NAMEN = {
+    "DE": "Brückentag", "EN": "Bridge Day", "NL": "Brugdag",
+    "FR": "Jour de pont", "IT": "Ponte", "ES": "Puente",
+    "PT": "Ponte", "DA": "Klemmedag", "TR": "Köprü Günü",
+}
+OSTERSONNTAG_NAMEN = {
+    "DE": "Ostersonntag", "EN": "Easter Sunday", "NL": "Eerste Paasdag",
+    "FR": "Dimanche de Pâques", "IT": "Domenica di Pasqua",
+    "ES": "Domingo de Pascua", "PT": "Domingo de Páscoa",
+    "DA": "Påskedag", "TR": "Paskalya Pazarı",
+}
+
+# Trenner bei mehreren Sprachen: "Herbstferien / Autumn Holidays"
+NAMEN_TRENNER = " / "
+
+
+def normalisiere_sprachen(sprachen) -> list:
+    """Bringt Sprachcodes in API-Form: 2-stellig, uppercase, ohne Duplikate.
+
+    Warum? Das Options-Formular (LanguageSelector) liefert HA-Codes wie
+    "de" oder "pt-BR", die API nutzt "DE"/"PT". Die Reihenfolge bleibt
+    erhalten, denn sie bestimmt die Reihenfolge im zusammengesetzten Namen.
+    """
+    ergebnis = []
+    for sprache in sprachen or []:
+        if not isinstance(sprache, str) or len(sprache) < 2:
+            continue
+        code = sprache[:2].upper()
+        if code not in ergebnis:
+            ergebnis.append(code)
+    return ergebnis
+
+
+def waehle_namen(namen: dict, sprachen: list) -> str:
+    """Setzt den Anzeigenamen aus den gewählten Sprachen zusammen.
+
+    Warum nicht einfach eine Sprache? Haushalte können mehrsprachig sein
+    (z.B. HA auf Englisch, Kinder lesen Deutsch). Die Namen sind Daten,
+    keine Frontend-Übersetzungen — jede Person sieht denselben Text, also
+    müssen alle gewünschten Sprachen im Namen selbst stehen.
+
+    - Gleiche Texte in mehreren Sprachen werden nur einmal gezeigt
+      ("Pfingstferien / Pfingstferien" wäre Rauschen).
+    - Hat der Eintrag keine der gewählten Sprachen, kommt der erste
+      vorhandene Name — lieber eine fremde Sprache als "Unbekannt".
+
+    Args:
+        namen: {SPRACHE: Text} in API-Reihenfolge.
+        sprachen: Gewählte Sprachen (API-Form, siehe normalisiere_sprachen).
+
+    Returns:
+        str: Anzeigename, "Unbekannt" nur wenn gar kein Name vorhanden ist.
+    """
+    texte = []
+    for sprache in sprachen or []:
+        text = namen.get(sprache)
+        if text and text not in texte:
+            texte.append(text)
+    if texte:
+        return NAMEN_TRENNER.join(texte)
+    return next(iter(namen.values()), "Unbekannt")
+
+
+def _namen_aus_eintrag(eintrag: dict) -> dict:
+    """Extrahiert {SPRACHE: Text} aus dem API-Feld "name".
+
+    Die API liefert ohne languageIsoCode alle Sprachen, z.B.
+    [{"language": "DE", "text": "Herbstferien"},
+     {"language": "EN", "text": "Autumn Holidays"}].
+    Einträge ohne "language" (ältere Mocks/Antworten) landen unter "".
+    """
+    if "name" not in eintrag:
+        return {}
+    if not eintrag["name"]:
+        # Bestandsverhalten: ein leeres name-Array gilt als kaputte Antwort
+        # (parse_daten -> RuntimeError), nicht als "Unbekannt".
+        raise IndexError("Leeres name-Array")
+    namen = {}
+    for variante in eintrag["name"]:
+        sprache = str(variante.get("language") or "").upper()
+        namen.setdefault(sprache, variante["text"])
+    return namen
+
+
+def sprachen_aus_liste(liste: list) -> list:
+    """Alle Sprachen, in denen die geladenen Einträge Namen haben.
+
+    Warum? Das Options-Formular soll nur Sprachen anbieten, die die API für
+    diese Region wirklich liefert (für DE-BY: DE und EN), statt aller ~30
+    Sprachen der API, von denen die meisten hier nie vorkommen.
+    """
+    sprachen = []
+    for eintrag in liste or []:
+        for sprache in eintrag.get("namen", {}):
+            if sprache and sprache not in sprachen:
+                sprachen.append(sprache)
+    return sprachen
+
 
 def compute_region_slug(land: str, region: str) -> str:
     """Compute a normalized region slug by stripping the country prefix.
@@ -137,7 +242,7 @@ async def load_bridge_days(bridge_days_path: str) -> list:
         return []
 
 
-def parse_daten(json_daten, brueckentage=None, typ="ferien"):
+def parse_daten(json_daten, brueckentage=None, typ="ferien", sprachen=None):
     """
     Verarbeitet die JSON-Daten und fügt Brückentage oder Feiertage hinzu.
 
@@ -149,9 +254,12 @@ def parse_daten(json_daten, brueckentage=None, typ="ferien"):
         json_daten (dict): JSON-Daten von der API.
         brueckentage (list, optional): Brückentage.
         typ (str): Datentyp ("ferien" oder "feiertage").
+        sprachen (list, optional): Sprachen für den Anzeigenamen (API-Form,
+            z.B. ["DE", "EN"]). Ohne Angabe: erster Name der API, wie bisher.
 
     Returns:
-        list: Verarbeitete Daten.
+        list: Verarbeitete Daten. Jeder Eintrag hat "name" (Anzeigename)
+        und "namen" ({SPRACHE: Text}, für das Options-Formular).
     """
     # API-Response muss eine Liste sein — Dict bei Fehler abfangen
     if not isinstance(json_daten, list):
@@ -165,10 +273,11 @@ def parse_daten(json_daten, brueckentage=None, typ="ferien"):
                 _LOGGER.warning("Eintrag ohne gültiges Start-/Enddatum gefunden: %s", eintrag)
                 continue
 
-            # Lokalisierter Name extrahieren — Fallback auf "Unbekannt"
-            name = eintrag.get("name", [{"text": "Unbekannt"}])[0]["text"]
+            # Alle Sprachvarianten behalten, Anzeigename daraus bilden
+            namen = _namen_aus_eintrag(eintrag)
             liste.append({
-                "name": name,
+                "name": waehle_namen(namen, sprachen),
+                "namen": namen,
                 "start_datum": datetime.fromisoformat(eintrag["startDate"]).date(),
                 "end_datum": datetime.fromisoformat(eintrag["endDate"]).date(),
             })
@@ -179,7 +288,9 @@ def parse_daten(json_daten, brueckentage=None, typ="ferien"):
                 try:
                     datum = datetime.strptime(tag, "%d.%m.%Y").date()
                     liste.append({
-                        "name": "Brückentag",
+                        "name": waehle_namen(BRUECKENTAG_NAMEN, sprachen),
+                        "namen": dict(BRUECKENTAG_NAMEN),
+                        "name_quelle": "fest",
                         "start_datum": datum,
                         "end_datum": datum,
                     })

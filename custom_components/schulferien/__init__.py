@@ -37,7 +37,17 @@ async def async_setup_entry(hass, entry):
     # Beide Entity-Types gleichzeitig laden (sensor vor binary_sensor)
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
+    # Options-Änderung (Sprachen) -> Entry neu laden. Warum Reload statt
+    # die Namen live umzuschreiben? Die Sensoren lesen die Sprachen beim
+    # Erstellen; ein Reload baut sie neu und holt die Daten einmal frisch.
+    entry.async_on_unload(entry.add_update_listener(_async_update_listener))
+
     return True
+
+
+async def _async_update_listener(hass, entry):
+    """Lädt den Entry nach einer Options-Änderung neu."""
+    await hass.config_entries.async_reload(entry.entry_id)
 
 async def async_unload_entry(hass, entry):
     """Unload a config entry.

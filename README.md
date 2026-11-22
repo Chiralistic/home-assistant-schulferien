@@ -156,6 +156,12 @@ Um Schulferien aus mehreren Bundesländern anzuzeigen, füge einfach weitere Bl�
 | Niedersachsen | `de` | `ni` | `sensor.schulferien_de_ni` |
 | Österreich (Burgenland) | `at` | `at-1` | `sensor.schulferien_at_at_1` |
 
+### Sprache der Namen
+
+Die Namen der Ferien und Feiertage (z.B. „Herbstferien“) kommen in der Sprache von Home Assistant. Unter Einstellungen -> Geräte & Dienste -> Schulferien -> **Konfigurieren** kannst du andere oder mehrere Sprachen wählen. Mehrere Sprachen werden in der Reihenfolge verbunden, in der du sie hinzufügst, z.B. `Herbstferien / Autumn Holidays`. Das gilt für die Kalender und die Sensor-Attribute.
+
+Angeboten werden die Sprachen, die die OpenHolidays API für deine Region liefert (für Deutschland: Deutsch und Englisch). Fehlt eine gewählte Sprache bei einem Eintrag, wird der erste verfügbare Name verwendet. Ohne Auswahl bleibt es bei der Home-Assistant-Sprache.
+
 ## Deinstallation
 
 1. Entferne "Schulferien" unter Einstellungen -> Geräte & Dienste
@@ -284,6 +290,12 @@ To display school holidays from multiple states, simply add more blocks and adju
 | Baden-Württemberg | `de` | `bw` | `sensor.schulferien_de_bw` |
 | Lower Saxony | `de` | `ni` | `sensor.schulferien_de_ni` |
 | Austria (Burgenland) | `at` | `at-1` | `sensor.schulferien_at_at_1` |
+
+### Language of the names
+
+The names of school and public holidays (e.g. "Autumn Holidays") come in the Home Assistant language. Under Settings -> Devices & services -> Schulferien -> **Configure** you can choose other or several languages. Several languages are joined in the order you add them, e.g. `Herbstferien / Autumn Holidays`. This applies to the calendars and the sensor attributes.
+
+The form offers the languages the OpenHolidays API provides for your region (for Germany: German and English). If a chosen language is missing for an entry, the first available name is used. With nothing selected, the Home Assistant language is used.
 
 ## Uninstall
 
@@ -444,6 +456,12 @@ To display school holidays from multiple states, simply add more blocks and adju
 | Baden-Württemberg | `de` | `bw` | `sensor.schulferien_de_bw` |
 | Lower Saxony | `de` | `ni` | `sensor.schulferien_de_ni` |
 | Austria (Burgenland) | `at` | `at-1` | `sensor.schulferien_at_at_1` |
+
+### Language of the names
+
+The names of school and public holidays (e.g. "Autumn Holidays") come in the Home Assistant language. Under Settings -> Devices & services -> Schulferien -> **Configure** you can choose other or several languages. Several languages are joined in the order you add them, e.g. `Herbstferien / Autumn Holidays`. This applies to the calendars and the sensor attributes.
+
+The form offers the languages the OpenHolidays API provides for your region (for Germany: German and English). If a chosen language is missing for an entry, the first available name is used. With nothing selected, the Home Assistant language is used.
 
 ## Uninstall
 

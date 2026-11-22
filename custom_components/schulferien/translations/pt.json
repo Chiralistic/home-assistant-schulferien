@@ -57,5 +57,16 @@
         }
       }
     }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Idiomas dos nomes",
+        "description": "Os nomes vêm da OpenHolidays API; só são listados os idiomas que ela fornece para esta região. Vários idiomas são unidos na ordem em que foram adicionados, por exemplo `Herbstferien / Autumn Holidays`. Para mudar a ordem, remova e adicione de novo. Sem seleção, é usado o idioma do Home Assistant.",
+        "data": {
+          "languages": "Idiomas"
+        }
+      }
+    }
   }
 }

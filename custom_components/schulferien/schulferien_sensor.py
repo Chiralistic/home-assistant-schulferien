@@ -16,7 +16,9 @@ from homeassistant.helpers.event import async_track_time_change
 from homeassistant.components.sensor import SensorEntity, SensorEntityDescription
 from homeassistant.util import dt as dt_util
 import aiohttp
-from .api_utils import fetch_data, parse_daten, DEFAULT_TIMEOUT, compute_region_slug
+from .api_utils import (
+    fetch_data, parse_daten, DEFAULT_TIMEOUT, compute_region_slug, normalisiere_sprachen,
+)
 from .fetch_state import FetchState, validate_records
 from .const import (
     API_URL_FERIEN,
@@ -81,6 +83,8 @@ class SchulferienSensor(SensorEntity):
             "region_name": config["region_name"],
             # iso_code wird in async_added_to_hass aus HA konfiguriert
             "iso_code": "DE",
+            # Sprachen aus dem Options-Flow (leer = HA-Sprache, siehe anzeige_sprachen)
+            "sprachen": normalisiere_sprachen(config.get("sprachen")),
         }
         # Brückentage aus bridge_days.yaml — manuell konfigurierte Daten
         self._brueckentage = config.get("brueckentage", [])
@@ -331,14 +335,27 @@ class SchulferienSensor(SensorEntity):
             self._ferien_info.get("letzter_versuch"),
         )
 
+    def anzeige_sprachen(self):
+        """Sprachen für die Namen: Options-Auswahl, sonst die HA-Sprache.
+
+        Warum die HA-Sprache als Default? Das war das Verhalten vor dem
+        Options-Flow (languageIsoCode = HA-Sprache) — bestehende
+        Installationen sehen ohne Konfiguration dieselben Namen wie vorher.
+        """
+        return self._location["sprachen"] or [self._location["iso_code"]]
+
     def get_api_parameter(self, heute):
-        """Erstellt die API-Parameter für die Anfrage."""
+        """Erstellt die API-Parameter für die Anfrage.
+
+        Warum kein languageIsoCode? Ohne den Parameter liefert die API die
+        Namen in allen Sprachen in einer Antwort; die Auswahl passiert in
+        parse_daten. Ein Abruf reicht so für beliebig viele Sprachen.
+        """
         return {
             "countryIsoCode": self._location["land"],
             "subdivisionCode": self._location["region"],
             "validFrom": (heute - timedelta(days=30)).strftime("%Y-%m-%d"),
             "validTo": (heute + timedelta(days=365)).strftime("%Y-%m-%d"),
-            "languageIsoCode": self._location["iso_code"],
         }
 
     async def hole_ferien_daten(self, api_parameter, session):
@@ -349,7 +366,9 @@ class SchulferienSensor(SensorEntity):
     def verarbeite_ferien_daten(self, ferien_daten, heute):
         """Verarbeitet die erhaltenen Ferien-Daten."""
         try:
-            ferien_liste = parse_daten(ferien_daten, self._brueckentage)
+            ferien_liste = parse_daten(
+                ferien_daten, self._brueckentage, sprachen=self.anzeige_sprachen()
+            )
             self._ferien_info["ferien_liste"] = ferien_liste
         # breit faengen (wie FeiertagSensor): parse_daten wirft bei kaputten
         # API-Daten RuntimeError statt ValueError — schmal gefangen wuerde der
